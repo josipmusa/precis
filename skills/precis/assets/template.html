@@ -434,31 +434,34 @@ table.files .note { color: var(--ink-soft); font-size: 12.5px; margin-top: 3px; 
    token in a hunk is enough to push the whole page sideways on a phone. */
 .step { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
 .step > .head { display: flex; gap: 14px; padding: 18px 20px 0; }
-/* The marker is the checkbox: it carries the number until it is ticked, then
-   carries the tick. One control, no second column. */
+/* A number inside a box reads as a badge, not as something you click. So the
+   box carries nothing but a tick: ghosted at rest so the affordance is legible,
+   solid once it is ticked. The ordinal moves into the heading, where it is
+   wayfinding rather than a control. */
 .tick {
-  flex: none; width: 28px; height: 28px; border-radius: 9px; cursor: pointer;
-  border: 1.5px solid var(--line); background: var(--panel-soft); color: var(--ink-soft);
-  font: 650 13px/1 var(--sans); display: grid; place-items: center; padding: 0;
+  flex: none; width: 26px; height: 26px; margin-top: 1px; border-radius: 7px;
+  cursor: pointer; padding: 0; display: grid; place-items: center;
+  border: 1.5px solid var(--ink-faint); background: var(--panel-soft); color: var(--ink-faint);
   transition: background .14s ease, border-color .14s ease, color .14s ease;
 }
+.tick .mark { font-size: 16px; line-height: 1; opacity: .3; transition: opacity .14s ease; }
 .tick:hover { border-color: var(--accent); color: var(--accent-ink); }
-.tick .mark { display: none; font-size: 15px; }
+.step:hover .tick .mark, .tick:hover .mark { opacity: .6; }
 .step.done .tick { background: var(--accent); border-color: var(--accent); color: #fff; }
 :root[data-theme="dark"] .step.done .tick { color: #10201c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .step.done .tick { color: #10201c; } }
-.step.done .tick .num { display: none; }
-.step.done .tick .mark { display: block; }
+.step.done .tick .mark, .step.done:hover .tick .mark { opacity: 1; }
 .step.done { opacity: .55; }
 .step.done:hover, .step.done:focus-within { opacity: 1; }
 .step.done > .head h3 { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: var(--ink-faint); }
 .step.flash { outline: 2px solid var(--accent); outline-offset: 2px; }
 .step .htext { min-width: 0; flex: 1; }
 .step h3 { font-size: 17px; }
+.step h3 .ord { font: 650 12.5px/1 var(--mono); color: var(--ink-faint); margin-right: 9px; vertical-align: 1px; }
 .step .why { font: 15px/1.65 var(--serif); color: var(--ink-soft); margin-top: 7px; max-width: 64ch; }
 .step .path { font: 12px/1.5 var(--mono); color: var(--ink-faint); margin-top: 8px; word-break: break-all; }
 .step .hunks { padding: 16px 20px 20px; display: grid; gap: 12px; }
-.step .tail { padding: 14px 20px 18px 62px; }
+.step .tail { padding: 14px 20px 18px 60px; }
 /* The one place in the report that asks the reader for something. */
 .q { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-wash); border-radius: 9px; padding: 12px 14px; }
 .q .mk { color: var(--accent-ink); font-weight: 700; flex: none; line-height: 1.5; }
@@ -562,7 +565,7 @@ footer .creed { margin-top: 22px; font-size: 13px; color: var(--ink-soft); max-w
   .skip .filelist { columns: 1; }
   .step > .head { padding: 16px 16px 0; gap: 11px; }
   .step .hunks { padding: 14px 16px 16px; }
-  .step .tail { padding: 12px 16px 16px 55px; }
+  .step .tail { padding: 12px 16px 16px 53px; }
   .headline { max-width: none; }
   .beat { grid-template-columns: minmax(0, 1fr); gap: 3px; }
   .beat .bl { text-align: left; line-height: 1.5; }
@@ -1635,14 +1638,16 @@ function reviewSection() {
   return node;
 }
 
-function tickButton(key, n, article) {
-  const btn = h("button", { class: "tick", type: "button", title: "Mark as done" },
-    h("span", { class: "num", text: String(n) }),
+function tickButton(key, article) {
+  const btn = h("button", { class: "tick", type: "button" },
     h("span", { class: "mark", text: "✓" }));
   const apply = () => {
     const done = TICKS.has(key);
     article.classList.toggle("done", done);
     btn.setAttribute("aria-pressed", done ? "true" : "false");
+    const label = done ? "Mark as not done" : "Mark as done";
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
   };
   btn.addEventListener("click", () => {
     if (TICKS.has(key)) TICKS.delete(key); else TICKS.add(key);
@@ -1672,9 +1677,9 @@ function stepItem(step) {
   const article = h("article", { class: "step", id: "step-" + step.n });
   article.append(
     h("div", { class: "head" },
-      tickButton("s" + step.n, step.n, article),
+      tickButton("s" + step.n, article),
       h("div", { class: "htext" },
-        h("h3", { text: step.title }),
+        h("h3", {}, h("span", { class: "ord", text: String(step.n) }), step.title),
         h("p", { class: "why" }, prose(step.why)),
         showPath ? h("div", { class: "path", text: step.path }) : null)),
     hunks);
@@ -1685,11 +1690,11 @@ function checkItem(check, n) {
   const article = h("article", { class: "step check", id: "check-" + n });
   article.append(
     h("div", { class: "head" },
-      tickButton("c" + n, n, article),
+      tickButton("c" + n, article),
       h("div", { class: "htext" },
         h("div", { style: "margin-bottom:7px" },
           h("span", { class: "tag", text: ATTN_LABEL[check.kind] || check.kind })),
-        h("h3", { text: check.title }),
+        h("h3", {}, h("span", { class: "ord", text: String(n) }), check.title),
         h("p", { class: "why" }, prose(check.why)),
         check.path ? h("div", { class: "path", text: check.path }) : null)),
     h("div", { class: "tail" },
