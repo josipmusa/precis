@@ -1,0 +1,1232 @@
+{
+  "schema_version": "1.0",
+  "source": {
+    "kind": "github_pr",
+    "title": "Fix duplicate refunds when Stripe retries a webhook",
+    "identifier": "#1184",
+    "url": "https://github.com/meridian/orders-service/pull/1184",
+    "repo": "meridian/orders-service",
+    "author": "dana-kwon",
+    "base": {
+      "ref": "main",
+      "sha": "2351c1610f4c83438b0401ea84c84418f608b044"
+    },
+    "head": {
+      "ref": "fix/webhook-single-delivery",
+      "sha": "15c100d75e98776c184210659262365a3bef56f3"
+    },
+    "commits": [
+      {
+        "sha": "9a2f1c7",
+        "subject": "Add EventClaim guard backed by webhook_events"
+      },
+      {
+        "sha": "c40b83e",
+        "subject": "Claim the event before touching the ledger"
+      },
+      {
+        "sha": "15c100d",
+        "subject": "Pin the no-op-on-retry behaviour in tests"
+      }
+    ],
+    "linked_issues": [
+      {
+        "id": "MER-2231",
+        "title": "14 orders were refunded twice on 2 August",
+        "url": "https://meridian.example.com/issues/MER-2231"
+      }
+    ],
+    "description": "Stripe retried refund webhooks during the 2 August incident and we recorded the refund twice for 14 orders (MER-2231).\n\nThis adds an EventClaim guard: handlers claim the Stripe event id in webhook_events before they touch the ledger, so a retried delivery is a no-op. The unique index on webhook_events.event_id already exists, so there is no migration.\n\nI will follow up with a backfill for the 14 affected orders.",
+    "generated_by": "precis 0.1.0",
+    "generated_at": "2026-08-08T09:14:22Z"
+  },
+  "coverage": {
+    "tier": "full",
+    "hunks_total": 6,
+    "hunks_read": 6,
+    "files_total": 3,
+    "files_read": 3,
+    "note": "Small change; every hunk was read in full.",
+    "limitations": []
+  },
+  "stats": {
+    "files_changed": 3,
+    "additions": 73,
+    "deletions": 2,
+    "hunks": 6,
+    "signal_ratio": 0.71,
+    "changed_lines_by_kind": {
+      "new_logic": 66,
+      "modified_logic": 9
+    },
+    "changed_lines_by_role": {
+      "api": 9,
+      "domain": 44,
+      "tests": 22
+    }
+  },
+  "story": {
+    "headline": "Refund and dispute webhooks now claim their event id before touching the ledger.",
+    "paragraph": "Stripe redelivers a webhook until it receives a 2xx, and a slow first attempt can succeed after the retry has already been sent. On 2 August that produced a second `record_refund` call for 14 orders. This change introduces `EventClaim`, which inserts the Stripe event id into `webhook_events` with `ON CONFLICT DO NOTHING`; the insert either wins and returns True, or loses and returns False. `handle_refund` claims before it writes to the ledger, so a second delivery returns 200 without side effects. The same guard was added to `handle_dispute`, which the description does not mention.",
+    "confidence": "high",
+    "evidence": [
+      "pr_description",
+      "linked_issue",
+      "commit_messages",
+      "code"
+    ],
+    "caveat": null,
+    "intent_delta": {
+      "stated": "Stop recording a refund twice when Stripe retries the webhook delivery.",
+      "also_does": [
+        {
+          "summary": "Applies the same claim guard to dispute webhooks, which the description does not mention.",
+          "where": [
+            "src/meridian/webhooks/handlers.py"
+          ],
+          "hunk_ids": [
+            "h4"
+          ],
+          "kind": "drive_by"
+        }
+      ],
+      "not_done": [
+        {
+          "summary": "The description promises a backfill for the 14 double-refunded orders; no backfill script or migration appears in the diff.",
+          "note": "The description says it is a follow-up, so this is expected here."
+        }
+      ]
+    }
+  },
+  "change_map": {
+    "summary": "One new guard, two call sites in the webhook entrypoint, and the tests that pin it.",
+    "groups": [
+      {
+        "id": "g-dedupe",
+        "role": "domain",
+        "label": "Delivery deduplication",
+        "summary": "The new claim primitive.",
+        "files": [
+          {
+            "path": "src/meridian/webhooks/dedupe.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 44,
+            "deletions": 0,
+            "hunk_ids": [
+              "h1"
+            ],
+            "note": "`EventClaim.claim` is the entire mechanism: one insert, one boolean."
+          }
+        ]
+      },
+      {
+        "id": "g-entrypoint",
+        "role": "api",
+        "label": "Stripe webhook entrypoint",
+        "summary": "Where the guard is wired in and called.",
+        "files": [
+          {
+            "path": "src/meridian/webhooks/handlers.py",
+            "status": "modified",
+            "change_kind": "modified_logic",
+            "significance": "core",
+            "additions": 9,
+            "deletions": 0,
+            "hunk_ids": [
+              "h2",
+              "h3",
+              "h4"
+            ],
+            "note": "Module-level `claims` instance, then an early return in each side-effecting handler."
+          }
+        ]
+      },
+      {
+        "id": "g-tests",
+        "role": "tests",
+        "label": "Handler tests",
+        "summary": "Fakes the guard and pins the no-op-on-retry behaviour.",
+        "files": [
+          {
+            "path": "tests/webhooks/test_refund_handler.py",
+            "status": "modified",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 20,
+            "deletions": 2,
+            "hunk_ids": [
+              "h5",
+              "h6"
+            ],
+            "note": "The new test is the clearest statement of the intended behaviour."
+          }
+        ]
+      }
+    ]
+  },
+  "behavior": {
+    "changed": true,
+    "note": null,
+    "summary": "A redelivered refund webhook used to reach the ledger a second time. It now stops at the claim and returns 200 without writing anything.",
+    "before": {
+      "kind": "sequence",
+      "title": "Before",
+      "lanes": [
+        {
+          "id": "stripe",
+          "label": "Stripe"
+        },
+        {
+          "id": "handler",
+          "label": "handle_refund"
+        },
+        {
+          "id": "ledger",
+          "label": "RefundLedger"
+        },
+        {
+          "id": "db",
+          "label": "orders DB"
+        }
+      ],
+      "edges": [
+        {
+          "from": "stripe",
+          "to": "handler",
+          "label": "charge.refunded",
+          "kind": "call",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "handler",
+          "to": "ledger",
+          "label": "record_refund()",
+          "kind": "call",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "ledger",
+          "to": "db",
+          "label": "INSERT refund",
+          "kind": "data",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "handler",
+          "to": "stripe",
+          "label": "200 OK",
+          "kind": "return",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "stripe",
+          "to": "handler",
+          "label": "charge.refunded (retry)",
+          "kind": "call",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "handler",
+          "to": "ledger",
+          "label": "record_refund()",
+          "kind": "call",
+          "emphasis": "removed"
+        },
+        {
+          "from": "ledger",
+          "to": "db",
+          "label": "INSERT refund (again)",
+          "kind": "data",
+          "emphasis": "removed"
+        },
+        {
+          "from": "handler",
+          "to": "stripe",
+          "label": "200 OK",
+          "kind": "return",
+          "emphasis": "unchanged"
+        }
+      ]
+    },
+    "after": {
+      "kind": "sequence",
+      "title": "After",
+      "lanes": [
+        {
+          "id": "stripe",
+          "label": "Stripe"
+        },
+        {
+          "id": "handler",
+          "label": "handle_refund"
+        },
+        {
+          "id": "events",
+          "label": "webhook_events"
+        },
+        {
+          "id": "ledger",
+          "label": "RefundLedger"
+        }
+      ],
+      "edges": [
+        {
+          "from": "stripe",
+          "to": "handler",
+          "label": "charge.refunded",
+          "kind": "call",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "handler",
+          "to": "events",
+          "label": "claim(event.id)",
+          "kind": "call",
+          "emphasis": "added",
+          "hunk_ids": [
+            "h3"
+          ]
+        },
+        {
+          "from": "events",
+          "to": "handler",
+          "label": "claimed",
+          "kind": "return",
+          "emphasis": "added"
+        },
+        {
+          "from": "handler",
+          "to": "ledger",
+          "label": "record_refund()",
+          "kind": "call",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "handler",
+          "to": "stripe",
+          "label": "200 OK",
+          "kind": "return",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "stripe",
+          "to": "handler",
+          "label": "charge.refunded (retry)",
+          "kind": "call",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "handler",
+          "to": "events",
+          "label": "claim(event.id)",
+          "kind": "call",
+          "emphasis": "added",
+          "hunk_ids": [
+            "h3"
+          ]
+        },
+        {
+          "from": "events",
+          "to": "handler",
+          "label": "already claimed",
+          "kind": "return",
+          "emphasis": "added"
+        },
+        {
+          "from": "handler",
+          "to": "stripe",
+          "label": "200 OK, no ledger write",
+          "kind": "return",
+          "emphasis": "changed"
+        }
+      ]
+    },
+    "deltas": [
+      {
+        "summary": "The second `record_refund` call disappears; the retry ends at the claim.",
+        "hunk_ids": [
+          "h1",
+          "h3"
+        ]
+      },
+      {
+        "summary": "Dispute deliveries gain the same early return.",
+        "hunk_ids": [
+          "h4"
+        ]
+      }
+    ]
+  },
+  "reading_order": {
+    "estimated_minutes": 4,
+    "preamble": "Three files, all worth reading. Start with the guard, then the two call sites, then the test that names the behaviour.",
+    "steps": [
+      {
+        "n": 1,
+        "title": "The claim itself",
+        "why": "This is the whole change. Everything else calls it or asserts on it.",
+        "path": "src/meridian/webhooks/dedupe.py",
+        "hunk_ids": [
+          "h1"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h1",
+            "new_line": 19,
+            "text": "`ON CONFLICT DO NOTHING` is what makes this safe under concurrency: the loser gets rowcount 0 instead of an error."
+          },
+          {
+            "hunk_id": "h1",
+            "new_line": 36,
+            "text": "The claim commits when this `with` block exits, before the caller writes to the ledger."
+          }
+        ]
+      },
+      {
+        "n": 2,
+        "title": "The two call sites",
+        "why": "The guard only changes behaviour where it is invoked. Both side-effecting handlers get an early return; the description only mentions one of them.",
+        "path": "src/meridian/webhooks/handlers.py",
+        "hunk_ids": [
+          "h2",
+          "h3",
+          "h4"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h3",
+            "new_line": 35,
+            "text": "Placed after the payload is unpacked and before the ledger write, so a duplicate never reaches the ledger."
+          },
+          {
+            "hunk_id": "h4",
+            "new_line": 51,
+            "text": "The same guard on disputes. This is the part the PR description does not mention."
+          }
+        ]
+      },
+      {
+        "n": 3,
+        "title": "The behaviour, stated as a test",
+        "why": "`test_second_delivery_of_the_same_event_is_a_no_op` is the shortest description of what this PR is for.",
+        "path": "tests/webhooks/test_refund_handler.py",
+        "hunk_ids": [
+          "h5",
+          "h6"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h6",
+            "new_line": 30,
+            "text": "Two deliveries of the same event, one ledger entry."
+          }
+        ]
+      }
+    ],
+    "skippable": []
+  },
+  "attention": [
+    {
+      "kind": "concurrency",
+      "title": "The claim and the ledger write are separate transactions",
+      "why": "`claim` commits its insert and returns before `record_refund` runs. A delivery that fails after claiming leaves the event claimed and unprocessed, and the Stripe retry is then suppressed by the guard.",
+      "path": "src/meridian/webhooks/dedupe.py",
+      "hunk_ids": [
+        "h1",
+        "h3"
+      ]
+    },
+    {
+      "kind": "external_contract",
+      "title": "Suppressed deliveries still answer Stripe with 200",
+      "why": "Stripe stops retrying on a 2xx. A duplicate now gets 200 without any ledger write, which is what ends the retry loop.",
+      "path": "src/meridian/webhooks/handlers.py",
+      "hunk_ids": [
+        "h3",
+        "h4"
+      ]
+    },
+    {
+      "kind": "behavioral",
+      "title": "Dispute webhooks are deduplicated too",
+      "why": "`handle_dispute` gets the same early return. Any workflow that relied on repeat dispute deliveries reaching `open_dispute` sees one call instead of several.",
+      "path": "src/meridian/webhooks/handlers.py",
+      "hunk_ids": [
+        "h4"
+      ]
+    },
+    {
+      "kind": "security_surface",
+      "title": "The guard runs after signature verification, not before",
+      "why": "`verify_stripe_signature` still gates every delivery in `stripe_webhook`, so an unsigned payload cannot reach `claim` and cannot occupy an event id.",
+      "path": "src/meridian/webhooks/handlers.py",
+      "hunk_ids": [
+        "h2"
+      ]
+    }
+  ],
+  "seams": {
+    "detected": false,
+    "note": null
+  },
+  "hunks": {
+    "h1": {
+      "id": "h1",
+      "path": "src/meridian/webhooks/dedupe.py",
+      "language": "python",
+      "header": "@@ -0,0 +1,44 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 44,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "\"\"\"Single-delivery guard for inbound webhook events.",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "Stripe retries a delivery until it receives a 2xx, and it does not",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "guarantee that the previous attempt failed. Any handler with a side",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "effect has to claim the event id before performing it.",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "\"\"\"",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "from __future__ import annotations",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "import logging",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "from meridian.db import Pool",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "log = logging.getLogger(__name__)",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "_CLAIM = \"\"\"",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "INSERT INTO webhook_events (event_id, provider, claimed_at)",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "VALUES (%s, %s, now())",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "ON CONFLICT (event_id) DO NOTHING",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "\"\"\"",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "class EventClaim:",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"Claims webhook event ids so that a retried delivery is a no-op.\"\"\"",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    def __init__(self, pool: Pool) -> None:",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "        self._pool = pool",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "    def claim(self, event_id: str, provider: str = \"stripe\") -> bool:",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "        \"\"\"Return True when this delivery is the first to claim event_id.",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "        The insert is the lock. webhook_events.event_id is unique, so of",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "        two concurrent deliveries exactly one inserts a row and the other",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "        sees rowcount 0 without blocking.",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "        \"\"\"",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "        with self._pool.connection() as conn:",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "            claimed = conn.execute(_CLAIM, (event_id, provider)).rowcount == 1",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "        if not claimed:",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "            log.info(",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "                \"webhook.duplicate_delivery\",",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": "                extra={\"event_id\": event_id, \"provider\": provider},",
+          "old": null,
+          "new": 42
+        },
+        {
+          "t": "+",
+          "c": "            )",
+          "old": null,
+          "new": 43
+        },
+        {
+          "t": "+",
+          "c": "        return claimed",
+          "old": null,
+          "new": 44
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "core"
+    },
+    "h2": {
+      "id": "h2",
+      "path": "src/meridian/webhooks/handlers.py",
+      "language": "python",
+      "header": "@@ -4,11 +4,13 @@",
+      "old_start": 4,
+      "old_lines": 11,
+      "new_start": 4,
+      "new_lines": 13,
+      "section": "from fastapi import APIRouter, Request, Response",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "from meridian.db import pool",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "from meridian.refunds.ledger import RefundLedger",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "from meridian.webhooks.dedupe import EventClaim",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "from meridian.webhooks.signature import verify_stripe_signature",
+          "old": 7,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 8,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "router = APIRouter(prefix=\"/webhooks\")",
+          "old": 9,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "log = logging.getLogger(__name__)",
+          "old": 10,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "ledger = RefundLedger(pool)",
+          "old": 11,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "claims = EventClaim(pool)",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 12,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 13,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "@router.post(\"/stripe\")",
+          "old": 14,
+          "new": 16
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "core"
+    },
+    "h3": {
+      "id": "h3",
+      "path": "src/meridian/webhooks/handlers.py",
+      "language": "python",
+      "header": "@@ -30,6 +32,9 @@",
+      "old_start": 30,
+      "old_lines": 6,
+      "new_start": 32,
+      "new_lines": 9,
+      "section": "def handle_refund(event: Event) -> Response:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    charge = event.data[\"object\"]",
+          "old": 30,
+          "new": 32
+        },
+        {
+          "t": " ",
+          "c": "    refund = charge[\"refunds\"][\"data\"][0]",
+          "old": 31,
+          "new": 33
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 32,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "    if not claims.claim(event.id):",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "        return Response(status_code=200)",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": " ",
+          "c": "    ledger.record_refund(",
+          "old": 33,
+          "new": 38
+        },
+        {
+          "t": " ",
+          "c": "        order_id=charge[\"metadata\"][\"order_id\"],",
+          "old": 34,
+          "new": 39
+        },
+        {
+          "t": " ",
+          "c": "        amount_cents=refund[\"amount\"],",
+          "old": 35,
+          "new": 40
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "core"
+    },
+    "h4": {
+      "id": "h4",
+      "path": "src/meridian/webhooks/handlers.py",
+      "language": "python",
+      "header": "@@ -42,6 +47,10 @@",
+      "old_start": 42,
+      "old_lines": 6,
+      "new_start": 47,
+      "new_lines": 10,
+      "section": "def handle_refund(event: Event) -> Response:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 42,
+          "new": 47
+        },
+        {
+          "t": " ",
+          "c": "def handle_dispute(event: Event) -> Response:",
+          "old": 43,
+          "new": 48
+        },
+        {
+          "t": " ",
+          "c": "    charge = event.data[\"object\"]",
+          "old": 44,
+          "new": 49
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 50
+        },
+        {
+          "t": "+",
+          "c": "    if not claims.claim(event.id):",
+          "old": null,
+          "new": 51
+        },
+        {
+          "t": "+",
+          "c": "        return Response(status_code=200)",
+          "old": null,
+          "new": 52
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 53
+        },
+        {
+          "t": " ",
+          "c": "    ledger.open_dispute(",
+          "old": 45,
+          "new": 54
+        },
+        {
+          "t": " ",
+          "c": "        order_id=charge[\"metadata\"][\"order_id\"],",
+          "old": 46,
+          "new": 55
+        },
+        {
+          "t": " ",
+          "c": "        amount_cents=charge[\"amount\"],",
+          "old": 47,
+          "new": 56
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "core"
+    },
+    "h5": {
+      "id": "h5",
+      "path": "tests/webhooks/test_refund_handler.py",
+      "language": "python",
+      "header": "@@ -11,7 +11,14 @@",
+      "old_start": 11,
+      "old_lines": 7,
+      "new_start": 11,
+      "new_lines": 14,
+      "section": "def ledger(monkeypatch):",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    return recorder",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": "-",
+          "c": "def test_records_refund_against_the_order(ledger):",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "@pytest.fixture()",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "def claims(monkeypatch):",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "    guard = FakeEventClaim()",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "    monkeypatch.setattr(handlers, \"claims\", guard)",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "    return guard",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "def test_records_refund_against_the_order(ledger, claims):",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": " ",
+          "c": "    event = stripe_refund_event(order_id=\"ord_8812\", amount_cents=2500)",
+          "old": 15,
+          "new": 22
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 16,
+          "new": 23
+        },
+        {
+          "t": " ",
+          "c": "    response = handlers.handle_refund(event)",
+          "old": 17,
+          "new": 24
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    },
+    "h6": {
+      "id": "h6",
+      "path": "tests/webhooks/test_refund_handler.py",
+      "language": "python",
+      "header": "@@ -20,7 +27,18 @@",
+      "old_start": 20,
+      "old_lines": 7,
+      "new_start": 27,
+      "new_lines": 18,
+      "section": "def test_records_refund_against_the_order(ledger):",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    assert ledger.refunds == [(\"ord_8812\", 2500, \"usd\")]",
+          "old": 20,
+          "new": 27
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 21,
+          "new": 28
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 22,
+          "new": 29
+        },
+        {
+          "t": "-",
+          "c": "def test_ignores_unrelated_event_types(ledger):",
+          "old": 23,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "def test_second_delivery_of_the_same_event_is_a_no_op(ledger, claims):",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "    event = stripe_refund_event(order_id=\"ord_8812\", amount_cents=2500)",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "    first = handlers.handle_refund(event)",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "    second = handlers.handle_refund(event)",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "    assert first.status_code == 200",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "    assert second.status_code == 200",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "    assert ledger.refunds == [(\"ord_8812\", 2500, \"usd\")]",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "def test_ignores_unrelated_event_types(ledger, claims):",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": " ",
+          "c": "    event = stripe_refund_event(order_id=\"ord_8812\", event_type=\"charge.succeeded\")",
+          "old": 24,
+          "new": 42
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 25,
+          "new": 43
+        },
+        {
+          "t": " ",
+          "c": "    handlers.stripe_webhook_sync(event)",
+          "old": 26,
+          "new": 44
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    }
+  }
+}

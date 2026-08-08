@@ -1,0 +1,7545 @@
+{
+  "schema_version": "1.0",
+  "source": {
+    "kind": "github_pr",
+    "title": "Extract a single outbound HTTP client",
+    "identifier": "#1244",
+    "url": "https://github.com/meridian/orders-service/pull/1244",
+    "repo": "meridian/orders-service",
+    "author": "t-abadi",
+    "base": {
+      "ref": "main",
+      "sha": "264313e48f7c8bcb4bf6cef40d4669e98be97f32"
+    },
+    "head": {
+      "ref": "refactor/one-http-client",
+      "sha": "8673314d1f039ebfa6e85b8ff784c85178bf3721"
+    },
+    "commits": [
+      {
+        "sha": "a1c8f30",
+        "subject": "Add meridian.http.HttpClient"
+      },
+      {
+        "sha": "44b19de",
+        "subject": "Move backoff into meridian.http, add jitter"
+      },
+      {
+        "sha": "0f2e7a5",
+        "subject": "config/http.yaml"
+      },
+      {
+        "sha": "9db4411",
+        "subject": "Point payments at the shared client"
+      },
+      {
+        "sha": "6c07e82",
+        "subject": "Point shipping and tax at the shared client"
+      },
+      {
+        "sha": "3aa5f19",
+        "subject": "Point notifications at the shared client"
+      },
+      {
+        "sha": "b7e0c24",
+        "subject": "Delete the four _http.py copies"
+      },
+      {
+        "sha": "1e93f77",
+        "subject": "Vendor httpstub 0.5.0 for the transport stub"
+      },
+      {
+        "sha": "f04c8ab",
+        "subject": "poetry lock, pnpm install, regen clients"
+      },
+      {
+        "sha": "8673314",
+        "subject": "Flag single-step checkout at 5%, bump CI node"
+      }
+    ],
+    "linked_issues": [
+      {
+        "id": "MER-2402",
+        "title": "Four copies of the same HTTP wrapper have drifted apart",
+        "url": "https://meridian.example.com/issues/MER-2402"
+      }
+    ],
+    "description": "We have four near-identical _http.py wrappers (payments, shipping, tax, notifications). They were copy-pasted and have drifted: different timeouts, different attempt counts, different logging.\n\nThis replaces all four with meridian.http.HttpClient. Per-service behaviour moves into config/http.yaml so the differences are visible in one place instead of spread across four modules. Call sites change one import and one call each; the public functions keep their signatures.\n\nNo behaviour change intended - this is a refactor. Lockfiles and generated clients are regenerated in the last commit.",
+    "generated_by": "precis 0.1.0",
+    "generated_at": "2026-08-08T10:02:55Z"
+  },
+  "coverage": {
+    "tier": "core",
+    "hunks_total": 55,
+    "hunks_read": 38,
+    "files_total": 40,
+    "files_read": 34,
+    "note": "Core and supporting hunks were read in full. Lockfiles and regenerated clients were reduced to their version and symbol deltas.",
+    "limitations": [
+      "docs/assets/http-topology.png is binary and was not analysed.",
+      "poetry.lock and clients/ts/pnpm-lock.yaml were read as dependency deltas only, not line by line.",
+      "gen/pb/shipping_pb2.py was read far enough to identify which messages changed; the serialised descriptor was not decoded.",
+      "The call-site files were read as a group after the first three matched the same two-line shape."
+    ]
+  },
+  "stats": {
+    "files_changed": 40,
+    "additions": 466,
+    "deletions": 351,
+    "hunks": 55,
+    "signal_ratio": 0.16,
+    "changed_lines_by_kind": {
+      "new_logic": 190,
+      "modified_logic": 3,
+      "rename": 78,
+      "deleted": 172,
+      "generated": 52,
+      "content": 65
+    },
+    "changed_lines_by_role": {
+      "domain": 344,
+      "api": 9,
+      "config": 37,
+      "tests": 73,
+      "generated": 17,
+      "build": 37,
+      "docs": 24,
+      "other": 19
+    }
+  },
+  "story": {
+    "headline": "Four copied HTTP wrappers collapse into one client, and the retry rules change while they do.",
+    "paragraph": "`payments`, `shipping`, `tax` and `notifications` each carried their own copy of the same `_http.py`, drifted apart in timeout, attempt count and delay. This change deletes all four and routes every outbound call through `meridian.http.HttpClient`, with the per-service differences moved into `config/http.yaml`. The description calls this a refactor with no behaviour change, and the call sites are indeed a two-line swap each. The client itself is not a merge of the four wrappers: it retries seven status codes instead of two, retries connection and timeout errors that previously propagated on the first failure, and waits a jittered exponential delay instead of a fixed one. The diff also carries two things the description does not mention: a single-step checkout feature flag enabled for 5% of customers, and a dependency and toolchain refresh.",
+    "confidence": "high",
+    "evidence": [
+      "pr_description",
+      "linked_issue",
+      "commit_messages",
+      "code"
+    ],
+    "caveat": null,
+    "intent_delta": {
+      "stated": "Replace four copied _http.py wrappers with one HttpClient and move per-service settings into config/http.yaml. No behaviour change intended.",
+      "also_does": [
+        {
+          "summary": "Changes what gets retried: seven status codes instead of two, plus connection, timeout and chunked-encoding errors that previously raised on the first failure.",
+          "where": [
+            "src/meridian/http/client.py",
+            "config/http.yaml"
+          ],
+          "hunk_ids": [
+            "h28",
+            "h9"
+          ],
+          "kind": "incidental"
+        },
+        {
+          "summary": "Adds a single-step checkout path behind a new flag, enabled for 5% of customers.",
+          "where": [
+            "src/meridian/api/checkout.py",
+            "config/flags.yaml"
+          ],
+          "hunk_ids": [
+            "h23",
+            "h24",
+            "h8"
+          ],
+          "kind": "scope_creep"
+        },
+        {
+          "summary": "Refreshes dependencies and the CI toolchain: 14 Python packages including a protobuf major bump, two npm packages, and CI Node 18 to 20.",
+          "where": [
+            "poetry.lock",
+            "clients/ts/pnpm-lock.yaml",
+            ".github/workflows/ci.yml"
+          ],
+          "hunk_ids": [
+            "h1"
+          ],
+          "kind": "scope_creep"
+        },
+        {
+          "summary": "Raises retry_attempts from 2 to 3 and enables jitter in the Windows collection agent, a component that shares no code with this service.",
+          "where": [
+            "config/windows-agent.ini"
+          ],
+          "hunk_ids": [
+            "h10"
+          ],
+          "kind": "drive_by"
+        }
+      ],
+      "not_done": [
+        {
+          "summary": "The description says per-service behaviour moves into config/http.yaml unchanged; the attempt counts there are higher than the wrappers used for three of the four services.",
+          "note": "Compare config/http.yaml in step 4 with the constants in the deleted wrappers."
+        }
+      ]
+    }
+  },
+  "change_map": {
+    "summary": "One new client, four deletions, twelve two-line call-site swaps, and a large tail of regenerated and unrelated files.",
+    "groups": [
+      {
+        "id": "g-http",
+        "role": "domain",
+        "label": "The new client",
+        "summary": "Where all outbound HTTP behaviour now lives.",
+        "files": [
+          {
+            "path": "src/meridian/http/client.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 91,
+            "deletions": 0,
+            "hunk_ids": [
+              "h28"
+            ],
+            "note": "The retry loop, the status set, and the exception set."
+          },
+          {
+            "path": "src/meridian/http/backoff.py",
+            "status": "renamed",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 12,
+            "deletions": 0,
+            "hunk_ids": [
+              "h26",
+              "h27"
+            ],
+            "moved_from": "src/meridian/util/backoff.py",
+            "note": "Moved from meridian.util and gained `decorrelated_jitter`."
+          },
+          {
+            "path": "src/meridian/http/__init__.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 7,
+            "deletions": 0,
+            "hunk_ids": [
+              "h25"
+            ],
+            "note": "Module-level default client instance."
+          }
+        ]
+      },
+      {
+        "id": "g-config",
+        "role": "config",
+        "label": "Retry configuration",
+        "summary": "Per-service attempts, delays and timeouts.",
+        "files": [
+          {
+            "path": "config/http.yaml",
+            "status": "added",
+            "change_kind": "content",
+            "significance": "core",
+            "additions": 31,
+            "deletions": 0,
+            "hunk_ids": [
+              "h9"
+            ],
+            "note": "The four wrappers' constants, restated and changed."
+          },
+          {
+            "path": "config/flags.yaml",
+            "status": "modified",
+            "change_kind": "content",
+            "significance": "supporting",
+            "additions": 3,
+            "deletions": 0,
+            "hunk_ids": [
+              "h8"
+            ],
+            "note": "Unrelated: the checkout flag."
+          },
+          {
+            "path": "config/windows-agent.ini",
+            "status": "modified",
+            "change_kind": "content",
+            "significance": "supporting",
+            "additions": 2,
+            "deletions": 1,
+            "hunk_ids": [
+              "h10"
+            ],
+            "note": "Unrelated: a different component's retry settings."
+          }
+        ]
+      },
+      {
+        "id": "g-wrappers",
+        "role": "domain",
+        "label": "Deleted wrappers",
+        "summary": "The four copies being replaced.",
+        "files": [
+          {
+            "path": "src/meridian/payments/_http.py",
+            "status": "deleted",
+            "change_kind": "deleted",
+            "significance": "supporting",
+            "additions": 0,
+            "deletions": 43,
+            "hunk_ids": [
+              "h33"
+            ],
+            "note": "The most-diverged copy: 3 attempts, 0.5s fixed delay."
+          },
+          {
+            "path": "src/meridian/shipping/_http.py",
+            "status": "deleted",
+            "change_kind": "deleted",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 43,
+            "hunk_ids": [
+              "h37"
+            ]
+          },
+          {
+            "path": "src/meridian/tax/_http.py",
+            "status": "deleted",
+            "change_kind": "deleted",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 43,
+            "hunk_ids": [
+              "h41"
+            ]
+          },
+          {
+            "path": "src/meridian/notifications/_http.py",
+            "status": "deleted",
+            "change_kind": "deleted",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 43,
+            "hunk_ids": [
+              "h29"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-callsites",
+        "role": "domain",
+        "label": "Call sites",
+        "summary": "Twelve files, one import and one call each.",
+        "files": [
+          {
+            "path": "src/meridian/payments/gateway_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "supporting",
+            "additions": 4,
+            "deletions": 4,
+            "hunk_ids": [
+              "h34"
+            ],
+            "note": "Representative of the other eleven."
+          },
+          {
+            "path": "src/meridian/notifications/email_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h30"
+            ]
+          },
+          {
+            "path": "src/meridian/notifications/push_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h31"
+            ]
+          },
+          {
+            "path": "src/meridian/notifications/sms_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h32"
+            ]
+          },
+          {
+            "path": "src/meridian/payments/mandate_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h35"
+            ]
+          },
+          {
+            "path": "src/meridian/payments/payout_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 3,
+            "deletions": 3,
+            "hunk_ids": [
+              "h36"
+            ]
+          },
+          {
+            "path": "src/meridian/shipping/carrier_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 3,
+            "deletions": 3,
+            "hunk_ids": [
+              "h38"
+            ]
+          },
+          {
+            "path": "src/meridian/shipping/label_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h39"
+            ]
+          },
+          {
+            "path": "src/meridian/shipping/tracking_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 3,
+            "deletions": 3,
+            "hunk_ids": [
+              "h40"
+            ]
+          },
+          {
+            "path": "src/meridian/tax/calculator_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 3,
+            "deletions": 3,
+            "hunk_ids": [
+              "h42"
+            ]
+          },
+          {
+            "path": "src/meridian/tax/exemption_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 3,
+            "deletions": 3,
+            "hunk_ids": [
+              "h43"
+            ]
+          },
+          {
+            "path": "src/meridian/tax/nexus_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h44"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-api",
+        "role": "api",
+        "label": "Checkout",
+        "summary": "Unrelated to the extraction.",
+        "files": [
+          {
+            "path": "src/meridian/api/checkout.py",
+            "status": "modified",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 9,
+            "deletions": 0,
+            "hunk_ids": [
+              "h23",
+              "h24"
+            ],
+            "note": "A second checkout path behind a flag."
+          }
+        ]
+      },
+      {
+        "id": "g-tests",
+        "role": "tests",
+        "label": "Tests",
+        "files": [
+          {
+            "path": "tests/http/test_client.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 57,
+            "deletions": 0,
+            "hunk_ids": [
+              "h45"
+            ],
+            "note": "The only place the new retry surface is enumerated."
+          },
+          {
+            "path": "tests/http/test_backoff.py",
+            "status": "renamed",
+            "change_kind": "moved",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 0,
+            "hunk_ids": [],
+            "moved_from": "tests/util/test_backoff.py",
+            "note": "Moved unchanged; the module moved with it."
+          },
+          {
+            "path": "tests/notifications/test_email_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h46",
+              "h47"
+            ]
+          },
+          {
+            "path": "tests/payments/test_gateway_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h48",
+              "h49"
+            ]
+          },
+          {
+            "path": "tests/shipping/test_carrier_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h50",
+              "h51"
+            ]
+          },
+          {
+            "path": "tests/tax/test_calculator_client.py",
+            "status": "modified",
+            "change_kind": "rename",
+            "significance": "mechanical",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h52",
+              "h53"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-vendored",
+        "role": "other",
+        "label": "Vendored test stub",
+        "files": [
+          {
+            "path": "third_party/httpstub/__init__.py",
+            "status": "modified",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 18,
+            "deletions": 1,
+            "hunk_ids": [
+              "h54",
+              "h55"
+            ],
+            "note": "Vendored, but edited here rather than re-vendored."
+          }
+        ]
+      },
+      {
+        "id": "g-generated",
+        "role": "generated",
+        "label": "Regenerated clients",
+        "summary": "protobuf stubs and three orval modules.",
+        "files": [
+          {
+            "path": "clients/ts/src/api/generated/orders.ts",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 8,
+            "deletions": 0,
+            "hunk_ids": [
+              "h5"
+            ]
+          },
+          {
+            "path": "clients/ts/src/api/generated/payments.ts",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 5,
+            "deletions": 0,
+            "hunk_ids": [
+              "h6"
+            ]
+          },
+          {
+            "path": "clients/ts/src/api/generated/shipping.ts",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 5,
+            "deletions": 0,
+            "hunk_ids": [
+              "h7"
+            ]
+          },
+          {
+            "path": "gen/pb/shipping_pb2.py",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 23,
+            "deletions": 21,
+            "hunk_ids": [
+              "h12"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-build",
+        "role": "build",
+        "label": "Lockfiles and CI",
+        "files": [
+          {
+            "path": "poetry.lock",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 121,
+            "deletions": 106,
+            "hunk_ids": [
+              "h13",
+              "h14",
+              "h15",
+              "h16",
+              "h17",
+              "h18",
+              "h19",
+              "h20",
+              "h21",
+              "h22"
+            ]
+          },
+          {
+            "path": "clients/ts/pnpm-lock.yaml",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 10,
+            "deletions": 10,
+            "hunk_ids": [
+              "h2",
+              "h3",
+              "h4"
+            ]
+          },
+          {
+            "path": ".github/workflows/ci.yml",
+            "status": "modified",
+            "change_kind": "content",
+            "significance": "supporting",
+            "additions": 1,
+            "deletions": 1,
+            "hunk_ids": [
+              "h1"
+            ],
+            "note": "Unrelated: CI Node 18 to 20."
+          },
+          {
+            "path": "scripts/regen_clients.sh",
+            "status": "mode_changed",
+            "change_kind": "content",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 0,
+            "hunk_ids": [],
+            "note": "Mode only: 100644 to 100755."
+          }
+        ]
+      },
+      {
+        "id": "g-docs",
+        "role": "docs",
+        "label": "Documentation",
+        "files": [
+          {
+            "path": "docs/architecture/http.md",
+            "status": "added",
+            "change_kind": "content",
+            "significance": "mechanical",
+            "additions": 24,
+            "deletions": 0,
+            "hunk_ids": [
+              "h11"
+            ]
+          },
+          {
+            "path": "docs/assets/http-topology.png",
+            "status": "added",
+            "change_kind": "content",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 0,
+            "hunk_ids": []
+          }
+        ]
+      }
+    ]
+  },
+  "behavior": {
+    "changed": true,
+    "note": null,
+    "summary": "The description calls this a pure refactor. The retry loop is not the same loop: it catches transport exceptions that used to propagate immediately, matches five more status codes, and sleeps a random interval instead of a fixed one.",
+    "before": {
+      "kind": "flow",
+      "title": "Before: payments/_http.post_json",
+      "nodes": [
+        {
+          "id": "b0",
+          "label": "caller",
+          "kind": "actor",
+          "emphasis": "unchanged"
+        },
+        {
+          "id": "b1",
+          "label": "requests.post(timeout=15)",
+          "kind": "process",
+          "emphasis": "changed"
+        },
+        {
+          "id": "b2",
+          "label": "ConnectionError / Timeout",
+          "kind": "decision",
+          "emphasis": "changed"
+        },
+        {
+          "id": "b3",
+          "label": "raises to caller",
+          "kind": "end",
+          "emphasis": "removed"
+        },
+        {
+          "id": "b4",
+          "label": "status in {502, 503}?",
+          "kind": "decision",
+          "emphasis": "changed"
+        },
+        {
+          "id": "b5",
+          "label": "sleep(0.5) fixed",
+          "kind": "process",
+          "emphasis": "removed"
+        },
+        {
+          "id": "b6",
+          "label": "raise_for_status / json",
+          "kind": "end",
+          "emphasis": "unchanged"
+        }
+      ],
+      "edges": [
+        {
+          "from": "b0",
+          "to": "b1",
+          "kind": "call",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "b1",
+          "to": "b2",
+          "kind": "error",
+          "emphasis": "changed"
+        },
+        {
+          "from": "b2",
+          "to": "b3",
+          "label": "always",
+          "kind": "error",
+          "emphasis": "removed"
+        },
+        {
+          "from": "b1",
+          "to": "b4",
+          "kind": "return",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "b4",
+          "to": "b5",
+          "label": "yes, attempt < 3",
+          "kind": "call",
+          "emphasis": "removed"
+        },
+        {
+          "from": "b5",
+          "to": "b1",
+          "label": "retry",
+          "kind": "async",
+          "emphasis": "removed"
+        },
+        {
+          "from": "b4",
+          "to": "b6",
+          "label": "no",
+          "kind": "return",
+          "emphasis": "unchanged"
+        }
+      ]
+    },
+    "after": {
+      "kind": "flow",
+      "title": "After: HttpClient._request",
+      "nodes": [
+        {
+          "id": "a0",
+          "label": "caller",
+          "kind": "actor",
+          "emphasis": "unchanged"
+        },
+        {
+          "id": "a1",
+          "label": "session.request(timeout)",
+          "kind": "process",
+          "emphasis": "changed"
+        },
+        {
+          "id": "a2",
+          "label": "ConnectionError / Timeout / ChunkedEncoding",
+          "kind": "decision",
+          "emphasis": "changed"
+        },
+        {
+          "id": "a3",
+          "label": "raises only on last attempt",
+          "kind": "end",
+          "emphasis": "added"
+        },
+        {
+          "id": "a4",
+          "label": "status in RETRY_STATUSES (7)",
+          "kind": "decision",
+          "emphasis": "changed"
+        },
+        {
+          "id": "a5",
+          "label": "sleep(jitter(0..exp))",
+          "kind": "process",
+          "emphasis": "added"
+        },
+        {
+          "id": "a6",
+          "label": "raise_for_status / json",
+          "kind": "end",
+          "emphasis": "unchanged"
+        }
+      ],
+      "edges": [
+        {
+          "from": "a0",
+          "to": "a1",
+          "kind": "call",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "a1",
+          "to": "a2",
+          "kind": "error",
+          "emphasis": "changed",
+          "hunk_ids": [
+            "h28"
+          ]
+        },
+        {
+          "from": "a2",
+          "to": "a3",
+          "label": "attempt == max",
+          "kind": "error",
+          "emphasis": "added"
+        },
+        {
+          "from": "a2",
+          "to": "a5",
+          "label": "attempt < max",
+          "kind": "call",
+          "emphasis": "added",
+          "hunk_ids": [
+            "h28"
+          ]
+        },
+        {
+          "from": "a1",
+          "to": "a4",
+          "kind": "return",
+          "emphasis": "unchanged"
+        },
+        {
+          "from": "a4",
+          "to": "a5",
+          "label": "yes, attempt < max",
+          "kind": "call",
+          "emphasis": "changed"
+        },
+        {
+          "from": "a5",
+          "to": "a1",
+          "label": "retry",
+          "kind": "async",
+          "emphasis": "added",
+          "hunk_ids": [
+            "h27"
+          ]
+        },
+        {
+          "from": "a4",
+          "to": "a6",
+          "label": "no",
+          "kind": "return",
+          "emphasis": "unchanged"
+        }
+      ]
+    },
+    "deltas": [
+      {
+        "summary": "Transport exceptions are caught and retried instead of propagating on the first failure.",
+        "hunk_ids": [
+          "h28"
+        ]
+      },
+      {
+        "summary": "The retryable status set grows from {502, 503} to seven codes including 429 and 500.",
+        "hunk_ids": [
+          "h28"
+        ]
+      },
+      {
+        "summary": "The delay becomes a random draw from an exponential ceiling rather than a constant.",
+        "hunk_ids": [
+          "h27",
+          "h28"
+        ]
+      },
+      {
+        "summary": "Attempt budgets change per service: notifications 2 to 5, shipping 2 to 4, tax 2 to 3.",
+        "hunk_ids": [
+          "h9"
+        ]
+      }
+    ]
+  },
+  "reading_order": {
+    "estimated_minutes": 18,
+    "preamble": "817 changed lines, of which about 130 are the change. Read the new client against the wrapper it replaces; everything after that is either configuration, a two-line swap repeated twelve times, or unrelated.",
+    "steps": [
+      {
+        "n": 1,
+        "title": "The new client",
+        "why": "The whole PR is this file plus the decision to call it from everywhere. Read the retry loop closely; it is where the refactor stops being a refactor.",
+        "path": "src/meridian/http/client.py",
+        "hunk_ids": [
+          "h28"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h28",
+            "new_line": 20,
+            "text": "Seven status codes. The wrappers retried two."
+          },
+          {
+            "hunk_id": "h28",
+            "new_line": 21,
+            "text": "New category: transport failures are now retryable, where the wrappers let them propagate."
+          },
+          {
+            "hunk_id": "h28",
+            "new_line": 61,
+            "text": "A timeout here means the request may already have been delivered; the retry re-sends it."
+          },
+          {
+            "hunk_id": "h28",
+            "new_line": 68,
+            "text": "Applies to every method, so POSTs are retried on 429 and 500 as well."
+          },
+          {
+            "hunk_id": "h28",
+            "new_line": 78,
+            "text": "The delay is drawn from step 3's helper rather than read from a constant."
+          }
+        ]
+      },
+      {
+        "n": 2,
+        "title": "What it replaces",
+        "why": "The deleted wrapper is the only place the previous retry semantics are written down. Reading it beside step 1 is the fastest way to see what changed, and the other three deletions differ from it only in constants.",
+        "path": "src/meridian/payments/_http.py",
+        "hunk_ids": [
+          "h33"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h33",
+            "old_line": 19,
+            "text": "Two codes, and no exception handling at all."
+          },
+          {
+            "hunk_id": "h33",
+            "old_line": 33,
+            "text": "A fixed 0.5s wait, identical for every caller and every attempt."
+          }
+        ]
+      },
+      {
+        "n": 3,
+        "title": "The jitter helper",
+        "why": "Moved from `meridian.util` and given a new function. `decorrelated_jitter` is what makes the retry timing non-deterministic, which matters for anything that measured tail latency before.",
+        "path": "src/meridian/http/backoff.py",
+        "hunk_ids": [
+          "h26",
+          "h27"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h27",
+            "new_line": 29,
+            "text": "Uniform over the whole interval, so a retry can fire almost immediately or at the full exponential ceiling."
+          }
+        ]
+      },
+      {
+        "n": 4,
+        "title": "The numbers that used to live in four files",
+        "why": "This is where the per-service differences ended up. Compare each block against the constants in the wrapper from step 2: three of the four services get a larger attempt budget than they had.",
+        "path": "config/http.yaml",
+        "hunk_ids": [
+          "h9",
+          "h25"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h9",
+            "new_line": 3,
+            "text": "Worth reading before the numbers below; it fixes the off-by-one."
+          },
+          {
+            "hunk_id": "h9",
+            "new_line": 29,
+            "text": "notifications. The deleted notifications wrapper used 2."
+          }
+        ]
+      },
+      {
+        "n": 5,
+        "title": "One call site, then trust the pattern",
+        "why": "Twelve files change the same two lines. This one has three functions instead of one, so it is the largest; if this shape is what you expect, the other eleven hold no surprises.",
+        "path": "src/meridian/payments/gateway_client.py",
+        "hunk_ids": [
+          "h34"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h34",
+            "new_line": 3,
+            "text": "The import swap. Function signatures and payloads are untouched."
+          }
+        ]
+      },
+      {
+        "n": 6,
+        "title": "The new client's tests",
+        "why": "The clearest enumeration of the new retry surface: a 503 retried, a connection error retried, a 400 not retried, a 429 retried. Reading these is faster than deriving the same list from step 1.",
+        "path": "tests/http/test_client.py",
+        "hunk_ids": [
+          "h45"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h45",
+            "new_line": 33,
+            "text": "This behaviour has no counterpart in any deleted wrapper."
+          }
+        ]
+      },
+      {
+        "n": 7,
+        "title": "The vendored stub was edited in place",
+        "why": "`third_party/httpstub` carries a re-vendor instruction in its header, and this diff edits it by hand and changes the recorded version. The new tests depend on the added class.",
+        "path": "third_party/httpstub/__init__.py",
+        "hunk_ids": [
+          "h54",
+          "h55"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h54",
+            "new_line": 1,
+            "text": "Version string moves from 0.4.2 to 0.5.0 in the same commit that adds code below."
+          }
+        ]
+      },
+      {
+        "n": 8,
+        "title": "Changes unrelated to the extraction",
+        "why": "Four files that have nothing to do with HTTP. They are here rather than in the skip list because each changes behaviour on its own.",
+        "path": "src/meridian/api/checkout.py",
+        "hunk_ids": [
+          "h23",
+          "h24",
+          "h8",
+          "h1",
+          "h10"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h24",
+            "new_line": 19,
+            "text": "A second checkout implementation, selected per customer."
+          },
+          {
+            "hunk_id": "h8",
+            "new_line": 15,
+            "text": "Live for 5% of customers as soon as this deploys."
+          },
+          {
+            "hunk_id": "h1",
+            "new_line": 26,
+            "text": "CI only; no runtime effect."
+          },
+          {
+            "hunk_id": "h10",
+            "new_line": 7,
+            "text": "A different component, changed in the same direction as the client."
+          }
+        ]
+      }
+    ],
+    "skippable": [
+      {
+        "label": "The other eleven call sites",
+        "reason": "Every one is the same two-line change read in step 5: `from meridian.<pkg>._http import ...` becomes `from meridian.http import client`, and each call gains a `client.` prefix. No signature, path or payload changes.",
+        "confidence": "high",
+        "group_ids": [
+          "g-callsites"
+        ],
+        "files": [
+          "src/meridian/notifications/email_client.py",
+          "src/meridian/notifications/push_client.py",
+          "src/meridian/notifications/sms_client.py",
+          "src/meridian/payments/mandate_client.py",
+          "src/meridian/payments/payout_client.py",
+          "src/meridian/shipping/carrier_client.py",
+          "src/meridian/shipping/label_client.py",
+          "src/meridian/shipping/tracking_client.py",
+          "src/meridian/tax/calculator_client.py",
+          "src/meridian/tax/exemption_client.py",
+          "src/meridian/tax/nexus_client.py"
+        ],
+        "file_count": 11,
+        "additions": 27,
+        "deletions": 27
+      },
+      {
+        "label": "The other three deleted wrappers",
+        "reason": "Byte-identical to the payments copy read in step 2 apart from BASE_URL, MAX_ATTEMPTS, RETRY_DELAY_SECONDS and the log event name. Those four constants are exactly what config/http.yaml replaces, and step 4 compares them.",
+        "confidence": "high",
+        "group_ids": [
+          "g-wrappers"
+        ],
+        "files": [
+          "src/meridian/shipping/_http.py",
+          "src/meridian/tax/_http.py",
+          "src/meridian/notifications/_http.py"
+        ],
+        "file_count": 3,
+        "additions": 0,
+        "deletions": 129
+      },
+      {
+        "label": "Service tests: monkeypatch target swap",
+        "reason": "Each file patches a different module attribute now that the import moved. The assertions, paths and payloads are unchanged, so they still pin the same behaviour they pinned before.",
+        "confidence": "high",
+        "group_ids": [
+          "g-tests"
+        ],
+        "files": [
+          "tests/notifications/test_email_client.py",
+          "tests/payments/test_gateway_client.py",
+          "tests/shipping/test_carrier_client.py",
+          "tests/tax/test_calculator_client.py"
+        ],
+        "file_count": 4,
+        "additions": 8,
+        "deletions": 8
+      },
+      {
+        "label": "Regenerated clients",
+        "reason": "Emitted by scripts/regen_clients.sh. The protobuf file is entirely shifted byte offsets plus one new RetryHint message; the three orval modules add the matching TypeScript interface. Nothing in this diff produces or consumes a RetryHint, which is noted in the attention map.",
+        "confidence": "high",
+        "group_ids": [
+          "g-generated"
+        ],
+        "files": [
+          "clients/ts/src/api/generated/orders.ts",
+          "clients/ts/src/api/generated/payments.ts",
+          "clients/ts/src/api/generated/shipping.ts",
+          "gen/pb/shipping_pb2.py"
+        ],
+        "file_count": 4,
+        "additions": 41,
+        "deletions": 21
+      },
+      {
+        "label": "Lockfiles",
+        "reason": "227 changed lines of version strings and wheel hashes from `poetry lock` and `pnpm install`. The substantive deltas are in the attention map rather than the file: 14 Python packages, 2 npm packages, one new transitive dependency.",
+        "confidence": "high",
+        "group_ids": [
+          "g-build"
+        ],
+        "files": [
+          "poetry.lock",
+          "clients/ts/pnpm-lock.yaml"
+        ],
+        "file_count": 2,
+        "additions": 131,
+        "deletions": 116
+      },
+      {
+        "label": "Documentation",
+        "reason": "New architecture page describing the client from step 1 and the config keys from step 4, plus a PNG. The page states the retry behaviour in English, which is useful if step 1 was heavy going.",
+        "confidence": "high",
+        "group_ids": [
+          "g-docs"
+        ],
+        "files": [
+          "docs/architecture/http.md",
+          "docs/assets/http-topology.png"
+        ],
+        "file_count": 2,
+        "additions": 24,
+        "deletions": 0
+      },
+      {
+        "label": "File mode change",
+        "reason": "scripts/regen_clients.sh goes from 100644 to 100755. No content change.",
+        "confidence": "high",
+        "group_ids": [
+          "g-build"
+        ],
+        "files": [
+          "scripts/regen_clients.sh"
+        ],
+        "file_count": 1,
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "label": "Pure move",
+        "reason": "tests/util/test_backoff.py becomes tests/http/test_backoff.py with identical content, following the module it tests. Git reports 100% similarity.",
+        "confidence": "high",
+        "group_ids": [
+          "g-tests"
+        ],
+        "files": [
+          "tests/http/test_backoff.py"
+        ],
+        "file_count": 1,
+        "additions": 0,
+        "deletions": 0
+      }
+    ]
+  },
+  "attention": [
+    {
+      "kind": "behavioral",
+      "title": "Connection and timeout errors are now retried instead of raised",
+      "why": "The four wrappers wrapped a bare `requests.post`, so a `ConnectionError` or `Timeout` reached the caller on the first failure. `HttpClient` catches all three transport exceptions and retries. A POST that timed out after the server received it is re-sent, so `authorize`, `capture`, `schedule_payout` and `book` can reach the provider more than once for one logical call.",
+      "path": "src/meridian/http/client.py",
+      "hunk_ids": [
+        "h28"
+      ]
+    },
+    {
+      "kind": "behavioral",
+      "title": "The retryable status set grows from two codes to seven",
+      "why": "429, 408, 425, 500 and 504 join 502 and 503. A provider returning 429 used to surface immediately; it is now retried up to the service's attempt budget, which multiplies request volume against a rate-limited upstream.",
+      "path": "src/meridian/http/client.py",
+      "hunk_ids": [
+        "h28"
+      ]
+    },
+    {
+      "kind": "config_surface",
+      "title": "Attempt budgets rise for three of the four services",
+      "why": "config/http.yaml sets notifications to 5 attempts where the wrapper used 2, shipping to 4 where it used 2, and tax to 3 where it used 2. Combined with the wider status set, the worst-case wall time for one call grows accordingly.",
+      "path": "config/http.yaml",
+      "hunk_ids": [
+        "h9"
+      ]
+    },
+    {
+      "kind": "feature_flag",
+      "title": "Single-step checkout ships enabled at 5%",
+      "why": "`enable_single_step_checkout` is `enabled: true, percentage: 5`, and `checkout` routes flagged customers to `OrderService.create_single_step`, a different code path from `create_from_cart`. This is live on deploy and unrelated to the HTTP work.",
+      "path": "config/flags.yaml",
+      "hunk_ids": [
+        "h8",
+        "h24"
+      ]
+    },
+    {
+      "kind": "dependency_surface",
+      "title": "poetry.lock adds tenacity 8.5.0, which nothing in this diff imports",
+      "why": "The new client implements its own retry loop. `tenacity` appears in the lockfile as a direct entry, and no file in this diff imports it. Either the manifest change lives outside this diff, or it arrived as a transitive dependency.",
+      "path": "poetry.lock"
+    },
+    {
+      "kind": "dependency_surface",
+      "title": "protobuf crosses a major version, 4.25 to 5.27",
+      "why": "The lockfile bump is paired with a regenerated `shipping_pb2.py`. Any process loading protobuf descriptors built by the 4.x runtime shares a global descriptor pool with these, so mixed versions in one interpreter matter here.",
+      "path": "poetry.lock",
+      "hunk_ids": [
+        "h12"
+      ]
+    },
+    {
+      "kind": "concurrency",
+      "title": "Retry timing becomes non-deterministic",
+      "why": "`decorrelated_jitter` draws uniformly from `[0, exponential(attempt)]`, replacing a fixed 0.25 to 1.0 second wait. Retries from simultaneous failures no longer align, and per-call latency now varies between attempts.",
+      "path": "src/meridian/http/backoff.py",
+      "hunk_ids": [
+        "h27"
+      ]
+    },
+    {
+      "kind": "public_api",
+      "title": "Generated clients expose a RetryHint type with no server implementation",
+      "why": "The regenerated protobuf and all three orval modules gain `RetryHint`, and orders.ts gains a `/orders/{orderId}/retry-hint` operation. No handler for that route appears in this diff.",
+      "path": "clients/ts/src/api/generated/orders.ts",
+      "hunk_ids": [
+        "h5"
+      ]
+    },
+    {
+      "kind": "dependency_surface",
+      "title": "A vendored file was edited rather than re-vendored",
+      "why": "`third_party/httpstub/__init__.py` says to re-vendor with scripts/vendor.sh. This diff edits it directly and moves the recorded version from 0.4.2 to 0.5.0, so the file no longer matches any upstream release.",
+      "path": "third_party/httpstub/__init__.py",
+      "hunk_ids": [
+        "h54",
+        "h55"
+      ]
+    },
+    {
+      "kind": "config_surface",
+      "title": "The Windows collection agent gets more retries and jitter",
+      "why": "config/windows-agent.ini moves retry_attempts from 2 to 3 and adds retry_jitter. That agent is deployed separately from this service and shares none of this code.",
+      "path": "config/windows-agent.ini",
+      "hunk_ids": [
+        "h10"
+      ]
+    }
+  ],
+  "seams": {
+    "detected": true,
+    "note": "Three groups of files that share no symbols and no call path. Each compiles, tests and deploys without the other two.",
+    "clusters": [
+      {
+        "id": "s1",
+        "label": "The HTTP client extraction",
+        "summary": "The new client, its config and tests, the four deletions, and twelve call sites.",
+        "files": [
+          "src/meridian/http/client.py",
+          "src/meridian/http/backoff.py",
+          "src/meridian/http/__init__.py",
+          "config/http.yaml",
+          "tests/http/test_client.py",
+          "tests/http/test_backoff.py",
+          "third_party/httpstub/__init__.py",
+          "docs/architecture/http.md",
+          "docs/assets/http-topology.png",
+          "src/meridian/payments/_http.py",
+          "src/meridian/shipping/_http.py",
+          "src/meridian/tax/_http.py",
+          "src/meridian/notifications/_http.py",
+          "src/meridian/payments/gateway_client.py",
+          "src/meridian/notifications/email_client.py",
+          "src/meridian/notifications/push_client.py",
+          "src/meridian/notifications/sms_client.py",
+          "src/meridian/payments/mandate_client.py",
+          "src/meridian/payments/payout_client.py",
+          "src/meridian/shipping/carrier_client.py",
+          "src/meridian/shipping/label_client.py",
+          "src/meridian/shipping/tracking_client.py",
+          "src/meridian/tax/calculator_client.py",
+          "src/meridian/tax/exemption_client.py",
+          "src/meridian/tax/nexus_client.py",
+          "tests/notifications/test_email_client.py",
+          "tests/payments/test_gateway_client.py",
+          "tests/shipping/test_carrier_client.py",
+          "tests/tax/test_calculator_client.py"
+        ],
+        "file_count": 29,
+        "changed_lines": 491,
+        "independent_of": [
+          "s2",
+          "s3"
+        ]
+      },
+      {
+        "id": "s2",
+        "label": "Single-step checkout",
+        "summary": "A flagged second checkout implementation. Touches no file in the other two clusters.",
+        "files": [
+          "src/meridian/api/checkout.py",
+          "config/flags.yaml"
+        ],
+        "file_count": 2,
+        "changed_lines": 12,
+        "independent_of": [
+          "s1",
+          "s3"
+        ]
+      },
+      {
+        "id": "s3",
+        "label": "Dependency and toolchain refresh",
+        "summary": "Lockfiles, regenerated clients, CI Node version, and a Windows agent config.",
+        "files": [
+          "poetry.lock",
+          "clients/ts/pnpm-lock.yaml",
+          ".github/workflows/ci.yml",
+          "scripts/regen_clients.sh",
+          "config/windows-agent.ini",
+          "clients/ts/src/api/generated/orders.ts",
+          "clients/ts/src/api/generated/payments.ts",
+          "clients/ts/src/api/generated/shipping.ts",
+          "gen/pb/shipping_pb2.py"
+        ],
+        "file_count": 9,
+        "changed_lines": 314,
+        "independent_of": [
+          "s1",
+          "s2"
+        ]
+      }
+    ]
+  },
+  "hunks": {
+    "h1": {
+      "id": "h1",
+      "path": ".github/workflows/ci.yml",
+      "language": "yaml",
+      "header": "@@ -23,7 +23,7 @@",
+      "old_start": 23,
+      "old_lines": 7,
+      "new_start": 23,
+      "new_lines": 7,
+      "section": "jobs:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "      - uses: actions/checkout@v4",
+          "old": 23,
+          "new": 23
+        },
+        {
+          "t": " ",
+          "c": "      - uses: actions/setup-node@v4",
+          "old": 24,
+          "new": 24
+        },
+        {
+          "t": " ",
+          "c": "        with:",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "t": "-",
+          "c": "          node-version: \"18\"",
+          "old": 26,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "          node-version: \"20\"",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": " ",
+          "c": "      - run: corepack enable",
+          "old": 27,
+          "new": 27
+        },
+        {
+          "t": " ",
+          "c": "      - run: pnpm install --frozen-lockfile",
+          "old": 28,
+          "new": 28
+        },
+        {
+          "t": " ",
+          "c": "      - run: pnpm run build",
+          "old": 29,
+          "new": 29
+        }
+      ],
+      "change_kind": "content",
+      "significance": "supporting"
+    },
+    "h2": {
+      "id": "h2",
+      "path": "clients/ts/pnpm-lock.yaml",
+      "language": "yaml",
+      "header": "@@ -21,11 +21,11 @@",
+      "old_start": 21,
+      "old_lines": 11,
+      "new_start": 21,
+      "new_lines": 11,
+      "section": "importers:",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "        specifier: ^1.1.0",
+          "old": 21,
+          "new": 21
+        },
+        {
+          "t": " ",
+          "c": "        version: 1.1.0",
+          "old": 22,
+          "new": 22
+        },
+        {
+          "t": " ",
+          "c": "      typescript:",
+          "old": 23,
+          "new": 23
+        },
+        {
+          "t": "-",
+          "c": "        specifier: ^5.4.5",
+          "old": 24,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        version: 5.4.5",
+          "old": 25,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "        specifier: ^5.5.3",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "        version: 5.5.3",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": " ",
+          "c": "      vite:",
+          "old": 26,
+          "new": 26
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h3": {
+      "id": "h3",
+      "path": "clients/ts/pnpm-lock.yaml",
+      "language": "yaml",
+      "header": "@@ -57,12 +57,12 @@",
+      "old_start": 57,
+      "old_lines": 12,
+      "new_start": 57,
+      "new_lines": 12,
+      "section": "packages:",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    resolution: {integrity: sha512-70726f78792d66726f6d2d656e76312e312e30000000000000000000}",
+          "old": 57,
+          "new": 57
+        },
+        {
+          "t": " ",
+          "c": "    engines: {node: '>=18'}",
+          "old": 58,
+          "new": 58
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 59,
+          "new": 59
+        },
+        {
+          "t": "-",
+          "c": "  typescript@5.4.5:",
+          "old": 60,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    resolution: {integrity: sha512-74797065736372697074352e342e3500000000000000000000000000}",
+          "old": 61,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "  typescript@5.5.3:",
+          "old": null,
+          "new": 60
+        },
+        {
+          "t": "+",
+          "c": "    resolution: {integrity: sha512-74797065736372697074352e352e3300000000000000000000000000}",
+          "old": null,
+          "new": 61
+        },
+        {
+          "t": " ",
+          "c": "    engines: {node: '>=18'}",
+          "old": 62,
+          "new": 62
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h4": {
+      "id": "h4",
+      "path": "clients/ts/pnpm-lock.yaml",
+      "language": "yaml",
+      "header": "@@ -91,9 +91,9 @@",
+      "old_start": 91,
+      "old_lines": 9,
+      "new_start": 91,
+      "new_lines": 9,
+      "section": "snapshots:",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 91,
+          "new": 91
+        },
+        {
+          "t": " ",
+          "c": "  proxy-from-env@1.1.0: {}",
+          "old": 92,
+          "new": 92
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 93,
+          "new": 93
+        },
+        {
+          "t": "-",
+          "c": "  typescript@5.4.5: {}",
+          "old": 94,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "  typescript@5.5.3: {}",
+          "old": null,
+          "new": 94
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 95,
+          "new": 95
+        },
+        {
+          "t": "-",
+          "c": "  vite@5.3.1: {}",
+          "old": 96,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "  vite@5.3.3: {}",
+          "old": null,
+          "new": 96
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h5": {
+      "id": "h5",
+      "path": "clients/ts/src/api/generated/orders.ts",
+      "language": "typescript",
+      "header": "@@ -19,9 +19,17 @@",
+      "old_start": 19,
+      "old_lines": 9,
+      "new_start": 19,
+      "new_lines": 17,
+      "section": "export interface OrderLine {",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "  unitCents: number;",
+          "old": 19,
+          "new": 19
+        },
+        {
+          "t": " ",
+          "c": "}",
+          "old": 20,
+          "new": 20
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 21,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "export interface RetryHint {",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "  retryAfterSeconds: number;",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "  attempt: number;",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "}",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 26
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h6": {
+      "id": "h6",
+      "path": "clients/ts/src/api/generated/payments.ts",
+      "language": "typescript",
+      "header": "@@ -11,6 +11,11 @@",
+      "old_start": 11,
+      "old_lines": 6,
+      "new_start": 11,
+      "new_lines": 11,
+      "section": "export interface Authorization {",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "  state: string;",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "}",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "export interface RetryHint {",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "  retryAfterSeconds: number;",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "  attempt: number;",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "}",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 18
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h7": {
+      "id": "h7",
+      "path": "clients/ts/src/api/generated/shipping.ts",
+      "language": "typescript",
+      "header": "@@ -17,6 +17,11 @@",
+      "old_start": 17,
+      "old_lines": 6,
+      "new_start": 17,
+      "new_lines": 11,
+      "section": "export interface Quote {",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "  etaDays: number;",
+          "old": 17,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": "}",
+          "old": 18,
+          "new": 18
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 19,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "export interface RetryHint {",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "  retryAfterSeconds: number;",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "  attempt: number;",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "}",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 24
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h8": {
+      "id": "h8",
+      "path": "config/flags.yaml",
+      "language": "yaml",
+      "header": "@@ -10,3 +10,6 @@",
+      "old_start": 10,
+      "old_lines": 3,
+      "new_start": 10,
+      "new_lines": 6,
+      "section": "flags:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "  loyalty_points_v2:",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "    enabled: false",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "    percentage: 0",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "  enable_single_step_checkout:",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "    enabled: true",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "    percentage: 5",
+          "old": null,
+          "new": 15
+        }
+      ],
+      "change_kind": "content",
+      "significance": "supporting"
+    },
+    "h9": {
+      "id": "h9",
+      "path": "config/http.yaml",
+      "language": "yaml",
+      "header": "@@ -0,0 +1,31 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 31,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "# Outbound HTTP behaviour. Read at boot.",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "#",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "# max_attempts counts the first try, so 3 means one call and two retries.",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "default:",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "  timeout_seconds: 15",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "  max_attempts: 3",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "  base_delay_seconds: 0.5",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "  cap_seconds: 30",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "services:",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "  payments:",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "    timeout_seconds: 15",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "    max_attempts: 3",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "    base_delay_seconds: 0.5",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "    cap_seconds: 20",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "  shipping:",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "    timeout_seconds: 20",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "    max_attempts: 4",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "    base_delay_seconds: 1.0",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "    cap_seconds: 30",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "  tax:",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "    timeout_seconds: 10",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "    max_attempts: 3",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "    base_delay_seconds: 0.25",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    cap_seconds: 10",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "  notifications:",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "    timeout_seconds: 8",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "    max_attempts: 5",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "    base_delay_seconds: 0.5",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "    cap_seconds: 15",
+          "old": null,
+          "new": 31
+        }
+      ],
+      "change_kind": "content",
+      "significance": "core"
+    },
+    "h10": {
+      "id": "h10",
+      "path": "config/windows-agent.ini",
+      "language": "ini",
+      "header": "@@ -2,8 +2,9 @@",
+      "old_start": 2,
+      "old_lines": 8,
+      "new_start": 2,
+      "new_lines": 9,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "[agent]",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": " ",
+          "c": "poll_interval_seconds=60",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "endpoint=https://ingest.meridian.invalid/v1",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": "-",
+          "c": "retry_attempts=2",
+          "old": 5,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "retry_attempts=3",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "retry_delay_seconds=5",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "retry_jitter=true",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 7,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "[logging]",
+          "old": 8,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "level=INFO",
+          "old": 9,
+          "new": 10
+        }
+      ],
+      "change_kind": "content",
+      "significance": "supporting"
+    },
+    "h11": {
+      "id": "h11",
+      "path": "docs/architecture/http.md",
+      "language": "markdown",
+      "header": "@@ -0,0 +1,24 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 24,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "# Outbound HTTP",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "Every outbound call goes through `meridian.http.HttpClient`. There is one",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "implementation and one place where retry behaviour is decided.",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "## Configuration",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "`config/http.yaml` holds a `default` block and a per-service override. A service",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "with no entry uses `default`.",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "| Key | Meaning |",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "| --- | --- |",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "| `timeout_seconds` | Per-attempt socket timeout. |",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "| `max_attempts` | Counts the first try. `3` means one call and two retries. |",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "| `base_delay_seconds` | Input to the jittered backoff. |",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "| `cap_seconds` | Ceiling for a single delay. |",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "## What gets retried",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "Idempotency is the caller's problem. The client retries on the status codes in",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "`RETRY_STATUSES` and on connection, timeout, and chunked-encoding errors, which",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "means a POST can be sent more than once.",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "![HTTP topology](../assets/http-topology.png)",
+          "old": null,
+          "new": 24
+        }
+      ],
+      "change_kind": "content",
+      "significance": "mechanical"
+    },
+    "h12": {
+      "id": "h12",
+      "path": "gen/pb/shipping_pb2.py",
+      "language": "python",
+      "header": "@@ -10,29 +10,31 @@",
+      "old_start": 10,
+      "old_lines": 29,
+      "new_start": 10,
+      "new_lines": 31,
+      "section": "from google.protobuf import symbol_database as _symbol_database",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "_sym_db = _symbol_database.Default()",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": "-",
+          "c": "    b'\\n\\x1dshipping/v1/shipping.proto\\x12\\x0bshipping.v1\"\\x8f\\x01'",
+          "old": 13,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    b'\\n\\x1dshipping/v1/shipping.proto\\x12\\x0bshipping.v1\"\\x9c\\x01'",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": ")",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 15,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())",
+          "old": 16,
+          "new": 16
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h13": {
+      "id": "h13",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -46,47 +46,47 @@",
+      "old_start": 46,
+      "old_lines": 47,
+      "new_start": 46,
+      "new_lines": 47,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 46,
+          "new": 46
+        },
+        {
+          "t": " ",
+          "c": "[[package]]",
+          "old": 47,
+          "new": 47
+        },
+        {
+          "t": " ",
+          "c": "name = \"boto3\"",
+          "old": 48,
+          "new": 48
+        },
+        {
+          "t": "-",
+          "c": "version = \"1.34.117\"",
+          "old": 49,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "version = \"1.34.144\"",
+          "old": null,
+          "new": 49
+        },
+        {
+          "t": " ",
+          "c": "description = \"\"",
+          "old": 50,
+          "new": 50
+        },
+        {
+          "t": " ",
+          "c": "optional = false",
+          "old": 51,
+          "new": 51
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \">=3.8\"",
+          "old": 52,
+          "new": 52
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h14": {
+      "id": "h14",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -136,17 +136,17 @@",
+      "old_start": 136,
+      "old_lines": 17,
+      "new_start": 136,
+      "new_lines": 17,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 136,
+          "new": 136
+        },
+        {
+          "t": " ",
+          "c": "[[package]]",
+          "old": 137,
+          "new": 137
+        },
+        {
+          "t": " ",
+          "c": "name = \"cryptography\"",
+          "old": 138,
+          "new": 138
+        },
+        {
+          "t": "-",
+          "c": "version = \"42.0.8\"",
+          "old": 139,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "version = \"43.0.0\"",
+          "old": null,
+          "new": 139
+        },
+        {
+          "t": " ",
+          "c": "description = \"\"",
+          "old": 140,
+          "new": 140
+        },
+        {
+          "t": " ",
+          "c": "optional = false",
+          "old": 141,
+          "new": 141
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \">=3.8\"",
+          "old": 142,
+          "new": 142
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h15": {
+      "id": "h15",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -166,32 +166,32 @@",
+      "old_start": 166,
+      "old_lines": 32,
+      "new_start": 166,
+      "new_lines": 32,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 166,
+          "new": 166
+        },
+        {
+          "t": " ",
+          "c": "[[package]]",
+          "old": 167,
+          "new": 167
+        },
+        {
+          "t": " ",
+          "c": "name = \"googleapis-common-protos\"",
+          "old": 168,
+          "new": 168
+        },
+        {
+          "t": "-",
+          "c": "version = \"1.63.1\"",
+          "old": 169,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "version = \"1.63.2\"",
+          "old": null,
+          "new": 169
+        },
+        {
+          "t": " ",
+          "c": "description = \"\"",
+          "old": 170,
+          "new": 170
+        },
+        {
+          "t": " ",
+          "c": "optional = false",
+          "old": 171,
+          "new": 171
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \">=3.8\"",
+          "old": 172,
+          "new": 172
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h16": {
+      "id": "h16",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -271,47 +271,47 @@",
+      "old_start": 271,
+      "old_lines": 47,
+      "new_start": 271,
+      "new_lines": 47,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 271,
+          "new": 271
+        },
+        {
+          "t": " ",
+          "c": "[[package]]",
+          "old": 272,
+          "new": 272
+        },
+        {
+          "t": " ",
+          "c": "name = \"opentelemetry-api\"",
+          "old": 273,
+          "new": 273
+        },
+        {
+          "t": "-",
+          "c": "version = \"1.25.0\"",
+          "old": 274,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "version = \"1.26.0\"",
+          "old": null,
+          "new": 274
+        },
+        {
+          "t": " ",
+          "c": "description = \"\"",
+          "old": 275,
+          "new": 275
+        },
+        {
+          "t": " ",
+          "c": "optional = false",
+          "old": 276,
+          "new": 276
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \">=3.8\"",
+          "old": 277,
+          "new": 277
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h17": {
+      "id": "h17",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -331,17 +331,17 @@",
+      "old_start": 331,
+      "old_lines": 17,
+      "new_start": 331,
+      "new_lines": 17,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 331,
+          "new": 331
+        },
+        {
+          "t": " ",
+          "c": "[[package]]",
+          "old": 332,
+          "new": 332
+        },
+        {
+          "t": " ",
+          "c": "name = \"protobuf\"",
+          "old": 333,
+          "new": 333
+        },
+        {
+          "t": "-",
+          "c": "version = \"4.25.3\"",
+          "old": 334,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "version = \"5.27.2\"",
+          "old": null,
+          "new": 334
+        },
+        {
+          "t": " ",
+          "c": "description = \"\"",
+          "old": 335,
+          "new": 335
+        },
+        {
+          "t": " ",
+          "c": "optional = false",
+          "old": 336,
+          "new": 336
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \">=3.8\"",
+          "old": 337,
+          "new": 337
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h18": {
+      "id": "h18",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -376,32 +376,32 @@",
+      "old_start": 376,
+      "old_lines": 32,
+      "new_start": 376,
+      "new_lines": 32,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 376,
+          "new": 376
+        },
+        {
+          "t": " ",
+          "c": "[[package]]",
+          "old": 377,
+          "new": 377
+        },
+        {
+          "t": " ",
+          "c": "name = \"pydantic\"",
+          "old": 378,
+          "new": 378
+        },
+        {
+          "t": "-",
+          "c": "version = \"2.7.4\"",
+          "old": 379,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "version = \"2.8.2\"",
+          "old": null,
+          "new": 379
+        },
+        {
+          "t": " ",
+          "c": "description = \"\"",
+          "old": 380,
+          "new": 380
+        },
+        {
+          "t": " ",
+          "c": "optional = false",
+          "old": 381,
+          "new": 381
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \">=3.8\"",
+          "old": 382,
+          "new": 382
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h19": {
+      "id": "h19",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -451,32 +451,32 @@",
+      "old_start": 451,
+      "old_lines": 32,
+      "new_start": 451,
+      "new_lines": 32,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 451,
+          "new": 451
+        },
+        {
+          "t": " ",
+          "c": "[[package]]",
+          "old": 452,
+          "new": 452
+        },
+        {
+          "t": " ",
+          "c": "name = \"requests\"",
+          "old": 453,
+          "new": 453
+        },
+        {
+          "t": "-",
+          "c": "version = \"2.31.0\"",
+          "old": 454,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "version = \"2.32.3\"",
+          "old": null,
+          "new": 454
+        },
+        {
+          "t": " ",
+          "c": "description = \"\"",
+          "old": 455,
+          "new": 455
+        },
+        {
+          "t": " ",
+          "c": "optional = false",
+          "old": 456,
+          "new": 456
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \">=3.8\"",
+          "old": 457,
+          "new": 457
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h20": {
+      "id": "h20",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -539,6 +539,21 @@",
+      "old_start": 539,
+      "old_lines": 6,
+      "new_start": 539,
+      "new_lines": 21,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    {file = \"stripe-9.12.0-py3-none-any5.whl\", hash = \"sha256:737472697065392e31322e303500000000000000000000000000000000000000\"},",
+          "old": 539,
+          "new": 539
+        },
+        {
+          "t": " ",
+          "c": "]",
+          "old": 540,
+          "new": 540
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 541,
+          "new": 541
+        },
+        {
+          "t": "+",
+          "c": "[[package]]",
+          "old": null,
+          "new": 542
+        },
+        {
+          "t": "+",
+          "c": "name = \"tenacity\"",
+          "old": null,
+          "new": 543
+        },
+        {
+          "t": "+",
+          "c": "version = \"8.5.0\"",
+          "old": null,
+          "new": 544
+        },
+        {
+          "t": "+",
+          "c": "description = \"\"",
+          "old": null,
+          "new": 545
+        },
+        {
+          "t": "+",
+          "c": "optional = false",
+          "old": null,
+          "new": 546
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h21": {
+      "id": "h21",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -556,17 +571,17 @@",
+      "old_start": 556,
+      "old_lines": 17,
+      "new_start": 571,
+      "new_lines": 17,
+      "section": "files = [",
+      "truncated": true,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 556,
+          "new": 571
+        },
+        {
+          "t": " ",
+          "c": "[[package]]",
+          "old": 557,
+          "new": 572
+        },
+        {
+          "t": " ",
+          "c": "name = \"urllib3\"",
+          "old": 558,
+          "new": 573
+        },
+        {
+          "t": "-",
+          "c": "version = \"2.2.1\"",
+          "old": 559,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "version = \"2.2.2\"",
+          "old": null,
+          "new": 574
+        },
+        {
+          "t": " ",
+          "c": "description = \"\"",
+          "old": 560,
+          "new": 575
+        },
+        {
+          "t": " ",
+          "c": "optional = false",
+          "old": 561,
+          "new": 576
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \">=3.8\"",
+          "old": 562,
+          "new": 577
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h22": {
+      "id": "h22",
+      "path": "poetry.lock",
+      "language": "text",
+      "header": "@@ -632,4 +647,4 @@",
+      "old_start": 632,
+      "old_lines": 4,
+      "new_start": 647,
+      "new_lines": 4,
+      "section": "files = [",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "[metadata]",
+          "old": 632,
+          "new": 647
+        },
+        {
+          "t": " ",
+          "c": "lock-version = \"2.0\"",
+          "old": 633,
+          "new": 648
+        },
+        {
+          "t": " ",
+          "c": "python-versions = \"^3.12\"",
+          "old": 634,
+          "new": 649
+        },
+        {
+          "t": "-",
+          "c": "content-hash = \"3a7c\"",
+          "old": 635,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "content-hash = \"b91f\"",
+          "old": null,
+          "new": 650
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h23": {
+      "id": "h23",
+      "path": "src/meridian/api/checkout.py",
+      "language": "python",
+      "header": "@@ -4,6 +4,7 @@",
+      "old_start": 4,
+      "old_lines": 6,
+      "new_start": 4,
+      "new_lines": 7,
+      "section": "from fastapi import APIRouter, Depends",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "from meridian.api.schemas.checkout import CheckoutRequest, CheckoutResponse",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "from meridian.auth import Principal, require_scope",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "from meridian.config import flags",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "from meridian.orders.service import OrderService",
+          "old": 7,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 8,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "router = APIRouter(prefix=\"/checkout\", tags=[\"checkout\"])",
+          "old": 9,
+          "new": 10
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "supporting"
+    },
+    "h24": {
+      "id": "h24",
+      "path": "src/meridian/api/checkout.py",
+      "language": "python",
+      "header": "@@ -15,6 +16,14 @@",
+      "old_start": 15,
+      "old_lines": 6,
+      "new_start": 16,
+      "new_lines": 14,
+      "section": "def checkout(",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    principal: Principal = Depends(require_scope(\"orders:write\")),",
+          "old": 15,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "    orders: OrderService = Depends(OrderService),",
+          "old": 16,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": ") -> CheckoutResponse:",
+          "old": 17,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "    if flags.enabled(\"enable_single_step_checkout\", customer_id=principal.customer_id):",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "        order = orders.create_single_step(",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "            cart_id=body.cart_id,",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "            customer_id=principal.customer_id,",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "            payment_token=body.payment_token,",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "        )",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "        return CheckoutResponse.from_order(order)",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": " ",
+          "c": "    order = orders.create_from_cart(",
+          "old": 18,
+          "new": 27
+        },
+        {
+          "t": " ",
+          "c": "        cart_id=body.cart_id,",
+          "old": 19,
+          "new": 28
+        },
+        {
+          "t": " ",
+          "c": "        customer_id=principal.customer_id,",
+          "old": 20,
+          "new": 29
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    },
+    "h25": {
+      "id": "h25",
+      "path": "src/meridian/http/__init__.py",
+      "language": "python",
+      "header": "@@ -0,0 +1,7 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 7,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "\"\"\"Shared outbound HTTP.\"\"\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "from meridian.config import settings",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http.client import HttpClient, RetryPolicy",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "client = HttpClient(\"default\", settings.internal_base_url)",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "__all__ = [\"HttpClient\", \"RetryPolicy\", \"client\"]",
+          "old": null,
+          "new": 7
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    },
+    "h26": {
+      "id": "h26",
+      "path": "src/meridian/http/backoff.py",
+      "old_path": "src/meridian/util/backoff.py",
+      "language": "python",
+      "header": "@@ -1,6 +1,8 @@",
+      "old_start": 1,
+      "old_lines": 6,
+      "new_start": 1,
+      "new_lines": 8,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "\"\"\"Retry delay helpers.\"\"\"",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "import random",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 6
+        },
+        {
+          "t": " ",
+          "c": "def fixed(delay_seconds: float, attempt: int) -> float:",
+          "old": 5,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "    \"\"\"Always wait the same amount.\"\"\"",
+          "old": 6,
+          "new": 8
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "core"
+    },
+    "h27": {
+      "id": "h27",
+      "path": "src/meridian/http/backoff.py",
+      "old_path": "src/meridian/util/backoff.py",
+      "language": "python",
+      "header": "@@ -15,3 +17,13 @@",
+      "old_start": 15,
+      "old_lines": 3,
+      "new_start": 17,
+      "new_lines": 13,
+      "section": "def linear(delay_seconds: float, attempt: int) -> float:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "def exponential(delay_seconds: float, attempt: int, cap: float = 30.0) -> float:",
+          "old": 15,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": "    \"\"\"Double the wait each attempt, up to cap.\"\"\"",
+          "old": 16,
+          "new": 18
+        },
+        {
+          "t": " ",
+          "c": "    return min(delay_seconds * (2 ** (attempt - 1)), cap)",
+          "old": 17,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "def decorrelated_jitter(delay_seconds: float, attempt: int, cap: float = 30.0) -> float:",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"Exponential backoff with full jitter.",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "    Spreads a thundering herd: every caller picks a delay uniformly from",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    [0, exponential(attempt)] instead of all waking at the same instant.",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "    ceiling = exponential(delay_seconds, attempt, cap)",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "    return random.uniform(0.0, ceiling)",
+          "old": null,
+          "new": 29
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "core"
+    },
+    "h28": {
+      "id": "h28",
+      "path": "src/meridian/http/client.py",
+      "language": "python",
+      "header": "@@ -0,0 +1,91 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 91,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "\"\"\"The one HTTP client every outbound integration uses.",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "Replaces four hand-maintained `_http.py` wrappers. Behaviour that used to",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "differ per package is now decided here, once, from config/http.yaml.",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "\"\"\"",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "from __future__ import annotations",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "import logging",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "import time",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "from dataclasses import dataclass",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "import requests",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "from requests import exceptions as rex",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "from meridian.config import http_config",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import backoff",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "log = logging.getLogger(__name__)",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "RETRY_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "RETRY_EXCEPTIONS = (rex.ConnectionError, rex.Timeout, rex.ChunkedEncodingError)",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "@dataclass(frozen=True)",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "class RetryPolicy:",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    max_attempts: int",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "    base_delay_seconds: float",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "    cap_seconds: float",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "    @classmethod",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "    def for_service(cls, service: str) -> \"RetryPolicy\":",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "        cfg = http_config.services.get(service, http_config.default)",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "        return cls(",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "            max_attempts=cfg.max_attempts,",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "            base_delay_seconds=cfg.base_delay_seconds,",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "            cap_seconds=cfg.cap_seconds,",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "        )",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "class HttpClient:",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "    def __init__(self, service: str, base_url: str, session=None) -> None:",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": "        self._service = service",
+          "old": null,
+          "new": 42
+        },
+        {
+          "t": "+",
+          "c": "        self._base_url = base_url.rstrip(\"/\")",
+          "old": null,
+          "new": 43
+        },
+        {
+          "t": "+",
+          "c": "        self._session = session or requests.Session()",
+          "old": null,
+          "new": 44
+        },
+        {
+          "t": "+",
+          "c": "        self._policy = RetryPolicy.for_service(service)",
+          "old": null,
+          "new": 45
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 46
+        },
+        {
+          "t": "+",
+          "c": "    def post_json(self, path: str, payload: dict, timeout: int | None = None) -> dict:",
+          "old": null,
+          "new": 47
+        },
+        {
+          "t": "+",
+          "c": "        return self._request(\"POST\", path, json=payload, timeout=timeout)",
+          "old": null,
+          "new": 48
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 49
+        },
+        {
+          "t": "+",
+          "c": "    def get_json(self, path: str, timeout: int | None = None) -> dict:",
+          "old": null,
+          "new": 50
+        },
+        {
+          "t": "+",
+          "c": "        return self._request(\"GET\", path, timeout=timeout)",
+          "old": null,
+          "new": 51
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 52
+        },
+        {
+          "t": "+",
+          "c": "    def _request(self, method: str, path: str, timeout: int | None = None, **kwargs) -> dict:",
+          "old": null,
+          "new": 53
+        },
+        {
+          "t": "+",
+          "c": "        url = self._base_url + path",
+          "old": null,
+          "new": 54
+        },
+        {
+          "t": "+",
+          "c": "        timeout = timeout or http_config.default.timeout_seconds",
+          "old": null,
+          "new": 55
+        },
+        {
+          "t": "+",
+          "c": "        last_error: Exception | None = None",
+          "old": null,
+          "new": 56
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 57
+        },
+        {
+          "t": "+",
+          "c": "        for attempt in range(1, self._policy.max_attempts + 1):",
+          "old": null,
+          "new": 58
+        },
+        {
+          "t": "+",
+          "c": "            try:",
+          "old": null,
+          "new": 59
+        },
+        {
+          "t": "+",
+          "c": "                response = self._session.request(method, url, timeout=timeout, **kwargs)",
+          "old": null,
+          "new": 60
+        },
+        {
+          "t": "+",
+          "c": "            except RETRY_EXCEPTIONS as exc:",
+          "old": null,
+          "new": 61
+        },
+        {
+          "t": "+",
+          "c": "                last_error = exc",
+          "old": null,
+          "new": 62
+        },
+        {
+          "t": "+",
+          "c": "                if attempt == self._policy.max_attempts:",
+          "old": null,
+          "new": 63
+        },
+        {
+          "t": "+",
+          "c": "                    raise",
+          "old": null,
+          "new": 64
+        },
+        {
+          "t": "+",
+          "c": "                self._wait(attempt, reason=type(exc).__name__, path=path)",
+          "old": null,
+          "new": 65
+        },
+        {
+          "t": "+",
+          "c": "                continue",
+          "old": null,
+          "new": 66
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 67
+        },
+        {
+          "t": "+",
+          "c": "            if response.status_code in RETRY_STATUSES and attempt < self._policy.max_attempts:",
+          "old": null,
+          "new": 68
+        },
+        {
+          "t": "+",
+          "c": "                self._wait(attempt, reason=str(response.status_code), path=path)",
+          "old": null,
+          "new": 69
+        },
+        {
+          "t": "+",
+          "c": "                continue",
+          "old": null,
+          "new": 70
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 71
+        },
+        {
+          "t": "+",
+          "c": "            response.raise_for_status()",
+          "old": null,
+          "new": 72
+        },
+        {
+          "t": "+",
+          "c": "            return response.json()",
+          "old": null,
+          "new": 73
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 74
+        },
+        {
+          "t": "+",
+          "c": "        raise RuntimeError(\"retry loop exhausted\") from last_error",
+          "old": null,
+          "new": 75
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 76
+        },
+        {
+          "t": "+",
+          "c": "    def _wait(self, attempt: int, reason: str, path: str) -> None:",
+          "old": null,
+          "new": 77
+        },
+        {
+          "t": "+",
+          "c": "        delay = backoff.decorrelated_jitter(",
+          "old": null,
+          "new": 78
+        },
+        {
+          "t": "+",
+          "c": "            self._policy.base_delay_seconds, attempt, self._policy.cap_seconds",
+          "old": null,
+          "new": 79
+        },
+        {
+          "t": "+",
+          "c": "        )",
+          "old": null,
+          "new": 80
+        },
+        {
+          "t": "+",
+          "c": "        log.warning(",
+          "old": null,
+          "new": 81
+        },
+        {
+          "t": "+",
+          "c": "            \"http.retry\",",
+          "old": null,
+          "new": 82
+        },
+        {
+          "t": "+",
+          "c": "            extra={",
+          "old": null,
+          "new": 83
+        },
+        {
+          "t": "+",
+          "c": "                \"service\": self._service,",
+          "old": null,
+          "new": 84
+        },
+        {
+          "t": "+",
+          "c": "                \"path\": path,",
+          "old": null,
+          "new": 85
+        },
+        {
+          "t": "+",
+          "c": "                \"reason\": reason,",
+          "old": null,
+          "new": 86
+        },
+        {
+          "t": "+",
+          "c": "                \"attempt\": attempt,",
+          "old": null,
+          "new": 87
+        },
+        {
+          "t": "+",
+          "c": "                \"delay_seconds\": round(delay, 3),",
+          "old": null,
+          "new": 88
+        },
+        {
+          "t": "+",
+          "c": "            },",
+          "old": null,
+          "new": 89
+        },
+        {
+          "t": "+",
+          "c": "        )",
+          "old": null,
+          "new": 90
+        },
+        {
+          "t": "+",
+          "c": "        time.sleep(delay)",
+          "old": null,
+          "new": 91
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "core"
+    },
+    "h29": {
+      "id": "h29",
+      "path": "src/meridian/notifications/_http.py",
+      "language": "python",
+      "header": "@@ -1,43 +0,0 @@",
+      "old_start": 1,
+      "old_lines": 43,
+      "new_start": 0,
+      "new_lines": 0,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "-",
+          "c": "\"\"\"HTTP helpers for the notifications integration.",
+          "old": 1,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 2,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "Copied from payments/_http.py when this package was split out. Kept in sync",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "by hand, mostly.",
+          "old": 4,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "\"\"\"",
+          "old": 5,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "from __future__ import annotations",
+          "old": 6,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import json",
+          "old": 8,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import logging",
+          "old": 9,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import time",
+          "old": 10,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 11,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import requests",
+          "old": 12,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 13,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "from meridian.config import settings",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "log = logging.getLogger(__name__)",
+          "old": 16,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 17,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "BASE_URL = settings.notifications_base_url",
+          "old": 18,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "RETRY_STATUSES = {502, 503}",
+          "old": 19,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "MAX_ATTEMPTS = 2",
+          "old": 20,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "RETRY_DELAY_SECONDS = 0.5",
+          "old": 21,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 22,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 23,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "def post_json(path: str, payload: dict, timeout: int = 8) -> dict:",
+          "old": 24,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    url = f\"{BASE_URL}{path}\"",
+          "old": 25,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    for attempt in range(1, MAX_ATTEMPTS + 1):",
+          "old": 26,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        response = requests.post(url, json=payload, timeout=timeout)",
+          "old": 27,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        if response.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:",
+          "old": 28,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            log.warning(",
+          "old": 29,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                \"notifications.retry\",",
+          "old": 30,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                extra={\"path\": path, \"status\": response.status_code, \"attempt\": attempt},",
+          "old": 31,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            )",
+          "old": 32,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            time.sleep(RETRY_DELAY_SECONDS)",
+          "old": 33,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            continue",
+          "old": 34,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        response.raise_for_status()",
+          "old": 35,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        return response.json()",
+          "old": 36,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    raise RuntimeError(\"unreachable\")",
+          "old": 37,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 38,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 39,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "def get_json(path: str, timeout: int = 8) -> dict:",
+          "old": 40,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    response = requests.get(f\"{BASE_URL}{path}\", timeout=timeout)",
+          "old": 41,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    response.raise_for_status()",
+          "old": 42,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    return response.json()",
+          "old": 43,
+          "new": null
+        }
+      ],
+      "change_kind": "deleted",
+      "significance": "mechanical"
+    },
+    "h30": {
+      "id": "h30",
+      "path": "src/meridian/notifications/email_client.py",
+      "language": "python",
+      "header": "@@ -1,10 +1,10 @@",
+      "old_start": 1,
+      "old_lines": 10,
+      "new_start": 1,
+      "new_lines": 10,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.notifications._http import post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def send_email(to: str, template: str, variables: dict) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/messages\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"to\": to, \"template\": template, \"vars\": variables},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h31": {
+      "id": "h31",
+      "path": "src/meridian/notifications/push_client.py",
+      "language": "python",
+      "header": "@@ -1,10 +1,10 @@",
+      "old_start": 1,
+      "old_lines": 10,
+      "new_start": 1,
+      "new_lines": 10,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.notifications._http import post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def send_push(device_token: str, payload: dict) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/push\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"device_token\": device_token, \"payload\": payload},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h32": {
+      "id": "h32",
+      "path": "src/meridian/notifications/sms_client.py",
+      "language": "python",
+      "header": "@@ -1,10 +1,10 @@",
+      "old_start": 1,
+      "old_lines": 10,
+      "new_start": 1,
+      "new_lines": 10,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.notifications._http import post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def send_sms(to: str, body: str) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/sms\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"to\": to, \"body\": body},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h33": {
+      "id": "h33",
+      "path": "src/meridian/payments/_http.py",
+      "language": "python",
+      "header": "@@ -1,43 +0,0 @@",
+      "old_start": 1,
+      "old_lines": 43,
+      "new_start": 0,
+      "new_lines": 0,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "-",
+          "c": "\"\"\"HTTP helpers for the payments integration.",
+          "old": 1,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 2,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "Copied from payments/_http.py when this package was split out. Kept in sync",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "by hand, mostly.",
+          "old": 4,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "\"\"\"",
+          "old": 5,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "from __future__ import annotations",
+          "old": 6,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import json",
+          "old": 8,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import logging",
+          "old": 9,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import time",
+          "old": 10,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 11,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import requests",
+          "old": 12,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 13,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "from meridian.config import settings",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "log = logging.getLogger(__name__)",
+          "old": 16,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 17,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "BASE_URL = settings.payments_base_url",
+          "old": 18,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "RETRY_STATUSES = {502, 503}",
+          "old": 19,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "MAX_ATTEMPTS = 3",
+          "old": 20,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "RETRY_DELAY_SECONDS = 0.5",
+          "old": 21,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 22,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 23,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "def post_json(path: str, payload: dict, timeout: int = 15) -> dict:",
+          "old": 24,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    url = f\"{BASE_URL}{path}\"",
+          "old": 25,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    for attempt in range(1, MAX_ATTEMPTS + 1):",
+          "old": 26,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        response = requests.post(url, json=payload, timeout=timeout)",
+          "old": 27,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        if response.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:",
+          "old": 28,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            log.warning(",
+          "old": 29,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                \"payments.retry\",",
+          "old": 30,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                extra={\"path\": path, \"status\": response.status_code, \"attempt\": attempt},",
+          "old": 31,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            )",
+          "old": 32,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            time.sleep(RETRY_DELAY_SECONDS)",
+          "old": 33,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            continue",
+          "old": 34,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        response.raise_for_status()",
+          "old": 35,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        return response.json()",
+          "old": 36,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    raise RuntimeError(\"unreachable\")",
+          "old": 37,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 38,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 39,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "def get_json(path: str, timeout: int = 15) -> dict:",
+          "old": 40,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    response = requests.get(f\"{BASE_URL}{path}\", timeout=timeout)",
+          "old": 41,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    response.raise_for_status()",
+          "old": 42,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    return response.json()",
+          "old": 43,
+          "new": null
+        }
+      ],
+      "change_kind": "deleted",
+      "significance": "supporting"
+    },
+    "h34": {
+      "id": "h34",
+      "path": "src/meridian/payments/gateway_client.py",
+      "language": "python",
+      "header": "@@ -1,24 +1,24 @@",
+      "old_start": 1,
+      "old_lines": 24,
+      "new_start": 1,
+      "new_lines": 24,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.payments._http import post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def authorize(order_id: str, amount_cents: int, currency: str) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/v2/authorizations\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"order_id\": order_id, \"amount\": amount_cents, \"currency\": currency},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "def capture(authorization_id: str) -> dict:",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "        \"/v2/captures\",",
+          "old": 15,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "        {\"authorization_id\": authorization_id},",
+          "old": 16,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 17,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 18,
+          "new": 18
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 19,
+          "new": 19
+        },
+        {
+          "t": " ",
+          "c": "def void(authorization_id: str) -> dict:",
+          "old": 20,
+          "new": 20
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 21,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": " ",
+          "c": "        \"/v2/voids\",",
+          "old": 22,
+          "new": 22
+        },
+        {
+          "t": " ",
+          "c": "        {\"authorization_id\": authorization_id},",
+          "old": 23,
+          "new": 23
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 24,
+          "new": 24
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "supporting"
+    },
+    "h35": {
+      "id": "h35",
+      "path": "src/meridian/payments/mandate_client.py",
+      "language": "python",
+      "header": "@@ -1,10 +1,10 @@",
+      "old_start": 1,
+      "old_lines": 10,
+      "new_start": 1,
+      "new_lines": 10,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.payments._http import post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def create_mandate(customer_id: str, scheme: str) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/v2/mandates\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"customer_id\": customer_id, \"scheme\": scheme},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h36": {
+      "id": "h36",
+      "path": "src/meridian/payments/payout_client.py",
+      "language": "python",
+      "header": "@@ -1,16 +1,16 @@",
+      "old_start": 1,
+      "old_lines": 16,
+      "new_start": 1,
+      "new_lines": 16,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.payments._http import get_json, post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def schedule_payout(merchant_id: str, amount_cents: int) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/v2/payouts\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"merchant_id\": merchant_id, \"amount\": amount_cents},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "def payout_status(payout_id: str) -> dict:",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": "-",
+          "c": "    return get_json(",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.get_json(",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "        f\"/v2/payouts/{payout_id}\",",
+          "old": 15,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 16,
+          "new": 16
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h37": {
+      "id": "h37",
+      "path": "src/meridian/shipping/_http.py",
+      "language": "python",
+      "header": "@@ -1,43 +0,0 @@",
+      "old_start": 1,
+      "old_lines": 43,
+      "new_start": 0,
+      "new_lines": 0,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "-",
+          "c": "\"\"\"HTTP helpers for the shipping integration.",
+          "old": 1,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 2,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "Copied from payments/_http.py when this package was split out. Kept in sync",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "by hand, mostly.",
+          "old": 4,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "\"\"\"",
+          "old": 5,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "from __future__ import annotations",
+          "old": 6,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import json",
+          "old": 8,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import logging",
+          "old": 9,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import time",
+          "old": 10,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 11,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import requests",
+          "old": 12,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 13,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "from meridian.config import settings",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "log = logging.getLogger(__name__)",
+          "old": 16,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 17,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "BASE_URL = settings.shipping_base_url",
+          "old": 18,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "RETRY_STATUSES = {502, 503}",
+          "old": 19,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "MAX_ATTEMPTS = 2",
+          "old": 20,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "RETRY_DELAY_SECONDS = 1.0",
+          "old": 21,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 22,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 23,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "def post_json(path: str, payload: dict, timeout: int = 20) -> dict:",
+          "old": 24,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    url = f\"{BASE_URL}{path}\"",
+          "old": 25,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    for attempt in range(1, MAX_ATTEMPTS + 1):",
+          "old": 26,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        response = requests.post(url, json=payload, timeout=timeout)",
+          "old": 27,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        if response.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:",
+          "old": 28,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            log.warning(",
+          "old": 29,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                \"shipping.retry\",",
+          "old": 30,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                extra={\"path\": path, \"status\": response.status_code, \"attempt\": attempt},",
+          "old": 31,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            )",
+          "old": 32,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            time.sleep(RETRY_DELAY_SECONDS)",
+          "old": 33,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            continue",
+          "old": 34,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        response.raise_for_status()",
+          "old": 35,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        return response.json()",
+          "old": 36,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    raise RuntimeError(\"unreachable\")",
+          "old": 37,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 38,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 39,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "def get_json(path: str, timeout: int = 20) -> dict:",
+          "old": 40,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    response = requests.get(f\"{BASE_URL}{path}\", timeout=timeout)",
+          "old": 41,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    response.raise_for_status()",
+          "old": 42,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    return response.json()",
+          "old": 43,
+          "new": null
+        }
+      ],
+      "change_kind": "deleted",
+      "significance": "mechanical"
+    },
+    "h38": {
+      "id": "h38",
+      "path": "src/meridian/shipping/carrier_client.py",
+      "language": "python",
+      "header": "@@ -1,17 +1,17 @@",
+      "old_start": 1,
+      "old_lines": 17,
+      "new_start": 1,
+      "new_lines": 17,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.shipping._http import post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def quote(origin: str, destination: str, weight_g: int) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/rates\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"origin\": origin, \"destination\": destination, \"weight_g\": weight_g},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "def book(quote_id: str, reference: str) -> dict:",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "        \"/shipments\",",
+          "old": 15,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "        {\"quote_id\": quote_id, \"reference\": reference},",
+          "old": 16,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 17,
+          "new": 17
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h39": {
+      "id": "h39",
+      "path": "src/meridian/shipping/label_client.py",
+      "language": "python",
+      "header": "@@ -1,10 +1,10 @@",
+      "old_start": 1,
+      "old_lines": 10,
+      "new_start": 1,
+      "new_lines": 10,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.shipping._http import post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def render_label(shipment_id: str, fmt: str) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/labels\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"shipment_id\": shipment_id, \"format\": fmt},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h40": {
+      "id": "h40",
+      "path": "src/meridian/shipping/tracking_client.py",
+      "language": "python",
+      "header": "@@ -1,16 +1,16 @@",
+      "old_start": 1,
+      "old_lines": 16,
+      "new_start": 1,
+      "new_lines": 16,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.shipping._http import get_json, post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def track(tracking_id: str) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return get_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.get_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        f\"/shipments/{tracking_id}/events\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "def cancel(shipment_id: str, reason: str) -> dict:",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 13,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "        f\"/shipments/{shipment_id}/cancel\",",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "        {\"reason\": reason},",
+          "old": 15,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 16,
+          "new": 16
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h41": {
+      "id": "h41",
+      "path": "src/meridian/tax/_http.py",
+      "language": "python",
+      "header": "@@ -1,43 +0,0 @@",
+      "old_start": 1,
+      "old_lines": 43,
+      "new_start": 0,
+      "new_lines": 0,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "-",
+          "c": "\"\"\"HTTP helpers for the tax integration.",
+          "old": 1,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 2,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "Copied from payments/_http.py when this package was split out. Kept in sync",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "by hand, mostly.",
+          "old": 4,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "\"\"\"",
+          "old": 5,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "from __future__ import annotations",
+          "old": 6,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import json",
+          "old": 8,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import logging",
+          "old": 9,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import time",
+          "old": 10,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 11,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "import requests",
+          "old": 12,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 13,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "from meridian.config import settings",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "log = logging.getLogger(__name__)",
+          "old": 16,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 17,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "BASE_URL = settings.tax_base_url",
+          "old": 18,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "RETRY_STATUSES = {502, 503}",
+          "old": 19,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "MAX_ATTEMPTS = 2",
+          "old": 20,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "RETRY_DELAY_SECONDS = 0.25",
+          "old": 21,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 22,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 23,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "def post_json(path: str, payload: dict, timeout: int = 10) -> dict:",
+          "old": 24,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    url = f\"{BASE_URL}{path}\"",
+          "old": 25,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    for attempt in range(1, MAX_ATTEMPTS + 1):",
+          "old": 26,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        response = requests.post(url, json=payload, timeout=timeout)",
+          "old": 27,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        if response.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:",
+          "old": 28,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            log.warning(",
+          "old": 29,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                \"tax.retry\",",
+          "old": 30,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                extra={\"path\": path, \"status\": response.status_code, \"attempt\": attempt},",
+          "old": 31,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            )",
+          "old": 32,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            time.sleep(RETRY_DELAY_SECONDS)",
+          "old": 33,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            continue",
+          "old": 34,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        response.raise_for_status()",
+          "old": 35,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        return response.json()",
+          "old": 36,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    raise RuntimeError(\"unreachable\")",
+          "old": 37,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 38,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 39,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "def get_json(path: str, timeout: int = 10) -> dict:",
+          "old": 40,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    response = requests.get(f\"{BASE_URL}{path}\", timeout=timeout)",
+          "old": 41,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    response.raise_for_status()",
+          "old": 42,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    return response.json()",
+          "old": 43,
+          "new": null
+        }
+      ],
+      "change_kind": "deleted",
+      "significance": "mechanical"
+    },
+    "h42": {
+      "id": "h42",
+      "path": "src/meridian/tax/calculator_client.py",
+      "language": "python",
+      "header": "@@ -1,17 +1,17 @@",
+      "old_start": 1,
+      "old_lines": 17,
+      "new_start": 1,
+      "new_lines": 17,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.tax._http import post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def estimate(lines: list, ship_to: dict) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        \"/calculate\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "        {\"lines\": lines, \"ship_to\": ship_to},",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "def commit(order_id: str, lines: list) -> dict:",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "        \"/transactions\",",
+          "old": 15,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "        {\"order_id\": order_id, \"lines\": lines},",
+          "old": 16,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 17,
+          "new": 17
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h43": {
+      "id": "h43",
+      "path": "src/meridian/tax/exemption_client.py",
+      "language": "python",
+      "header": "@@ -1,16 +1,16 @@",
+      "old_start": 1,
+      "old_lines": 16,
+      "new_start": 1,
+      "new_lines": 16,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.tax._http import get_json, post_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def lookup_certificate(customer_id: str) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return get_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.get_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        f\"/exemptions/{customer_id}\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "def upload_certificate(customer_id: str, document: str) -> dict:",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": "-",
+          "c": "    return post_json(",
+          "old": 13,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.post_json(",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "        \"/exemptions\",",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "        {\"customer_id\": customer_id, \"document\": document},",
+          "old": 15,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 16,
+          "new": 16
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h44": {
+      "id": "h44",
+      "path": "src/meridian/tax/nexus_client.py",
+      "language": "python",
+      "header": "@@ -1,9 +1,9 @@",
+      "old_start": 1,
+      "old_lines": 9,
+      "new_start": 1,
+      "new_lines": 9,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from __future__ import annotations",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": "-",
+          "c": "from meridian.tax._http import get_json",
+          "old": 3,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "def jurisdictions(region: str) -> dict:",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": "-",
+          "c": "    return get_json(",
+          "old": 7,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    return client.get_json(",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "        f\"/nexus/{region}\",",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "    )",
+          "old": 9,
+          "new": 9
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h45": {
+      "id": "h45",
+      "path": "tests/http/test_client.py",
+      "language": "python",
+      "header": "@@ -0,0 +1,57 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 57,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "import pytest",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "import requests",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http.client import HttpClient, RetryPolicy",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "from third_party.httpstub import StubResponse, StubTransport",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "@pytest.fixture()",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "def policy(monkeypatch):",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "    monkeypatch.setattr(",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "        RetryPolicy, \"for_service\",",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "        classmethod(lambda cls, service: cls(max_attempts=3, base_delay_seconds=0.0, cap_seconds=0.0)),",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "    )",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "def client_with(responses):",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "    return HttpClient(\"payments\", \"https://payments.invalid\", session=StubTransport(responses))",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "def test_returns_the_first_successful_body(policy):",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "    client = client_with([StubResponse(200, {\"ok\": True})])",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "    assert client.post_json(\"/v2/authorizations\", {\"amount\": 100}) == {\"ok\": True}",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "def test_retries_a_503_and_succeeds(policy):",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "    client = client_with([StubResponse(503), StubResponse(200, {\"ok\": True})])",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "    assert client.post_json(\"/v2/authorizations\", {}) == {\"ok\": True}",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "    assert len(client._session.requests) == 2",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "def test_retries_a_connection_error(policy):",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "    client = client_with([requests.exceptions.ConnectionError(), StubResponse(200, {\"ok\": True})])",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "    assert client.get_json(\"/v2/payouts/p_1\") == {\"ok\": True}",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "def test_gives_up_after_max_attempts_and_reraises(policy):",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "    client = client_with([requests.exceptions.ConnectionError()] * 3)",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": "    with pytest.raises(requests.exceptions.ConnectionError):",
+          "old": null,
+          "new": 42
+        },
+        {
+          "t": "+",
+          "c": "        client.get_json(\"/v2/payouts/p_1\")",
+          "old": null,
+          "new": 43
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 44
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 45
+        },
+        {
+          "t": "+",
+          "c": "def test_does_not_retry_a_400(policy):",
+          "old": null,
+          "new": 46
+        },
+        {
+          "t": "+",
+          "c": "    client = client_with([StubResponse(400)])",
+          "old": null,
+          "new": 47
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 48
+        },
+        {
+          "t": "+",
+          "c": "    with pytest.raises(AssertionError):",
+          "old": null,
+          "new": 49
+        },
+        {
+          "t": "+",
+          "c": "        client.post_json(\"/v2/authorizations\", {})",
+          "old": null,
+          "new": 50
+        },
+        {
+          "t": "+",
+          "c": "    assert len(client._session.requests) == 1",
+          "old": null,
+          "new": 51
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 52
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 53
+        },
+        {
+          "t": "+",
+          "c": "def test_retries_a_429(policy):",
+          "old": null,
+          "new": 54
+        },
+        {
+          "t": "+",
+          "c": "    client = client_with([StubResponse(429), StubResponse(200, {\"ok\": True})])",
+          "old": null,
+          "new": 55
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 56
+        },
+        {
+          "t": "+",
+          "c": "    assert client.post_json(\"/v2/authorizations\", {}) == {\"ok\": True}",
+          "old": null,
+          "new": 57
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    },
+    "h46": {
+      "id": "h46",
+      "path": "tests/notifications/test_email_client.py",
+      "language": "python",
+      "header": "@@ -1,7 +1,7 @@",
+      "old_start": 1,
+      "old_lines": 7,
+      "new_start": 1,
+      "new_lines": 7,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "import pytest",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": " ",
+          "c": "from meridian.notifications import email_client",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": "-",
+          "c": "from meridian.notifications._http import post_json",
+          "old": 4,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": " ",
+          "c": "def test_send_email_posts_to_the_expected_path(monkeypatch):",
+          "old": 7,
+          "new": 7
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h47": {
+      "id": "h47",
+      "path": "tests/notifications/test_email_client.py",
+      "language": "python",
+      "header": "@@ -12,7 +12,7 @@",
+      "old_start": 12,
+      "old_lines": 7,
+      "new_start": 12,
+      "new_lines": 7,
+      "section": "def test_send_email_posts_to_the_expected_path(monkeypatch):",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "        seen[\"payload\"] = payload",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "        return {\"id\": \"msg_1\"}",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "t": "-",
+          "c": "    monkeypatch.setattr(email_client, \"post_json\", fake_post)",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    monkeypatch.setattr(client, \"post_json\", fake_post)",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 16,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "    result = email_client.send_email(\"a@example.invalid\", \"welcome\", {})",
+          "old": 17,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 18,
+          "new": 18
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h48": {
+      "id": "h48",
+      "path": "tests/payments/test_gateway_client.py",
+      "language": "python",
+      "header": "@@ -1,7 +1,7 @@",
+      "old_start": 1,
+      "old_lines": 7,
+      "new_start": 1,
+      "new_lines": 7,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "import pytest",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": " ",
+          "c": "from meridian.payments import gateway_client",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": "-",
+          "c": "from meridian.payments._http import post_json",
+          "old": 4,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": " ",
+          "c": "def test_authorize_posts_to_the_expected_path(monkeypatch):",
+          "old": 7,
+          "new": 7
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h49": {
+      "id": "h49",
+      "path": "tests/payments/test_gateway_client.py",
+      "language": "python",
+      "header": "@@ -12,7 +12,7 @@",
+      "old_start": 12,
+      "old_lines": 7,
+      "new_start": 12,
+      "new_lines": 7,
+      "section": "def test_authorize_posts_to_the_expected_path(monkeypatch):",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "        seen[\"payload\"] = payload",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "        return {\"id\": \"auth_1\"}",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "t": "-",
+          "c": "    monkeypatch.setattr(gateway_client, \"post_json\", fake_post)",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    monkeypatch.setattr(client, \"post_json\", fake_post)",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 16,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "    result = gateway_client.authorize(\"ord_1\", 2500, \"usd\")",
+          "old": 17,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 18,
+          "new": 18
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h50": {
+      "id": "h50",
+      "path": "tests/shipping/test_carrier_client.py",
+      "language": "python",
+      "header": "@@ -1,7 +1,7 @@",
+      "old_start": 1,
+      "old_lines": 7,
+      "new_start": 1,
+      "new_lines": 7,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "import pytest",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": " ",
+          "c": "from meridian.shipping import carrier_client",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": "-",
+          "c": "from meridian.shipping._http import post_json",
+          "old": 4,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": " ",
+          "c": "def test_quote_posts_to_the_expected_path(monkeypatch):",
+          "old": 7,
+          "new": 7
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h51": {
+      "id": "h51",
+      "path": "tests/shipping/test_carrier_client.py",
+      "language": "python",
+      "header": "@@ -12,7 +12,7 @@",
+      "old_start": 12,
+      "old_lines": 7,
+      "new_start": 12,
+      "new_lines": 7,
+      "section": "def test_quote_posts_to_the_expected_path(monkeypatch):",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "        seen[\"payload\"] = payload",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "        return {\"id\": \"qt_1\"}",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "t": "-",
+          "c": "    monkeypatch.setattr(carrier_client, \"post_json\", fake_post)",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    monkeypatch.setattr(client, \"post_json\", fake_post)",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 16,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "    result = carrier_client.quote(\"SE\", \"DE\", 1200)",
+          "old": 17,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 18,
+          "new": 18
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h52": {
+      "id": "h52",
+      "path": "tests/tax/test_calculator_client.py",
+      "language": "python",
+      "header": "@@ -1,7 +1,7 @@",
+      "old_start": 1,
+      "old_lines": 7,
+      "new_start": 1,
+      "new_lines": 7,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "import pytest",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": " ",
+          "c": "from meridian.tax import calculator_client",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": "-",
+          "c": "from meridian.tax._http import post_json",
+          "old": 4,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "from meridian.http import client",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": " ",
+          "c": "def test_estimate_posts_to_the_expected_path(monkeypatch):",
+          "old": 7,
+          "new": 7
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h53": {
+      "id": "h53",
+      "path": "tests/tax/test_calculator_client.py",
+      "language": "python",
+      "header": "@@ -12,7 +12,7 @@",
+      "old_start": 12,
+      "old_lines": 7,
+      "new_start": 12,
+      "new_lines": 7,
+      "section": "def test_estimate_posts_to_the_expected_path(monkeypatch):",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "        seen[\"payload\"] = payload",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "        return {\"id\": \"tx_1\"}",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "t": "-",
+          "c": "    monkeypatch.setattr(calculator_client, \"post_json\", fake_post)",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    monkeypatch.setattr(client, \"post_json\", fake_post)",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 16,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "    result = calculator_client.estimate([], {})",
+          "old": 17,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 18,
+          "new": 18
+        }
+      ],
+      "change_kind": "rename",
+      "significance": "mechanical"
+    },
+    "h54": {
+      "id": "h54",
+      "path": "third_party/httpstub/__init__.py",
+      "language": "python",
+      "header": "@@ -1,4 +1,4 @@",
+      "old_start": 1,
+      "old_lines": 4,
+      "new_start": 1,
+      "new_lines": 4,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "-",
+          "c": "# vendored from httpstub 0.4.2 -- do not edit, re-vendor with scripts/vendor.sh",
+          "old": 1,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "# vendored from httpstub 0.5.0 -- do not edit, re-vendor with scripts/vendor.sh",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": " ",
+          "c": "\"\"\"Minimal in-process HTTP stub used by the integration suite.\"\"\"",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        }
+      ],
+      "change_kind": "content",
+      "significance": "supporting"
+    },
+    "h55": {
+      "id": "h55",
+      "path": "third_party/httpstub/__init__.py",
+      "language": "python",
+      "header": "@@ -14,3 +14,20 @@",
+      "old_start": 14,
+      "old_lines": 3,
+      "new_start": 14,
+      "new_lines": 20,
+      "section": "class StubResponse:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    def raise_for_status(self):",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "        if self.status_code >= 400:",
+          "old": 15,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "            raise AssertionError(\"stub returned %d\" % self.status_code)",
+          "old": 16,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "class StubTransport:",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"Records requests and replays a queued sequence of responses.\"\"\"",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "    def __init__(self, responses):",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "        self.responses = list(responses)",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "        self.requests = []",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    def request(self, method, url, **kwargs):",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "        self.requests.append((method, url, kwargs))",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "        if not self.responses:",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "            raise AssertionError(\"no stub response queued for %s %s\" % (method, url))",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "        nxt = self.responses.pop(0)",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "        if isinstance(nxt, Exception):",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "            raise nxt",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "        return nxt",
+          "old": null,
+          "new": 33
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    }
+  }
+}

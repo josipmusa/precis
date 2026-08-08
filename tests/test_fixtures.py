@@ -1,0 +1,200 @@
+"""The fixtures are the schema's test suite.
+
+Every fixture must validate, must be internally consistent with the diff it was
+built from, and must keep the anti-review guarantee that the whole tool rests on.
+"""
+import json
+import re
+
+import pytest
+from conftest import FIXTURES, REFERENCES
+
+from validate_model import validate
+
+
+def test_every_fixture_has_its_source_diff(fixture_model):
+    name, _ = fixture_model
+    assert (FIXTURES / f"{name}.diff").exists(), (
+        f"{name}.json has no {name}.diff; a fixture is a pair"
+    )
+
+
+def test_fixture_validates(fixture_model):
+    name, model = fixture_model
+    problems = validate(model, name)
+    assert problems == [], "\n".join(problems)
+
+
+def test_schema_doc_minimal_example_validates():
+    """The example in references/schema.md must be a real, valid document."""
+    text = (REFERENCES / "schema.md").read_text(encoding="utf-8")
+    marker = "# Part 3 - A minimal valid report model"
+    assert marker in text, "schema.md lost its minimal example section"
+    block = re.search(r"```json\n(.*?)\n```", text[text.index(marker):], re.S)
+    assert block, "no JSON block under the minimal-example heading"
+    problems = validate(json.loads(block.group(1)), "schema.md minimal example")
+    assert problems == [], "\n".join(problems)
+
+
+def test_stats_match_the_hunks(fixture_model):
+    """stats are deterministic facts; they must agree with the hunk store."""
+    name, model = fixture_model
+    counted_files = sum(len(g["files"]) for g in model["change_map"]["groups"])
+    assert counted_files == model["stats"]["files_changed"]
+
+    additions = sum(f["additions"] for g in model["change_map"]["groups"] for f in g["files"])
+    deletions = sum(f["deletions"] for g in model["change_map"]["groups"] for f in g["files"])
+    assert additions == model["stats"]["additions"]
+    assert deletions == model["stats"]["deletions"]
+
+
+def test_signal_ratio_matches_the_core_hunks(fixture_model):
+    name, model = fixture_model
+    core = 0
+    for hunk in model["hunks"].values():
+        if hunk["significance"] == "core":
+            core += sum(1 for row in hunk["lines"] if row["t"] in "+-")
+    total = model["stats"]["additions"] + model["stats"]["deletions"]
+    assert model["stats"]["signal_ratio"] == pytest.approx(core / total, abs=0.01)
+
+
+def test_coverage_counts_are_consistent(fixture_model):
+    name, model = fixture_model
+    coverage = model["coverage"]
+    assert coverage["hunks_read"] <= coverage["hunks_total"]
+    assert coverage["files_read"] <= coverage["files_total"]
+    assert coverage["hunks_total"] == model["stats"]["hunks"]
+    assert coverage["files_total"] == model["stats"]["files_changed"]
+    if coverage["tier"] == "full":
+        assert coverage["hunks_read"] == coverage["hunks_total"]
+        assert not any(h["truncated"] for h in model["hunks"].values()), (
+            "a 'full' read cannot contain truncated hunks"
+        )
+
+
+def test_reading_order_starts_at_a_core_hunk(fixture_model):
+    """Step 1 is the change itself, never the entry point or the test."""
+    name, model = fixture_model
+    first = model["reading_order"]["steps"][0]
+    kinds = {model["hunks"][h]["significance"] for h in first["hunk_ids"]}
+    assert "core" in kinds, (
+        f"{name}: step 1 ({first['title']!r}) references no core hunk"
+    )
+
+
+def test_mechanical_hunks_are_never_in_the_reading_order_alone(fixture_model):
+    """A step made only of mechanical hunks is asking a reader to read ripple."""
+    name, model = fixture_model
+    for step in model["reading_order"]["steps"]:
+        kinds = {model["hunks"][h]["significance"] for h in step["hunk_ids"]}
+        assert kinds != {"mechanical"}, (
+            f"{name}: step {step['n']} ({step['title']!r}) is entirely mechanical"
+        )
+
+
+# Words that turn a comprehension artifact into a review. This is the product
+# constraint, enforced. See references/analysis.md.
+VERDICT_WORDS = [
+    r"\bshould\b", r"\bshouldn't\b", r"\bought to\b", r"\bmust be fixed\b",
+    r"\bbug\b", r"\bbuggy\b", r"\bbroken\b", r"\bincorrect\b", r"\bwrong\b",
+    r"\bconsider\b", r"\bsuggest\b", r"\brecommend\b", r"\bimprove\b",
+    r"\bcleaner\b", r"\bbetter\b", r"\bbad\b", r"\bpoor\b", r"\bugly\b",
+    r"\bcode smell\b", r"\banti-pattern\b", r"\bnit\b", r"\bnitpick\b",
+    r"\brisky\b", r"\bdangerous\b", r"\bunsafe\b", r"\bproblem\b",
+    r"\bissue with\b", r"\bfails to\b", r"\bmissing\b", r"\bneeds to\b",
+]
+
+# Prose the report itself speaks. `source.description` is the author's own text
+# and `hunks[].lines[].c` is their code; precis quotes both verbatim.
+def _authored_prose(model):
+    out = []
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ("description", "lines"):
+                    continue
+                walk(value, f"{path}.{key}")
+        elif isinstance(node, list):
+            for i, item in enumerate(node):
+                walk(item, f"{path}[{i}]")
+        elif isinstance(node, str):
+            out.append((path, node))
+
+    for section in ("story", "change_map", "behavior", "reading_order",
+                    "attention", "seams", "coverage"):
+        walk(model.get(section), section)
+    return out
+
+
+def test_no_review_verdicts_anywhere(fixture_model):
+    """The hard rule, as a test. precis describes; it never judges."""
+    name, model = fixture_model
+    hits = []
+    for path, text in _authored_prose(model):
+        for pattern in VERDICT_WORDS:
+            if re.search(pattern, text, re.I):
+                hits.append(f"{name} {path}: {pattern} in {text[:110]!r}")
+    assert hits == [], "\n".join(hits)
+
+
+def test_attention_items_never_carry_a_score(fixture_model):
+    name, model = fixture_model
+    for item in model["attention"]:
+        assert "severity" not in item
+        assert "priority" not in item
+        assert "score" not in item
+
+
+def test_low_confidence_story_is_labelled(fixture_model):
+    name, model = fixture_model
+    story = model["story"]
+    if story["confidence"] != "high":
+        assert story.get("caveat"), f"{name}: unlabelled {story['confidence']} confidence story"
+
+
+def test_skippable_groups_earn_the_skip(fixture_model):
+    """A reason that does not explain the mechanism is a demand for trust."""
+    name, model = fixture_model
+    for group in model["reading_order"]["skippable"]:
+        assert len(group["reason"]) > 60, (
+            f"{name}: {group['label']!r} reason is too thin to earn a skip: "
+            f"{group['reason']!r}"
+        )
+
+
+def test_diagram_sizes_stay_comprehensible(fixture_model):
+    name, model = fixture_model
+    behavior = model["behavior"]
+    if not behavior["changed"]:
+        return
+    for side in ("before", "after"):
+        diagram = behavior[side]
+        assert len(diagram.get("lanes") or []) <= 8, f"{name}.{side}: too many lanes"
+        assert len(diagram.get("nodes") or []) <= 20, f"{name}.{side}: too many nodes"
+        for node in diagram.get("nodes") or []:
+            assert len(node["label"]) <= 48, f"{name}.{side}: label too long: {node['label']!r}"
+        for edge in diagram.get("edges") or []:
+            if edge.get("label"):
+                assert len(edge["label"]) <= 40, (
+                    f"{name}.{side}: edge label too long: {edge['label']!r}"
+                )
+
+
+def test_fixtures_contain_nothing_private():
+    """Fixture content is invented. Nothing may point at a real host or account."""
+    banned = re.compile(
+        r"aevon|callshift|josip|clickup|\.internal\b|amazonaws|googleapis\.com/[a-z]",
+        re.I,
+    )
+    for path in sorted(FIXTURES.glob("*")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        hit = banned.search(text)
+        assert hit is None, f"{path.name}: {hit.group(0)!r} at offset {hit.start()}"
+
+
+def test_headline_is_a_statement_not_a_verdict(fixture_model):
+    name, model = fixture_model
+    headline = model["story"]["headline"]
+    assert len(headline) <= 120, f"{name}: headline is {len(headline)} chars"
+    assert not headline.endswith("?"), f"{name}: headline is a question"

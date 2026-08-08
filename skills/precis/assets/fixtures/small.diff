@@ -1,0 +1,129 @@
+diff --git a/src/meridian/webhooks/dedupe.py b/src/meridian/webhooks/dedupe.py
+new file mode 100644
+index 0000000..62c71e8
+--- /dev/null
++++ b/src/meridian/webhooks/dedupe.py
+@@ -0,0 +1,44 @@
++"""Single-delivery guard for inbound webhook events.
++
++Stripe retries a delivery until it receives a 2xx, and it does not
++guarantee that the previous attempt failed. Any handler with a side
++effect has to claim the event id before performing it.
++"""
++
++from __future__ import annotations
++
++import logging
++
++from meridian.db import Pool
++
++log = logging.getLogger(__name__)
++
++_CLAIM = """
++INSERT INTO webhook_events (event_id, provider, claimed_at)
++VALUES (%s, %s, now())
++ON CONFLICT (event_id) DO NOTHING
++"""
++
++
++class EventClaim:
++    """Claims webhook event ids so that a retried delivery is a no-op."""
++
++    def __init__(self, pool: Pool) -> None:
++        self._pool = pool
++
++    def claim(self, event_id: str, provider: str = "stripe") -> bool:
++        """Return True when this delivery is the first to claim event_id.
++
++        The insert is the lock. webhook_events.event_id is unique, so of
++        two concurrent deliveries exactly one inserts a row and the other
++        sees rowcount 0 without blocking.
++        """
++        with self._pool.connection() as conn:
++            claimed = conn.execute(_CLAIM, (event_id, provider)).rowcount == 1
++
++        if not claimed:
++            log.info(
++                "webhook.duplicate_delivery",
++                extra={"event_id": event_id, "provider": provider},
++            )
++        return claimed
+diff --git a/src/meridian/webhooks/handlers.py b/src/meridian/webhooks/handlers.py
+index e85608b..65011ef 100644
+--- a/src/meridian/webhooks/handlers.py
++++ b/src/meridian/webhooks/handlers.py
+@@ -4,11 +4,13 @@ from fastapi import APIRouter, Request, Response
+ 
+ from meridian.db import pool
+ from meridian.refunds.ledger import RefundLedger
++from meridian.webhooks.dedupe import EventClaim
+ from meridian.webhooks.signature import verify_stripe_signature
+ 
+ router = APIRouter(prefix="/webhooks")
+ log = logging.getLogger(__name__)
+ ledger = RefundLedger(pool)
++claims = EventClaim(pool)
+ 
+ 
+ @router.post("/stripe")
+@@ -30,6 +32,9 @@ def handle_refund(event: Event) -> Response:
+     charge = event.data["object"]
+     refund = charge["refunds"]["data"][0]
+ 
++    if not claims.claim(event.id):
++        return Response(status_code=200)
++
+     ledger.record_refund(
+         order_id=charge["metadata"]["order_id"],
+         amount_cents=refund["amount"],
+@@ -42,6 +47,10 @@ def handle_refund(event: Event) -> Response:
+ 
+ def handle_dispute(event: Event) -> Response:
+     charge = event.data["object"]
++
++    if not claims.claim(event.id):
++        return Response(status_code=200)
++
+     ledger.open_dispute(
+         order_id=charge["metadata"]["order_id"],
+         amount_cents=charge["amount"],
+diff --git a/tests/webhooks/test_refund_handler.py b/tests/webhooks/test_refund_handler.py
+index 95fce3b..213b498 100644
+--- a/tests/webhooks/test_refund_handler.py
++++ b/tests/webhooks/test_refund_handler.py
+@@ -11,7 +11,14 @@ def ledger(monkeypatch):
+     return recorder
+ 
+ 
+-def test_records_refund_against_the_order(ledger):
++@pytest.fixture()
++def claims(monkeypatch):
++    guard = FakeEventClaim()
++    monkeypatch.setattr(handlers, "claims", guard)
++    return guard
++
++
++def test_records_refund_against_the_order(ledger, claims):
+     event = stripe_refund_event(order_id="ord_8812", amount_cents=2500)
+ 
+     response = handlers.handle_refund(event)
+@@ -20,7 +27,18 @@ def test_records_refund_against_the_order(ledger):
+     assert ledger.refunds == [("ord_8812", 2500, "usd")]
+ 
+ 
+-def test_ignores_unrelated_event_types(ledger):
++def test_second_delivery_of_the_same_event_is_a_no_op(ledger, claims):
++    event = stripe_refund_event(order_id="ord_8812", amount_cents=2500)
++
++    first = handlers.handle_refund(event)
++    second = handlers.handle_refund(event)
++
++    assert first.status_code == 200
++    assert second.status_code == 200
++    assert ledger.refunds == [("ord_8812", 2500, "usd")]
++
++
++def test_ignores_unrelated_event_types(ledger, claims):
+     event = stripe_refund_event(order_id="ord_8812", event_type="charge.succeeded")
+ 
+     handlers.stripe_webhook_sync(event)

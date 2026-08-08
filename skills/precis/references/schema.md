@@ -35,7 +35,7 @@ ends of the pipeline in the same commit.
 
 ---
 
-# Part 1 — The report model
+# Part 1 - The report model
 
 ## Top level
 
@@ -107,7 +107,7 @@ Identity, provenance, reproducibility.
 | `url` | optional | Link back to the PR/MR. |
 | `repo` | optional | `owner/name`, or a local path for `git_range`. |
 | `author` | optional | Handle. Absent for bare diffs and patch files. |
-| `base`, `head` | required | Each `{ ref, sha }`. `ref` optional, `sha` **required** — this is the reproducibility stamp and it is rendered in the report footer. For a `patch_file` with no SHA information, use `{ "ref": null, "sha": null }` and add a `coverage.limitations` entry saying so. |
+| `base`, `head` | required | Each `{ ref, sha }`. `ref` optional, `sha` **required** - this is the reproducibility stamp and it is rendered in the report footer. For a `patch_file` with no SHA information, use `{ "ref": null, "sha": null }` and add a `coverage.limitations` entry saying so. |
 | `commits` | optional | Ordered oldest-first. `sha` may be short. Used as intent evidence. |
 | `linked_issues` | optional | Issues referenced by the PR body or branch name. |
 | `description` | optional | The verbatim PR/MR body. The template shows it collapsed next to the story so a reader can check precis's reconstruction against the source. |
@@ -220,8 +220,8 @@ does and what it does.
 
 **Confidence rule.** `high` needs a description or a linked issue that the diff
 corroborates. `medium` is code plus useful commit messages, or a description that only
-partly matches the diff. `low` is code alone. A `low`-confidence story is still written —
-a reader with an inferred story is better off than a reader with none — but the report
+partly matches the diff. `low` is code alone. A `low`-confidence story is still written -
+a reader with an inferred story is better off than a reader with none - but the report
 labels it as inferred and shows the banner. Never present an inferred story as if it were
 sourced.
 
@@ -229,13 +229,13 @@ sourced.
 
 The scope-creep detector, stated neutrally.
 
-- `stated` — the change's own claim about itself, in one sentence, drawn from the
+- `stated` - the change's own claim about itself, in one sentence, drawn from the
   description or title. `null` when there is no description.
-- `also_does[]` — things the diff does that the stated intent does not cover.
+- `also_does[]` - things the diff does that the stated intent does not cover.
   `kind` is `scope_creep` (a second substantial concern), `drive_by` (a small unrelated
   fix or cleanup), or `incidental` (a consequence of the main change that a reader would
   not predict from the description, such as a config default moving).
-- `not_done[]` — things the stated intent claims that the diff does not appear to
+- `not_done[]` - things the stated intent claims that the diff does not appear to
   contain. `note` gives the benign explanation when one exists.
 
 Both arrays are descriptive. `"description says X; the diff also does Y"` is the voice.
@@ -278,7 +278,7 @@ Files grouped by architectural role. Feeds the treemap and the file table.
 `role` (required), `label` (required, human phrase, not the role name), `summary`
 (optional, one line), `files` (required, non-empty).
 
-**`role` enumeration** — the vertical axis of the map:
+**`role` enumeration** - the vertical axis of the map:
 
 | Value | Means |
 |---|---|
@@ -301,7 +301,7 @@ Files grouped by architectural role. Feeds the treemap and the file table.
 (optional, required when `status` is `renamed` or `copied`), `note` (optional, one line;
 present for every `core` file).
 
-**`change_kind` enumeration** — the colour axis of the map:
+**`change_kind` enumeration** - the colour axis of the map:
 
 | Value | Legend label | Means |
 |---|---|---|
@@ -314,7 +314,7 @@ present for every `core` file).
 | `content` | Values and content | Config values, constants, fixtures, prose, manifests. |
 | `deleted` | Deleted | Removal without replacement. |
 
-**`significance` enumeration** — drives what a reader is asked to read:
+**`significance` enumeration** - drives what a reader is asked to read:
 
 | Value | Means |
 |---|---|
@@ -391,12 +391,12 @@ colours, or sizes.
 | `edges` | required | For `sequence`, the messages in chronological order (array order is time). For `flow`, the graph edges. |
 
 **Node fields.** `id` (required, unique in the diagram), `label` (required, ≤ 48 chars),
-`lane` (optional, must reference a lane id), `kind` (required — `actor` \| `service` \|
+`lane` (optional, must reference a lane id), `kind` (required - `actor` \| `service` \|
 `process` \| `decision` \| `store` \| `external` \| `queue` \| `note` \| `start` \|
 `end`), `emphasis` (required).
 
-**Edge fields.** `from`, `to` (required — node ids for `flow`, lane ids for `sequence`),
-`label` (optional, ≤ 40 chars), `kind` (required — `call` \| `return` \| `async` \|
+**Edge fields.** `from`, `to` (required - node ids for `flow`, lane ids for `sequence`),
+`label` (optional, ≤ 40 chars), `kind` (required - `call` \| `return` \| `async` \|
 `error` \| `data`), `emphasis` (required), `hunk_ids` (optional; makes the edge clickable
 through to the code).
 
@@ -453,23 +453,23 @@ The guided path, and an honest account of everything left out of it.
 | `skippable` | required | Array, may be empty. Every file not in `steps` must appear in exactly one `skippable` group. The renderer checks this. |
 
 **Step fields.** `n` (required, 1-based, matches array position), `title` (required),
-`why` (required — this is the load-bearing field; a step without a reason to exist is
+`why` (required - this is the load-bearing field; a step without a reason to exist is
 noise), `path` (optional; the primary file, when the step has one), `hunk_ids` (required,
 non-empty), `annotations` (optional).
 
 **Annotation fields.** `hunk_id` (required), `new_line` or `old_line` (optional; the
-absolute line number in the new or old file, used to anchor the note beside that line —
+absolute line number in the new or old file, used to anchor the note beside that line -
 omit both to attach the note to the hunk as a whole), `text` (required, one or two
 sentences).
 
 Annotations are the sharpest place for review-flavoured judgement to leak in. An
 annotation says *what this line does* or *what it changes*, never *whether it is right*.
 
-**Skippable-group fields.** `label` (required), `reason` (required — one line that earns
+**Skippable-group fields.** `label` (required), `reason` (required - one line that earns
 the skip by explaining the mechanism, not by asserting unimportance), `confidence`
 (required: `high` \| `medium`; a group you are not confident about does not belong here,
 promote it into `steps` instead), `group_ids` (optional, references `change_map` groups),
-`files` (required — the full list, so a reader can always look), `file_count`,
+`files` (required - the full list, so a reader can always look), `file_count`,
 `additions`, `deletions` (required integers).
 
 **Reading-order construction rule.** Step 1 is the core change, not the entry point, not
@@ -644,7 +644,7 @@ changed since the previous report, and offers a filter to show only those.
 
 ---
 
-# Part 2 — The pre-model
+# Part 2 - The pre-model
 
 What `parse_diff.py` and `classify.py` produce. Deterministic: given the same diff bytes
 and the same classification rules, byte-identical output. No judgement, no prose beyond
@@ -707,7 +707,7 @@ no `signal_ratio`.
 | `classification.lockfile` | Known lockfile names. |
 | `classification.formatting_only` | Every changed line, after normalising whitespace, has an identical counterpart on the other side. |
 | `classification.whitespace_only` | Stricter: changes are whitespace exclusively. |
-| `classification.significance_hint` | `core` \| `supporting` \| `mechanical`. A **hint**. The analysis phase owns the final `significance` and is expected to disagree sometimes — a one-line change in a generated file is still mechanical, but a one-line change in a lockfile that pins a different major version is not. |
+| `classification.significance_hint` | `core` \| `supporting` \| `mechanical`. A **hint**. The analysis phase owns the final `significance` and is expected to disagree sometimes - a one-line change in a generated file is still mechanical, but a one-line change in a lockfile that pins a different major version is not. |
 | `classification.reasons` | Machine-readable-ish strings explaining every non-default classification. These exist so a human can audit why something was called mechanical. Never empty for a file hinted `mechanical`. |
 
 ## `hunks{}`
@@ -740,7 +740,7 @@ analysis phase read less than it was offered.
 
 ---
 
-# Part 3 — A minimal valid report model
+# Part 3 - A minimal valid report model
 
 The smallest document the renderer accepts. Every optional field omitted, every required
 field present. Useful as a template smoke test and as a floor for what a degraded run
@@ -838,8 +838,8 @@ still produces.
       "id": "h1",
       "path": "src/orders/notify.py",
       "language": "python",
-      "header": "@@ -88,7 +88,7 @@ def send_confirmation(order):",
-      "old_start": 88, "old_lines": 7, "new_start": 88, "new_lines": 7,
+      "header": "@@ -90,3 +90,3 @@ def send_confirmation(order):",
+      "old_start": 90, "old_lines": 3, "new_start": 90, "new_lines": 3,
       "change_kind": "modified_logic",
       "significance": "core",
       "truncated": false,
@@ -856,7 +856,7 @@ still produces.
 
 ---
 
-# Part 4 — Invariants the renderer checks
+# Part 4 - Invariants the renderer checks
 
 `render_report.py` validates these before writing HTML and fails loudly rather than
 producing a report that lies:
@@ -874,5 +874,7 @@ producing a report that lies:
 9. Every diagram edge endpoint resolves: to a lane id for `sequence`, to a node id for
    `flow`. Every node `lane` resolves.
 10. `coverage.limitations` is an array (possibly empty), never a string.
+11. Every path in `hunks` appears in `change_map`. The report never shows code from
+    a file it does not list.
 
 A validation failure is a bug in the analysis phase, not something to render around.

@@ -1,0 +1,559 @@
+diff --git a/clients/ts/src/api/refunds.ts b/clients/ts/src/api/refunds.ts
+index 49b69c1..5afc9de 100644
+--- a/clients/ts/src/api/refunds.ts
++++ b/clients/ts/src/api/refunds.ts
+@@ -7,6 +7,11 @@ import type { AxiosRequestConfig } from 'axios';
+ 
+ import { http } from '../http';
+ 
++export interface RefundRequest {
++  amountCents?: number;
++  reason?: string;
++}
++
+ export interface RefundResponse {
+   id: string;
+   orderId: string;
+@@ -20,8 +25,8 @@ export interface OrderResponse {
+   customerId: string;
+   status: string;
+   totalCents: number;
++  refundedCents: number;
+   currency: string;
+-  fullyRefunded: boolean;
+ }
+ 
+ export const getOrder = (orderId: string, options?: AxiosRequestConfig) =>
+@@ -29,3 +34,9 @@ export const getOrder = (orderId: string, options?: AxiosRequestConfig) =>
+ 
+ export const listRefunds = (orderId: string, options?: AxiosRequestConfig) =>
+   http.get<RefundResponse[]>(`/orders/${orderId}/refunds`, options);
++
++export const createRefund = (
++  orderId: string,
++  body: RefundRequest,
++  options?: AxiosRequestConfig,
++) => http.post<RefundResponse>(`/orders/${orderId}/refunds`, body, options);
+diff --git a/config/limits.yaml b/config/limits.yaml
+index d0890a7..60fb39d 100644
+--- a/config/limits.yaml
++++ b/config/limits.yaml
+@@ -2,13 +2,14 @@
+ # lifetime; changing one requires a restart.
+ 
+ api:
+-  max_page_size: 200
++  max_page_size: 100
+   default_page_size: 50
+   request_timeout_seconds: 30
+ 
+ orders:
+   max_line_items: 100
+   max_open_orders_per_customer: 25
++  max_refunds_per_order: 10
+ 
+ payments:
+   charge_timeout_seconds: 15
+diff --git a/docs/api/refunds.md b/docs/api/refunds.md
+index ee59e1d..488a56d 100644
+--- a/docs/api/refunds.md
++++ b/docs/api/refunds.md
+@@ -10,8 +10,19 @@ Returns every refund recorded against the order, oldest first.
+ 
+ ## Refunding an order
+ 
+-Refunds are issued by support tooling, not by the API. Support calls
+-`RefundLedger.record_refund` through the internal console, which refunds the
+-charge in full and marks the order `refunded`.
++```
++POST /orders/{order_id}/refunds
++{ "amount_cents": 2500, "reason": "damaged in transit" }
++```
++
++Requires the `refunds:write` scope. Omit `amount_cents` to refund whatever is
++still refundable, which is what the support console does.
++
++An order may be refunded more than once. The sum of refunds may not exceed
++`total_cents`, and an order may not be refunded more than
++`orders.max_refunds_per_order` times. Either violation returns `409`.
+ 
+-An order can be refunded once. A second attempt raises `RefundError`.
++`OrderResponse` reports progress through `refunded_cents`; the `fully_refunded`
++boolean is gone. An order is fully refunded when
++`refunded_cents == total_cents`, and its status is `partially_refunded` in
++between.
+diff --git a/migrations/0044_partial_refunds.sql b/migrations/0044_partial_refunds.sql
+new file mode 100644
+index 0000000..a59ac2b
+--- /dev/null
++++ b/migrations/0044_partial_refunds.sql
+@@ -0,0 +1,32 @@
++-- Partial refunds: track a running refunded total per order.
++--
++-- Backfill runs inline. orders is ~4.1M rows on production; the UPDATE takes
++-- roughly two minutes and holds a row lock per batch, not a table lock.
++
++BEGIN;
++
++ALTER TABLE orders
++    ADD COLUMN refunded_cents integer NOT NULL DEFAULT 0;
++
++UPDATE orders o
++   SET refunded_cents = coalesce(r.total, 0)
++  FROM (
++        SELECT order_id, sum(amount_cents) AS total
++          FROM refunds
++      GROUP BY order_id
++       ) r
++ WHERE r.order_id = o.id;
++
++UPDATE orders
++   SET status = 'partially_refunded'
++ WHERE refunded_cents > 0
++   AND refunded_cents < total_cents;
++
++ALTER TABLE orders
++    DROP COLUMN fully_refunded;
++
++ALTER TABLE orders
++    ADD CONSTRAINT orders_refunded_within_total
++    CHECK (refunded_cents <= total_cents);
++
++COMMIT;
+diff --git a/src/meridian/api/refunds.py b/src/meridian/api/refunds.py
+new file mode 100644
+index 0000000..b6e28bb
+--- /dev/null
++++ b/src/meridian/api/refunds.py
+@@ -0,0 +1,59 @@
++from __future__ import annotations
++
++from fastapi import APIRouter, Depends, HTTPException
++
++from meridian.api.schemas.refund import RefundRequest, RefundResponse
++from meridian.auth import Principal, require_scope
++from meridian.orders.repository import OrderRepository
++from meridian.payments.stripe_gateway import StripeGateway
++from meridian.refunds.ledger import RefundLedger
++from meridian.refunds.policy import RefundNotAllowed
++
++router = APIRouter(prefix="/orders", tags=["refunds"])
++
++
++@router.post("/{order_id}/refunds", response_model=RefundResponse, status_code=201)
++def create_refund(
++    order_id: str,
++    body: RefundRequest,
++    principal: Principal = Depends(require_scope("refunds:write")),
++    orders: OrderRepository = Depends(OrderRepository),
++    ledger: RefundLedger = Depends(RefundLedger),
++    gateway: StripeGateway = Depends(StripeGateway),
++) -> RefundResponse:
++    """Refund an order, in full or in part.
++
++    Omitting `amount_cents` refunds everything still refundable, which keeps
++    the previous console behaviour available over the API.
++    """
++    order = orders.get(order_id)
++    if order is None:
++        raise HTTPException(status_code=404, detail="order not found")
++
++    amount = body.amount_cents
++    if amount is None:
++        amount = order.total_cents - order.refunded_cents
++
++    provider_refund_id = gateway.refund(
++        charge_id=order.charge_id,
++        order_id=order_id,
++        amount_cents=amount,
++    )
++
++    try:
++        record = ledger.record_refund(
++            order_id=order_id,
++            amount_cents=amount,
++            currency=order.currency,
++            provider_refund_id=provider_refund_id,
++        )
++    except RefundNotAllowed as exc:
++        raise HTTPException(status_code=409, detail=str(exc)) from exc
++
++    return RefundResponse(
++        id=provider_refund_id,
++        order_id=record.order_id,
++        amount_cents=record.amount_cents,
++        currency=record.currency,
++        provider_refund_id=record.provider_refund_id,
++    )
+diff --git a/src/meridian/api/schemas/refund.py b/src/meridian/api/schemas/refund.py
+index af788cc..70c23ef 100644
+--- a/src/meridian/api/schemas/refund.py
++++ b/src/meridian/api/schemas/refund.py
+@@ -3,6 +3,13 @@ from __future__ import annotations
+ from pydantic import BaseModel, Field
+ 
+ 
++class RefundRequest(BaseModel):
++    """A refund request. Omit amount_cents to refund the remaining balance."""
++
++    amount_cents: int | None = Field(default=None, gt=0)
++    reason: str | None = Field(default=None, max_length=280)
++
++
+ class RefundResponse(BaseModel):
+     id: str
+     order_id: str
+@@ -16,5 +23,5 @@ class OrderResponse(BaseModel):
+     customer_id: str
+     status: str
+     total_cents: int
++    refunded_cents: int
+     currency: str
+-    fully_refunded: bool
+diff --git a/src/meridian/money.py b/src/meridian/money.py
+index a91fffa..824c005 100644
+--- a/src/meridian/money.py
++++ b/src/meridian/money.py
+@@ -24,5 +24,5 @@ class Money:
+ def to_cents(amount: Decimal, currency: str) -> int:
+     """Convert a decimal amount to the provider's minor unit."""
+     if currency.lower() in ZERO_DECIMAL_CURRENCIES:
+-        return int(amount)
+-    return int(amount * 100)
++        return int(amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
++    return int((amount * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+diff --git a/src/meridian/orders/repository.py b/src/meridian/orders/repository.py
+index 2feb2a8..d7ba657 100644
+--- a/src/meridian/orders/repository.py
++++ b/src/meridian/orders/repository.py
+@@ -3,6 +3,8 @@ from __future__ import annotations
+ from meridian.db import Pool
+ from meridian.orders.models import Order
+ 
++_COLUMNS = "id, customer_id, status, total_cents, refunded_cents, currency, charge_id"
++
+ 
+ class OrderRepository:
+     def __init__(self, pool: Pool) -> None:
+@@ -11,8 +13,7 @@ class OrderRepository:
+     def get(self, order_id: str) -> Order | None:
+         with self._pool.connection() as conn:
+             row = conn.execute(
+-                "SELECT id, customer_id, status, total_cents, currency, fully_refunded "
+-                "FROM orders WHERE id = %s",
++                f"SELECT {_COLUMNS} FROM orders WHERE id = %s",
+                 (order_id,),
+             ).fetchone()
+         return Order.from_row(row) if row else None
+@@ -20,12 +21,21 @@ class OrderRepository:
+     def list_for_customer(self, customer_id: str, limit: int = 50) -> list[Order]:
+         with self._pool.connection() as conn:
+             rows = conn.execute(
+-                "SELECT id, customer_id, status, total_cents, currency, fully_refunded "
+-                "FROM orders WHERE customer_id = %s ORDER BY created_at DESC LIMIT %s",
++                f"SELECT {_COLUMNS} FROM orders "
++                "WHERE customer_id = %s ORDER BY created_at DESC LIMIT %s",
+                 (customer_id, limit),
+             ).fetchall()
+         return [Order.from_row(r) for r in rows]
+ 
++    def refunded_total(self, order_id: str) -> int:
++        with self._pool.connection() as conn:
++            row = conn.execute(
++                "SELECT coalesce(sum(amount_cents), 0) AS refunded "
++                "FROM refunds WHERE order_id = %s",
++                (order_id,),
++            ).fetchone()
++        return row.refunded
++
+     def mark_shipped(self, order_id: str) -> None:
+         with self._pool.transaction() as tx:
+             tx.execute(
+diff --git a/src/meridian/payments/stripe_gateway.py b/src/meridian/payments/stripe_gateway.py
+index 1cc9b52..8865628 100644
+--- a/src/meridian/payments/stripe_gateway.py
++++ b/src/meridian/payments/stripe_gateway.py
+@@ -24,11 +24,19 @@ class StripeGateway:
+         )
+         return charge.id
+ 
+-    def refund(self, charge_id: str, order_id: str) -> str:
+-        """Refund a charge in full."""
++    def refund(self, charge_id: str, order_id: str, amount_cents: int | None = None) -> str:
++        """Refund a charge, in full when amount_cents is None."""
+         refund = stripe.Refund.create(
+             charge=charge_id,
++            amount=amount_cents,
+             metadata={"order_id": order_id},
+         )
+-        log.info("stripe.refund", extra={"order_id": order_id, "refund_id": refund.id})
++        log.info(
++            "stripe.refund",
++            extra={
++                "order_id": order_id,
++                "refund_id": refund.id,
++                "amount_cents": amount_cents,
++            },
++        )
+         return refund.id
+diff --git a/src/meridian/refunds/ledger.py b/src/meridian/refunds/ledger.py
+index e7fe8fe..efd75ec 100644
+--- a/src/meridian/refunds/ledger.py
++++ b/src/meridian/refunds/ledger.py
+@@ -5,6 +5,7 @@ from dataclasses import dataclass
+ 
+ from meridian.db import Pool
+ from meridian.money import Money
++from meridian.refunds.policy import RefundPolicy
+ 
+ log = logging.getLogger(__name__)
+ 
+@@ -24,8 +25,9 @@ class RefundRecord:
+ class RefundLedger:
+     """Append-only record of money returned to customers."""
+ 
+-    def __init__(self, pool: Pool) -> None:
++    def __init__(self, pool: Pool, policy: RefundPolicy | None = None) -> None:
+         self._pool = pool
++        self._policy = policy or RefundPolicy()
+ 
+     def record_refund(
+         self,
+@@ -36,23 +38,42 @@ class RefundLedger:
+     ) -> RefundRecord:
+         order = self._load_order(order_id)
+ 
+-        if order.status == "refunded":
+-            raise RefundError(f"order {order_id} is already refunded")
+-
+         with self._pool.transaction() as tx:
++            state = tx.execute(
++                "SELECT coalesce(sum(amount_cents), 0) AS refunded, count(*) AS n "
++                "FROM refunds WHERE order_id = %s FOR UPDATE",
++                (order_id,),
++            ).fetchone()
++
++            allowance = self._policy.allowance(
++                total_cents=order.total_cents,
++                refunded_cents=state.refunded,
++                refund_count=state.n,
++            )
++            self._policy.check(amount_cents, allowance)
++
+             tx.execute(
+                 "INSERT INTO refunds (order_id, amount_cents, currency, provider_refund_id) "
+                 "VALUES (%s, %s, %s, %s)",
+                 (order_id, amount_cents, currency, provider_refund_id),
+             )
++            refunded_total = state.refunded + amount_cents
+             tx.execute(
+-                "UPDATE orders SET status = 'refunded', fully_refunded = true WHERE id = %s",
+-                (order_id,),
++                "UPDATE orders SET refunded_cents = %s, status = %s WHERE id = %s",
++                (
++                    refunded_total,
++                    "refunded" if refunded_total >= order.total_cents else "partially_refunded",
++                    order_id,
++                ),
+             )
+ 
+         log.info(
+             "refund.recorded",
+-            extra={"order_id": order_id, "amount_cents": amount_cents},
++            extra={
++                "order_id": order_id,
++                "amount_cents": amount_cents,
++                "refunded_total": refunded_total,
++            },
+         )
+         return RefundRecord(order_id, amount_cents, currency, provider_refund_id)
+ 
+@@ -66,7 +87,8 @@ class RefundLedger:
+     def _load_order(self, order_id: str):
+         with self._pool.connection() as conn:
+             row = conn.execute(
+-                "SELECT id, status, total_cents, currency FROM orders WHERE id = %s",
++                "SELECT id, status, total_cents, refunded_cents, currency "
++                "FROM orders WHERE id = %s",
+                 (order_id,),
+             ).fetchone()
+         if row is None:
+diff --git a/src/meridian/refunds/policy.py b/src/meridian/refunds/policy.py
+new file mode 100644
+index 0000000..2d0ad56
+--- /dev/null
++++ b/src/meridian/refunds/policy.py
+@@ -0,0 +1,58 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++
++from meridian.config import limits
++
++
++class RefundNotAllowed(Exception):
++    """Raised when a requested refund exceeds what the order permits."""
++
++
++@dataclass(frozen=True)
++class RefundAllowance:
++    """What is still refundable on an order, and why."""
++
++    order_id: str
++    refundable_cents: int
++    refunds_so_far: int
++
++    @property
++    def exhausted(self) -> bool:
++        return self.refundable_cents == 0
++
++
++class RefundPolicy:
++    """Decides whether a requested refund amount is permitted.
++
++    Two rules, both cumulative over the life of the order:
++
++      1. the sum of refunds may never exceed the order total
++      2. an order may not be refunded more times than limits.max_refunds_per_order
++    """
++
++    def __init__(self, max_refunds_per_order: int | None = None) -> None:
++        self._max_refunds = max_refunds_per_order or limits.orders.max_refunds_per_order
++
++    def allowance(self, total_cents: int, refunded_cents: int, refund_count: int) -> RefundAllowance:
++        remaining = max(total_cents - refunded_cents, 0)
++        if refund_count >= self._max_refunds:
++            remaining = 0
++        return RefundAllowance(
++            order_id="",
++            refundable_cents=remaining,
++            refunds_so_far=refund_count,
++        )
++
++    def check(self, amount_cents: int, allowance: RefundAllowance) -> None:
++        if amount_cents <= 0:
++            raise RefundNotAllowed("refund amount must be positive")
++        if allowance.refunds_so_far >= self._max_refunds:
++            raise RefundNotAllowed(
++                f"order already refunded {allowance.refunds_so_far} times "
++                f"(limit {self._max_refunds})"
++            )
++        if amount_cents > allowance.refundable_cents:
++            raise RefundNotAllowed(
++                f"refund of {amount_cents} exceeds remaining {allowance.refundable_cents}"
++            )
+diff --git a/tests/api/test_refunds_api.py b/tests/api/test_refunds_api.py
+new file mode 100644
+index 0000000..004b154
+--- /dev/null
++++ b/tests/api/test_refunds_api.py
+@@ -0,0 +1,59 @@
++import pytest
++
++from tests.factories import make_order
++
++
++@pytest.fixture()
++def order(db):
++    return make_order(db, total_cents=10_000, currency="usd", status="paid")
++
++
++def test_partial_refund_returns_201_and_the_amount(client, order):
++    response = client.post(
++        f"/orders/{order.id}/refunds",
++        json={"amount_cents": 2_500, "reason": "damaged in transit"},
++        scopes=["refunds:write"],
++    )
++
++    assert response.status_code == 201
++    assert response.json()["amount_cents"] == 2_500
++
++
++def test_omitting_the_amount_refunds_the_remainder(client, order):
++    client.post(f"/orders/{order.id}/refunds", json={"amount_cents": 4_000}, scopes=["refunds:write"])
++
++    response = client.post(f"/orders/{order.id}/refunds", json={}, scopes=["refunds:write"])
++
++    assert response.status_code == 201
++    assert response.json()["amount_cents"] == 6_000
++
++
++def test_order_becomes_partially_refunded_then_refunded(client, order, orders_repo):
++    client.post(f"/orders/{order.id}/refunds", json={"amount_cents": 4_000}, scopes=["refunds:write"])
++    assert orders_repo.get(order.id).status == "partially_refunded"
++
++    client.post(f"/orders/{order.id}/refunds", json={"amount_cents": 6_000}, scopes=["refunds:write"])
++    assert orders_repo.get(order.id).status == "refunded"
++
++
++def test_refunding_more_than_the_total_is_a_conflict(client, order):
++    client.post(f"/orders/{order.id}/refunds", json={"amount_cents": 9_000}, scopes=["refunds:write"])
++
++    response = client.post(
++        f"/orders/{order.id}/refunds",
++        json={"amount_cents": 2_000},
++        scopes=["refunds:write"],
++    )
++
++    assert response.status_code == 409
++    assert "exceeds remaining" in response.json()["detail"]
++
++
++def test_requires_the_refunds_write_scope(client, order):
++    response = client.post(
++        f"/orders/{order.id}/refunds",
++        json={"amount_cents": 100},
++        scopes=["orders:read"],
++    )
++
++    assert response.status_code == 403
+diff --git a/tests/refunds/test_policy.py b/tests/refunds/test_policy.py
+new file mode 100644
+index 0000000..f626244
+--- /dev/null
++++ b/tests/refunds/test_policy.py
+@@ -0,0 +1,44 @@
++import pytest
++
++from meridian.refunds.policy import RefundNotAllowed, RefundPolicy
++
++
++@pytest.fixture()
++def policy():
++    return RefundPolicy(max_refunds_per_order=3)
++
++
++def test_allowance_is_the_unrefunded_remainder(policy):
++    allowance = policy.allowance(total_cents=10_000, refunded_cents=2_500, refund_count=1)
++
++    assert allowance.refundable_cents == 7_500
++    assert not allowance.exhausted
++
++
++def test_allowance_is_zero_once_the_count_limit_is_reached(policy):
++    allowance = policy.allowance(total_cents=10_000, refunded_cents=100, refund_count=3)
++
++    assert allowance.refundable_cents == 0
++    assert allowance.exhausted
++
++
++def test_refund_above_the_remainder_is_rejected(policy):
++    allowance = policy.allowance(total_cents=10_000, refunded_cents=9_000, refund_count=1)
++
++    with pytest.raises(RefundNotAllowed, match="exceeds remaining"):
++        policy.check(1_001, allowance)
++
++
++def test_refund_equal_to_the_remainder_is_allowed(policy):
++    allowance = policy.allowance(total_cents=10_000, refunded_cents=9_000, refund_count=1)
++
++    policy.check(1_000, allowance)
++
++
++def test_zero_and_negative_amounts_are_rejected(policy):
++    allowance = policy.allowance(total_cents=10_000, refunded_cents=0, refund_count=0)
++
++    with pytest.raises(RefundNotAllowed, match="must be positive"):
++        policy.check(0, allowance)
++    with pytest.raises(RefundNotAllowed, match="must be positive"):
++        policy.check(-50, allowance)

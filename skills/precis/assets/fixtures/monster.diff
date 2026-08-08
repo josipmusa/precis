@@ -1,0 +1,1464 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index f3e1015..9f4b4b8 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -23,7 +23,7 @@ jobs:
+       - uses: actions/checkout@v4
+       - uses: actions/setup-node@v4
+         with:
+-          node-version: "18"
++          node-version: "20"
+       - run: corepack enable
+       - run: pnpm install --frozen-lockfile
+       - run: pnpm run build
+diff --git a/clients/ts/pnpm-lock.yaml b/clients/ts/pnpm-lock.yaml
+index b5035cb..783856f 100644
+--- a/clients/ts/pnpm-lock.yaml
++++ b/clients/ts/pnpm-lock.yaml
+@@ -21,11 +21,11 @@ importers:
+         specifier: ^1.1.0
+         version: 1.1.0
+       typescript:
+-        specifier: ^5.4.5
+-        version: 5.4.5
++        specifier: ^5.5.3
++        version: 5.5.3
+       vite:
+-        specifier: ^5.3.1
+-        version: 5.3.1
++        specifier: ^5.3.3
++        version: 5.3.3
+       esbuild:
+         specifier: ^0.21.5
+         version: 0.21.5
+@@ -57,12 +57,12 @@ packages:
+     resolution: {integrity: sha512-70726f78792d66726f6d2d656e76312e312e30000000000000000000}
+     engines: {node: '>=18'}
+ 
+-  typescript@5.4.5:
+-    resolution: {integrity: sha512-74797065736372697074352e342e3500000000000000000000000000}
++  typescript@5.5.3:
++    resolution: {integrity: sha512-74797065736372697074352e352e3300000000000000000000000000}
+     engines: {node: '>=18'}
+ 
+-  vite@5.3.1:
+-    resolution: {integrity: sha512-76697465352e332e3100000000000000000000000000000000000000}
++  vite@5.3.3:
++    resolution: {integrity: sha512-76697465352e332e3300000000000000000000000000000000000000}
+     engines: {node: '>=18'}
+ 
+   esbuild@0.21.5:
+@@ -91,9 +91,9 @@ snapshots:
+ 
+   proxy-from-env@1.1.0: {}
+ 
+-  typescript@5.4.5: {}
++  typescript@5.5.3: {}
+ 
+-  vite@5.3.1: {}
++  vite@5.3.3: {}
+ 
+   esbuild@0.21.5: {}
+ 
+diff --git a/clients/ts/src/api/generated/orders.ts b/clients/ts/src/api/generated/orders.ts
+index 50a0599..d757082 100644
+--- a/clients/ts/src/api/generated/orders.ts
++++ b/clients/ts/src/api/generated/orders.ts
+@@ -19,9 +19,17 @@ export interface OrderLine {
+   unitCents: number;
+ }
+ 
++export interface RetryHint {
++  retryAfterSeconds: number;
++  attempt: number;
++}
++
+ export const getOrder = (options?: AxiosRequestConfig) =>
+   apiClient.get<Order>(`/orders/${orderId}`, options);
+ 
+ export const listOrders = (options?: AxiosRequestConfig) =>
+   apiClient.get<Order[]>(`/orders`, options);
+ 
++export const retryHint = (options?: AxiosRequestConfig) =>
++  apiClient.get<RetryHint>(`/orders/${orderId}/retry-hint`, options);
++
+diff --git a/clients/ts/src/api/generated/payments.ts b/clients/ts/src/api/generated/payments.ts
+index 2f44c1b..8480985 100644
+--- a/clients/ts/src/api/generated/payments.ts
++++ b/clients/ts/src/api/generated/payments.ts
+@@ -11,6 +11,11 @@ export interface Authorization {
+   state: string;
+ }
+ 
++export interface RetryHint {
++  retryAfterSeconds: number;
++  attempt: number;
++}
++
+ export const getAuthorization = (options?: AxiosRequestConfig) =>
+   apiClient.get<Authorization>(`/authorizations/${id}`, options);
+ 
+diff --git a/clients/ts/src/api/generated/shipping.ts b/clients/ts/src/api/generated/shipping.ts
+index aef57b5..43c9158 100644
+--- a/clients/ts/src/api/generated/shipping.ts
++++ b/clients/ts/src/api/generated/shipping.ts
+@@ -17,6 +17,11 @@ export interface Quote {
+   etaDays: number;
+ }
+ 
++export interface RetryHint {
++  retryAfterSeconds: number;
++  attempt: number;
++}
++
+ export const getShipment = (options?: AxiosRequestConfig) =>
+   apiClient.get<Shipment>(`/shipments/${shipmentId}`, options);
+ 
+diff --git a/config/flags.yaml b/config/flags.yaml
+index 59f63e2..de0d3a5 100644
+--- a/config/flags.yaml
++++ b/config/flags.yaml
+@@ -10,3 +10,6 @@ flags:
+   loyalty_points_v2:
+     enabled: false
+     percentage: 0
++  enable_single_step_checkout:
++    enabled: true
++    percentage: 5
+diff --git a/config/http.yaml b/config/http.yaml
+new file mode 100644
+index 0000000..8fce3d0
+--- /dev/null
++++ b/config/http.yaml
+@@ -0,0 +1,31 @@
++# Outbound HTTP behaviour. Read at boot.
++#
++# max_attempts counts the first try, so 3 means one call and two retries.
++
++default:
++  timeout_seconds: 15
++  max_attempts: 3
++  base_delay_seconds: 0.5
++  cap_seconds: 30
++
++services:
++  payments:
++    timeout_seconds: 15
++    max_attempts: 3
++    base_delay_seconds: 0.5
++    cap_seconds: 20
++  shipping:
++    timeout_seconds: 20
++    max_attempts: 4
++    base_delay_seconds: 1.0
++    cap_seconds: 30
++  tax:
++    timeout_seconds: 10
++    max_attempts: 3
++    base_delay_seconds: 0.25
++    cap_seconds: 10
++  notifications:
++    timeout_seconds: 8
++    max_attempts: 5
++    base_delay_seconds: 0.5
++    cap_seconds: 15
+diff --git a/config/windows-agent.ini b/config/windows-agent.ini
+index b37789e..a5caa48 100644
+--- a/config/windows-agent.ini
++++ b/config/windows-agent.ini
+@@ -2,8 +2,9 @@
+ [agent]
+ poll_interval_seconds=60
+ endpoint=https://ingest.meridian.invalid/v1
+-retry_attempts=2
++retry_attempts=3
+ retry_delay_seconds=5
++retry_jitter=true
+ 
+ [logging]
+ level=INFO
+diff --git a/docs/architecture/http.md b/docs/architecture/http.md
+new file mode 100644
+index 0000000..bd6090a
+--- /dev/null
++++ b/docs/architecture/http.md
+@@ -0,0 +1,24 @@
++# Outbound HTTP
++
++Every outbound call goes through `meridian.http.HttpClient`. There is one
++implementation and one place where retry behaviour is decided.
++
++## Configuration
++
++`config/http.yaml` holds a `default` block and a per-service override. A service
++with no entry uses `default`.
++
++| Key | Meaning |
++| --- | --- |
++| `timeout_seconds` | Per-attempt socket timeout. |
++| `max_attempts` | Counts the first try. `3` means one call and two retries. |
++| `base_delay_seconds` | Input to the jittered backoff. |
++| `cap_seconds` | Ceiling for a single delay. |
++
++## What gets retried
++
++Idempotency is the caller's problem. The client retries on the status codes in
++`RETRY_STATUSES` and on connection, timeout, and chunked-encoding errors, which
++means a POST can be sent more than once.
++
++![HTTP topology](../assets/http-topology.png)
+diff --git a/docs/assets/http-topology.png b/docs/assets/http-topology.png
+new file mode 100644
+index 0000000..a71843b
+Binary files /dev/null and b/docs/assets/http-topology.png differ
+diff --git a/gen/pb/shipping_pb2.py b/gen/pb/shipping_pb2.py
+index a3127a3..6d95979 100644
+--- a/gen/pb/shipping_pb2.py
++++ b/gen/pb/shipping_pb2.py
+@@ -10,29 +10,31 @@ from google.protobuf import symbol_database as _symbol_database
+ _sym_db = _symbol_database.Default()
+ 
+ DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
+-    b'\n\x1dshipping/v1/shipping.proto\x12\x0bshipping.v1"\x8f\x01'
++    b'\n\x1dshipping/v1/shipping.proto\x12\x0bshipping.v1"\x9c\x01'
+ )
+ 
+ _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
+ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'shipping.v1.shipping_pb2', globals())
+ 
+-_globals['_QUOTEREQUEST']._serialized_start = 41
+-_globals['_QUOTEREQUEST']._serialized_end = 176
+-_globals['_QUOTERESPONSE']._serialized_start = 178
+-_globals['_QUOTERESPONSE']._serialized_end = 344
+-_globals['_SHIPMENT']._serialized_start = 346
+-_globals['_SHIPMENT']._serialized_end = 512
+-_globals['_TRACKINGEVENT']._serialized_start = 514
+-_globals['_TRACKINGEVENT']._serialized_end = 640
+-_globals['_LABEL']._serialized_start = 642
+-_globals['_LABEL']._serialized_end = 760
+-_globals['_CANCELREQUEST']._serialized_start = 762
+-_globals['_CANCELREQUEST']._serialized_end = 848
+-_globals['_RATECARD']._serialized_start = 850
+-_globals['_RATECARD']._serialized_end = 968
+-_globals['_ADDRESS']._serialized_start = 970
+-_globals['_ADDRESS']._serialized_end = 1102
+-_globals['_PARCEL']._serialized_start = 1104
+-_globals['_PARCEL']._serialized_end = 1220
+-_globals['_MANIFEST']._serialized_start = 1222
+-_globals['_MANIFEST']._serialized_end = 1358
++_globals['_QUOTEREQUEST']._serialized_start = 137
++_globals['_QUOTEREQUEST']._serialized_end = 272
++_globals['_QUOTERESPONSE']._serialized_start = 274
++_globals['_QUOTERESPONSE']._serialized_end = 440
++_globals['_SHIPMENT']._serialized_start = 442
++_globals['_SHIPMENT']._serialized_end = 608
++_globals['_TRACKINGEVENT']._serialized_start = 610
++_globals['_TRACKINGEVENT']._serialized_end = 736
++_globals['_LABEL']._serialized_start = 738
++_globals['_LABEL']._serialized_end = 856
++_globals['_CANCELREQUEST']._serialized_start = 858
++_globals['_CANCELREQUEST']._serialized_end = 944
++_globals['_RATECARD']._serialized_start = 946
++_globals['_RATECARD']._serialized_end = 1064
++_globals['_ADDRESS']._serialized_start = 1066
++_globals['_ADDRESS']._serialized_end = 1198
++_globals['_PARCEL']._serialized_start = 1200
++_globals['_PARCEL']._serialized_end = 1316
++_globals['_MANIFEST']._serialized_start = 1318
++_globals['_MANIFEST']._serialized_end = 1454
++_globals['_RETRYHINT']._serialized_start = 1454
++_globals['_RETRYHINT']._serialized_end = 1548
+diff --git a/poetry.lock b/poetry.lock
+index 581ac7c..10bd389 100644
+--- a/poetry.lock
++++ b/poetry.lock
+@@ -46,47 +46,47 @@ files = [
+ 
+ [[package]]
+ name = "boto3"
+-version = "1.34.117"
++version = "1.34.144"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "boto3-1.34.117-py3-none-any0.whl", hash = "sha256:626f746f33312e33342e31313730000000000000000000000000000000000000"},
+-    {file = "boto3-1.34.117-py3-none-any1.whl", hash = "sha256:626f746f33312e33342e31313731000000000000000000000000000000000000"},
+-    {file = "boto3-1.34.117-py3-none-any2.whl", hash = "sha256:626f746f33312e33342e31313732000000000000000000000000000000000000"},
+-    {file = "boto3-1.34.117-py3-none-any3.whl", hash = "sha256:626f746f33312e33342e31313733000000000000000000000000000000000000"},
+-    {file = "boto3-1.34.117-py3-none-any4.whl", hash = "sha256:626f746f33312e33342e31313734000000000000000000000000000000000000"},
+-    {file = "boto3-1.34.117-py3-none-any5.whl", hash = "sha256:626f746f33312e33342e31313735000000000000000000000000000000000000"},
++    {file = "boto3-1.34.144-py3-none-any0.whl", hash = "sha256:626f746f33312e33342e31343430000000000000000000000000000000000000"},
++    {file = "boto3-1.34.144-py3-none-any1.whl", hash = "sha256:626f746f33312e33342e31343431000000000000000000000000000000000000"},
++    {file = "boto3-1.34.144-py3-none-any2.whl", hash = "sha256:626f746f33312e33342e31343432000000000000000000000000000000000000"},
++    {file = "boto3-1.34.144-py3-none-any3.whl", hash = "sha256:626f746f33312e33342e31343433000000000000000000000000000000000000"},
++    {file = "boto3-1.34.144-py3-none-any4.whl", hash = "sha256:626f746f33312e33342e31343434000000000000000000000000000000000000"},
++    {file = "boto3-1.34.144-py3-none-any5.whl", hash = "sha256:626f746f33312e33342e31343435000000000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+ name = "botocore"
+-version = "1.34.117"
++version = "1.34.144"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "botocore-1.34.117-py3-none-any0.whl", hash = "sha256:626f746f636f7265312e33342e31313730000000000000000000000000000000"},
+-    {file = "botocore-1.34.117-py3-none-any1.whl", hash = "sha256:626f746f636f7265312e33342e31313731000000000000000000000000000000"},
+-    {file = "botocore-1.34.117-py3-none-any2.whl", hash = "sha256:626f746f636f7265312e33342e31313732000000000000000000000000000000"},
+-    {file = "botocore-1.34.117-py3-none-any3.whl", hash = "sha256:626f746f636f7265312e33342e31313733000000000000000000000000000000"},
+-    {file = "botocore-1.34.117-py3-none-any4.whl", hash = "sha256:626f746f636f7265312e33342e31313734000000000000000000000000000000"},
+-    {file = "botocore-1.34.117-py3-none-any5.whl", hash = "sha256:626f746f636f7265312e33342e31313735000000000000000000000000000000"},
++    {file = "botocore-1.34.144-py3-none-any0.whl", hash = "sha256:626f746f636f7265312e33342e31343430000000000000000000000000000000"},
++    {file = "botocore-1.34.144-py3-none-any1.whl", hash = "sha256:626f746f636f7265312e33342e31343431000000000000000000000000000000"},
++    {file = "botocore-1.34.144-py3-none-any2.whl", hash = "sha256:626f746f636f7265312e33342e31343432000000000000000000000000000000"},
++    {file = "botocore-1.34.144-py3-none-any3.whl", hash = "sha256:626f746f636f7265312e33342e31343433000000000000000000000000000000"},
++    {file = "botocore-1.34.144-py3-none-any4.whl", hash = "sha256:626f746f636f7265312e33342e31343434000000000000000000000000000000"},
++    {file = "botocore-1.34.144-py3-none-any5.whl", hash = "sha256:626f746f636f7265312e33342e31343435000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+ name = "certifi"
+-version = "2024.6.2"
++version = "2024.7.4"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "certifi-2024.6.2-py3-none-any0.whl", hash = "sha256:63657274696669323032342e362e323000000000000000000000000000000000"},
+-    {file = "certifi-2024.6.2-py3-none-any1.whl", hash = "sha256:63657274696669323032342e362e323100000000000000000000000000000000"},
+-    {file = "certifi-2024.6.2-py3-none-any2.whl", hash = "sha256:63657274696669323032342e362e323200000000000000000000000000000000"},
+-    {file = "certifi-2024.6.2-py3-none-any3.whl", hash = "sha256:63657274696669323032342e362e323300000000000000000000000000000000"},
+-    {file = "certifi-2024.6.2-py3-none-any4.whl", hash = "sha256:63657274696669323032342e362e323400000000000000000000000000000000"},
+-    {file = "certifi-2024.6.2-py3-none-any5.whl", hash = "sha256:63657274696669323032342e362e323500000000000000000000000000000000"},
++    {file = "certifi-2024.7.4-py3-none-any0.whl", hash = "sha256:63657274696669323032342e372e343000000000000000000000000000000000"},
++    {file = "certifi-2024.7.4-py3-none-any1.whl", hash = "sha256:63657274696669323032342e372e343100000000000000000000000000000000"},
++    {file = "certifi-2024.7.4-py3-none-any2.whl", hash = "sha256:63657274696669323032342e372e343200000000000000000000000000000000"},
++    {file = "certifi-2024.7.4-py3-none-any3.whl", hash = "sha256:63657274696669323032342e372e343300000000000000000000000000000000"},
++    {file = "certifi-2024.7.4-py3-none-any4.whl", hash = "sha256:63657274696669323032342e372e343400000000000000000000000000000000"},
++    {file = "certifi-2024.7.4-py3-none-any5.whl", hash = "sha256:63657274696669323032342e372e343500000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+@@ -136,17 +136,17 @@ files = [
+ 
+ [[package]]
+ name = "cryptography"
+-version = "42.0.8"
++version = "43.0.0"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "cryptography-42.0.8-py3-none-any0.whl", hash = "sha256:63727970746f67726170687934322e302e383000000000000000000000000000"},
+-    {file = "cryptography-42.0.8-py3-none-any1.whl", hash = "sha256:63727970746f67726170687934322e302e383100000000000000000000000000"},
+-    {file = "cryptography-42.0.8-py3-none-any2.whl", hash = "sha256:63727970746f67726170687934322e302e383200000000000000000000000000"},
+-    {file = "cryptography-42.0.8-py3-none-any3.whl", hash = "sha256:63727970746f67726170687934322e302e383300000000000000000000000000"},
+-    {file = "cryptography-42.0.8-py3-none-any4.whl", hash = "sha256:63727970746f67726170687934322e302e383400000000000000000000000000"},
+-    {file = "cryptography-42.0.8-py3-none-any5.whl", hash = "sha256:63727970746f67726170687934322e302e383500000000000000000000000000"},
++    {file = "cryptography-43.0.0-py3-none-any0.whl", hash = "sha256:63727970746f67726170687934332e302e303000000000000000000000000000"},
++    {file = "cryptography-43.0.0-py3-none-any1.whl", hash = "sha256:63727970746f67726170687934332e302e303100000000000000000000000000"},
++    {file = "cryptography-43.0.0-py3-none-any2.whl", hash = "sha256:63727970746f67726170687934332e302e303200000000000000000000000000"},
++    {file = "cryptography-43.0.0-py3-none-any3.whl", hash = "sha256:63727970746f67726170687934332e302e303300000000000000000000000000"},
++    {file = "cryptography-43.0.0-py3-none-any4.whl", hash = "sha256:63727970746f67726170687934332e302e303400000000000000000000000000"},
++    {file = "cryptography-43.0.0-py3-none-any5.whl", hash = "sha256:63727970746f67726170687934332e302e303500000000000000000000000000"},
+ ]
+ 
+ [[package]]
+@@ -166,32 +166,32 @@ files = [
+ 
+ [[package]]
+ name = "googleapis-common-protos"
+-version = "1.63.1"
++version = "1.63.2"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "googleapis-common-protos-1.63.1-py3-none-any0.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e313000"},
+-    {file = "googleapis-common-protos-1.63.1-py3-none-any1.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e313100"},
+-    {file = "googleapis-common-protos-1.63.1-py3-none-any2.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e313200"},
+-    {file = "googleapis-common-protos-1.63.1-py3-none-any3.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e313300"},
+-    {file = "googleapis-common-protos-1.63.1-py3-none-any4.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e313400"},
+-    {file = "googleapis-common-protos-1.63.1-py3-none-any5.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e313500"},
++    {file = "googleapis-common-protos-1.63.2-py3-none-any0.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e323000"},
++    {file = "googleapis-common-protos-1.63.2-py3-none-any1.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e323100"},
++    {file = "googleapis-common-protos-1.63.2-py3-none-any2.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e323200"},
++    {file = "googleapis-common-protos-1.63.2-py3-none-any3.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e323300"},
++    {file = "googleapis-common-protos-1.63.2-py3-none-any4.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e323400"},
++    {file = "googleapis-common-protos-1.63.2-py3-none-any5.whl", hash = "sha256:676f6f676c65617069732d636f6d6d6f6e2d70726f746f73312e36332e323500"},
+ ]
+ 
+ [[package]]
+ name = "grpcio"
+-version = "1.64.1"
++version = "1.65.1"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "grpcio-1.64.1-py3-none-any0.whl", hash = "sha256:67727063696f312e36342e313000000000000000000000000000000000000000"},
+-    {file = "grpcio-1.64.1-py3-none-any1.whl", hash = "sha256:67727063696f312e36342e313100000000000000000000000000000000000000"},
+-    {file = "grpcio-1.64.1-py3-none-any2.whl", hash = "sha256:67727063696f312e36342e313200000000000000000000000000000000000000"},
+-    {file = "grpcio-1.64.1-py3-none-any3.whl", hash = "sha256:67727063696f312e36342e313300000000000000000000000000000000000000"},
+-    {file = "grpcio-1.64.1-py3-none-any4.whl", hash = "sha256:67727063696f312e36342e313400000000000000000000000000000000000000"},
+-    {file = "grpcio-1.64.1-py3-none-any5.whl", hash = "sha256:67727063696f312e36342e313500000000000000000000000000000000000000"},
++    {file = "grpcio-1.65.1-py3-none-any0.whl", hash = "sha256:67727063696f312e36352e313000000000000000000000000000000000000000"},
++    {file = "grpcio-1.65.1-py3-none-any1.whl", hash = "sha256:67727063696f312e36352e313100000000000000000000000000000000000000"},
++    {file = "grpcio-1.65.1-py3-none-any2.whl", hash = "sha256:67727063696f312e36352e313200000000000000000000000000000000000000"},
++    {file = "grpcio-1.65.1-py3-none-any3.whl", hash = "sha256:67727063696f312e36352e313300000000000000000000000000000000000000"},
++    {file = "grpcio-1.65.1-py3-none-any4.whl", hash = "sha256:67727063696f312e36352e313400000000000000000000000000000000000000"},
++    {file = "grpcio-1.65.1-py3-none-any5.whl", hash = "sha256:67727063696f312e36352e313500000000000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+@@ -271,47 +271,47 @@ files = [
+ 
+ [[package]]
+ name = "opentelemetry-api"
+-version = "1.25.0"
++version = "1.26.0"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "opentelemetry-api-1.25.0-py3-none-any0.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32352e30300000000000000000"},
+-    {file = "opentelemetry-api-1.25.0-py3-none-any1.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32352e30310000000000000000"},
+-    {file = "opentelemetry-api-1.25.0-py3-none-any2.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32352e30320000000000000000"},
+-    {file = "opentelemetry-api-1.25.0-py3-none-any3.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32352e30330000000000000000"},
+-    {file = "opentelemetry-api-1.25.0-py3-none-any4.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32352e30340000000000000000"},
+-    {file = "opentelemetry-api-1.25.0-py3-none-any5.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32352e30350000000000000000"},
++    {file = "opentelemetry-api-1.26.0-py3-none-any0.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32362e30300000000000000000"},
++    {file = "opentelemetry-api-1.26.0-py3-none-any1.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32362e30310000000000000000"},
++    {file = "opentelemetry-api-1.26.0-py3-none-any2.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32362e30320000000000000000"},
++    {file = "opentelemetry-api-1.26.0-py3-none-any3.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32362e30330000000000000000"},
++    {file = "opentelemetry-api-1.26.0-py3-none-any4.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32362e30340000000000000000"},
++    {file = "opentelemetry-api-1.26.0-py3-none-any5.whl", hash = "sha256:6f70656e74656c656d657472792d617069312e32362e30350000000000000000"},
+ ]
+ 
+ [[package]]
+ name = "opentelemetry-sdk"
+-version = "1.25.0"
++version = "1.26.0"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "opentelemetry-sdk-1.25.0-py3-none-any0.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32352e30300000000000000000"},
+-    {file = "opentelemetry-sdk-1.25.0-py3-none-any1.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32352e30310000000000000000"},
+-    {file = "opentelemetry-sdk-1.25.0-py3-none-any2.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32352e30320000000000000000"},
+-    {file = "opentelemetry-sdk-1.25.0-py3-none-any3.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32352e30330000000000000000"},
+-    {file = "opentelemetry-sdk-1.25.0-py3-none-any4.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32352e30340000000000000000"},
+-    {file = "opentelemetry-sdk-1.25.0-py3-none-any5.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32352e30350000000000000000"},
++    {file = "opentelemetry-sdk-1.26.0-py3-none-any0.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32362e30300000000000000000"},
++    {file = "opentelemetry-sdk-1.26.0-py3-none-any1.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32362e30310000000000000000"},
++    {file = "opentelemetry-sdk-1.26.0-py3-none-any2.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32362e30320000000000000000"},
++    {file = "opentelemetry-sdk-1.26.0-py3-none-any3.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32362e30330000000000000000"},
++    {file = "opentelemetry-sdk-1.26.0-py3-none-any4.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32362e30340000000000000000"},
++    {file = "opentelemetry-sdk-1.26.0-py3-none-any5.whl", hash = "sha256:6f70656e74656c656d657472792d73646b312e32362e30350000000000000000"},
+ ]
+ 
+ [[package]]
+ name = "packaging"
+-version = "24.0"
++version = "24.1"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "packaging-24.0-py3-none-any0.whl", hash = "sha256:7061636b6167696e6732342e3030000000000000000000000000000000000000"},
+-    {file = "packaging-24.0-py3-none-any1.whl", hash = "sha256:7061636b6167696e6732342e3031000000000000000000000000000000000000"},
+-    {file = "packaging-24.0-py3-none-any2.whl", hash = "sha256:7061636b6167696e6732342e3032000000000000000000000000000000000000"},
+-    {file = "packaging-24.0-py3-none-any3.whl", hash = "sha256:7061636b6167696e6732342e3033000000000000000000000000000000000000"},
+-    {file = "packaging-24.0-py3-none-any4.whl", hash = "sha256:7061636b6167696e6732342e3034000000000000000000000000000000000000"},
+-    {file = "packaging-24.0-py3-none-any5.whl", hash = "sha256:7061636b6167696e6732342e3035000000000000000000000000000000000000"},
++    {file = "packaging-24.1-py3-none-any0.whl", hash = "sha256:7061636b6167696e6732342e3130000000000000000000000000000000000000"},
++    {file = "packaging-24.1-py3-none-any1.whl", hash = "sha256:7061636b6167696e6732342e3131000000000000000000000000000000000000"},
++    {file = "packaging-24.1-py3-none-any2.whl", hash = "sha256:7061636b6167696e6732342e3132000000000000000000000000000000000000"},
++    {file = "packaging-24.1-py3-none-any3.whl", hash = "sha256:7061636b6167696e6732342e3133000000000000000000000000000000000000"},
++    {file = "packaging-24.1-py3-none-any4.whl", hash = "sha256:7061636b6167696e6732342e3134000000000000000000000000000000000000"},
++    {file = "packaging-24.1-py3-none-any5.whl", hash = "sha256:7061636b6167696e6732342e3135000000000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+@@ -331,17 +331,17 @@ files = [
+ 
+ [[package]]
+ name = "protobuf"
+-version = "4.25.3"
++version = "5.27.2"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "protobuf-4.25.3-py3-none-any0.whl", hash = "sha256:70726f746f627566342e32352e33300000000000000000000000000000000000"},
+-    {file = "protobuf-4.25.3-py3-none-any1.whl", hash = "sha256:70726f746f627566342e32352e33310000000000000000000000000000000000"},
+-    {file = "protobuf-4.25.3-py3-none-any2.whl", hash = "sha256:70726f746f627566342e32352e33320000000000000000000000000000000000"},
+-    {file = "protobuf-4.25.3-py3-none-any3.whl", hash = "sha256:70726f746f627566342e32352e33330000000000000000000000000000000000"},
+-    {file = "protobuf-4.25.3-py3-none-any4.whl", hash = "sha256:70726f746f627566342e32352e33340000000000000000000000000000000000"},
+-    {file = "protobuf-4.25.3-py3-none-any5.whl", hash = "sha256:70726f746f627566342e32352e33350000000000000000000000000000000000"},
++    {file = "protobuf-5.27.2-py3-none-any0.whl", hash = "sha256:70726f746f627566352e32372e32300000000000000000000000000000000000"},
++    {file = "protobuf-5.27.2-py3-none-any1.whl", hash = "sha256:70726f746f627566352e32372e32310000000000000000000000000000000000"},
++    {file = "protobuf-5.27.2-py3-none-any2.whl", hash = "sha256:70726f746f627566352e32372e32320000000000000000000000000000000000"},
++    {file = "protobuf-5.27.2-py3-none-any3.whl", hash = "sha256:70726f746f627566352e32372e32330000000000000000000000000000000000"},
++    {file = "protobuf-5.27.2-py3-none-any4.whl", hash = "sha256:70726f746f627566352e32372e32340000000000000000000000000000000000"},
++    {file = "protobuf-5.27.2-py3-none-any5.whl", hash = "sha256:70726f746f627566352e32372e32350000000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+@@ -376,32 +376,32 @@ files = [
+ 
+ [[package]]
+ name = "pydantic"
+-version = "2.7.4"
++version = "2.8.2"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "pydantic-2.7.4-py3-none-any0.whl", hash = "sha256:707964616e746963322e372e3430000000000000000000000000000000000000"},
+-    {file = "pydantic-2.7.4-py3-none-any1.whl", hash = "sha256:707964616e746963322e372e3431000000000000000000000000000000000000"},
+-    {file = "pydantic-2.7.4-py3-none-any2.whl", hash = "sha256:707964616e746963322e372e3432000000000000000000000000000000000000"},
+-    {file = "pydantic-2.7.4-py3-none-any3.whl", hash = "sha256:707964616e746963322e372e3433000000000000000000000000000000000000"},
+-    {file = "pydantic-2.7.4-py3-none-any4.whl", hash = "sha256:707964616e746963322e372e3434000000000000000000000000000000000000"},
+-    {file = "pydantic-2.7.4-py3-none-any5.whl", hash = "sha256:707964616e746963322e372e3435000000000000000000000000000000000000"},
++    {file = "pydantic-2.8.2-py3-none-any0.whl", hash = "sha256:707964616e746963322e382e3230000000000000000000000000000000000000"},
++    {file = "pydantic-2.8.2-py3-none-any1.whl", hash = "sha256:707964616e746963322e382e3231000000000000000000000000000000000000"},
++    {file = "pydantic-2.8.2-py3-none-any2.whl", hash = "sha256:707964616e746963322e382e3232000000000000000000000000000000000000"},
++    {file = "pydantic-2.8.2-py3-none-any3.whl", hash = "sha256:707964616e746963322e382e3233000000000000000000000000000000000000"},
++    {file = "pydantic-2.8.2-py3-none-any4.whl", hash = "sha256:707964616e746963322e382e3234000000000000000000000000000000000000"},
++    {file = "pydantic-2.8.2-py3-none-any5.whl", hash = "sha256:707964616e746963322e382e3235000000000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+ name = "pydantic-core"
+-version = "2.18.4"
++version = "2.20.1"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "pydantic-core-2.18.4-py3-none-any0.whl", hash = "sha256:707964616e7469632d636f7265322e31382e3430000000000000000000000000"},
+-    {file = "pydantic-core-2.18.4-py3-none-any1.whl", hash = "sha256:707964616e7469632d636f7265322e31382e3431000000000000000000000000"},
+-    {file = "pydantic-core-2.18.4-py3-none-any2.whl", hash = "sha256:707964616e7469632d636f7265322e31382e3432000000000000000000000000"},
+-    {file = "pydantic-core-2.18.4-py3-none-any3.whl", hash = "sha256:707964616e7469632d636f7265322e31382e3433000000000000000000000000"},
+-    {file = "pydantic-core-2.18.4-py3-none-any4.whl", hash = "sha256:707964616e7469632d636f7265322e31382e3434000000000000000000000000"},
+-    {file = "pydantic-core-2.18.4-py3-none-any5.whl", hash = "sha256:707964616e7469632d636f7265322e31382e3435000000000000000000000000"},
++    {file = "pydantic-core-2.20.1-py3-none-any0.whl", hash = "sha256:707964616e7469632d636f7265322e32302e3130000000000000000000000000"},
++    {file = "pydantic-core-2.20.1-py3-none-any1.whl", hash = "sha256:707964616e7469632d636f7265322e32302e3131000000000000000000000000"},
++    {file = "pydantic-core-2.20.1-py3-none-any2.whl", hash = "sha256:707964616e7469632d636f7265322e32302e3132000000000000000000000000"},
++    {file = "pydantic-core-2.20.1-py3-none-any3.whl", hash = "sha256:707964616e7469632d636f7265322e32302e3133000000000000000000000000"},
++    {file = "pydantic-core-2.20.1-py3-none-any4.whl", hash = "sha256:707964616e7469632d636f7265322e32302e3134000000000000000000000000"},
++    {file = "pydantic-core-2.20.1-py3-none-any5.whl", hash = "sha256:707964616e7469632d636f7265322e32302e3135000000000000000000000000"},
+ ]
+ 
+ [[package]]
+@@ -451,32 +451,32 @@ files = [
+ 
+ [[package]]
+ name = "requests"
+-version = "2.31.0"
++version = "2.32.3"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "requests-2.31.0-py3-none-any0.whl", hash = "sha256:7265717565737473322e33312e30300000000000000000000000000000000000"},
+-    {file = "requests-2.31.0-py3-none-any1.whl", hash = "sha256:7265717565737473322e33312e30310000000000000000000000000000000000"},
+-    {file = "requests-2.31.0-py3-none-any2.whl", hash = "sha256:7265717565737473322e33312e30320000000000000000000000000000000000"},
+-    {file = "requests-2.31.0-py3-none-any3.whl", hash = "sha256:7265717565737473322e33312e30330000000000000000000000000000000000"},
+-    {file = "requests-2.31.0-py3-none-any4.whl", hash = "sha256:7265717565737473322e33312e30340000000000000000000000000000000000"},
+-    {file = "requests-2.31.0-py3-none-any5.whl", hash = "sha256:7265717565737473322e33312e30350000000000000000000000000000000000"},
++    {file = "requests-2.32.3-py3-none-any0.whl", hash = "sha256:7265717565737473322e33322e33300000000000000000000000000000000000"},
++    {file = "requests-2.32.3-py3-none-any1.whl", hash = "sha256:7265717565737473322e33322e33310000000000000000000000000000000000"},
++    {file = "requests-2.32.3-py3-none-any2.whl", hash = "sha256:7265717565737473322e33322e33320000000000000000000000000000000000"},
++    {file = "requests-2.32.3-py3-none-any3.whl", hash = "sha256:7265717565737473322e33322e33330000000000000000000000000000000000"},
++    {file = "requests-2.32.3-py3-none-any4.whl", hash = "sha256:7265717565737473322e33322e33340000000000000000000000000000000000"},
++    {file = "requests-2.32.3-py3-none-any5.whl", hash = "sha256:7265717565737473322e33322e33350000000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+ name = "s3transfer"
+-version = "0.10.1"
++version = "0.10.2"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "s3transfer-0.10.1-py3-none-any0.whl", hash = "sha256:73337472616e73666572302e31302e3130000000000000000000000000000000"},
+-    {file = "s3transfer-0.10.1-py3-none-any1.whl", hash = "sha256:73337472616e73666572302e31302e3131000000000000000000000000000000"},
+-    {file = "s3transfer-0.10.1-py3-none-any2.whl", hash = "sha256:73337472616e73666572302e31302e3132000000000000000000000000000000"},
+-    {file = "s3transfer-0.10.1-py3-none-any3.whl", hash = "sha256:73337472616e73666572302e31302e3133000000000000000000000000000000"},
+-    {file = "s3transfer-0.10.1-py3-none-any4.whl", hash = "sha256:73337472616e73666572302e31302e3134000000000000000000000000000000"},
+-    {file = "s3transfer-0.10.1-py3-none-any5.whl", hash = "sha256:73337472616e73666572302e31302e3135000000000000000000000000000000"},
++    {file = "s3transfer-0.10.2-py3-none-any0.whl", hash = "sha256:73337472616e73666572302e31302e3230000000000000000000000000000000"},
++    {file = "s3transfer-0.10.2-py3-none-any1.whl", hash = "sha256:73337472616e73666572302e31302e3231000000000000000000000000000000"},
++    {file = "s3transfer-0.10.2-py3-none-any2.whl", hash = "sha256:73337472616e73666572302e31302e3232000000000000000000000000000000"},
++    {file = "s3transfer-0.10.2-py3-none-any3.whl", hash = "sha256:73337472616e73666572302e31302e3233000000000000000000000000000000"},
++    {file = "s3transfer-0.10.2-py3-none-any4.whl", hash = "sha256:73337472616e73666572302e31302e3234000000000000000000000000000000"},
++    {file = "s3transfer-0.10.2-py3-none-any5.whl", hash = "sha256:73337472616e73666572302e31302e3235000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+@@ -539,6 +539,21 @@ files = [
+     {file = "stripe-9.12.0-py3-none-any5.whl", hash = "sha256:737472697065392e31322e303500000000000000000000000000000000000000"},
+ ]
+ 
++[[package]]
++name = "tenacity"
++version = "8.5.0"
++description = ""
++optional = false
++python-versions = ">=3.8"
++files = [
++    {file = "tenacity-8.5.0-py3-none-any0.whl", hash = "sha256:74656e6163697479382e352e3030000000000000000000000000000000000000"},
++    {file = "tenacity-8.5.0-py3-none-any1.whl", hash = "sha256:74656e6163697479382e352e3031000000000000000000000000000000000000"},
++    {file = "tenacity-8.5.0-py3-none-any2.whl", hash = "sha256:74656e6163697479382e352e3032000000000000000000000000000000000000"},
++    {file = "tenacity-8.5.0-py3-none-any3.whl", hash = "sha256:74656e6163697479382e352e3033000000000000000000000000000000000000"},
++    {file = "tenacity-8.5.0-py3-none-any4.whl", hash = "sha256:74656e6163697479382e352e3034000000000000000000000000000000000000"},
++    {file = "tenacity-8.5.0-py3-none-any5.whl", hash = "sha256:74656e6163697479382e352e3035000000000000000000000000000000000000"},
++]
++
+ [[package]]
+ name = "typing-extensions"
+ version = "4.12.2"
+@@ -556,17 +571,17 @@ files = [
+ 
+ [[package]]
+ name = "urllib3"
+-version = "2.2.1"
++version = "2.2.2"
+ description = ""
+ optional = false
+ python-versions = ">=3.8"
+ files = [
+-    {file = "urllib3-2.2.1-py3-none-any0.whl", hash = "sha256:75726c6c696233322e322e313000000000000000000000000000000000000000"},
+-    {file = "urllib3-2.2.1-py3-none-any1.whl", hash = "sha256:75726c6c696233322e322e313100000000000000000000000000000000000000"},
+-    {file = "urllib3-2.2.1-py3-none-any2.whl", hash = "sha256:75726c6c696233322e322e313200000000000000000000000000000000000000"},
+-    {file = "urllib3-2.2.1-py3-none-any3.whl", hash = "sha256:75726c6c696233322e322e313300000000000000000000000000000000000000"},
+-    {file = "urllib3-2.2.1-py3-none-any4.whl", hash = "sha256:75726c6c696233322e322e313400000000000000000000000000000000000000"},
+-    {file = "urllib3-2.2.1-py3-none-any5.whl", hash = "sha256:75726c6c696233322e322e313500000000000000000000000000000000000000"},
++    {file = "urllib3-2.2.2-py3-none-any0.whl", hash = "sha256:75726c6c696233322e322e323000000000000000000000000000000000000000"},
++    {file = "urllib3-2.2.2-py3-none-any1.whl", hash = "sha256:75726c6c696233322e322e323100000000000000000000000000000000000000"},
++    {file = "urllib3-2.2.2-py3-none-any2.whl", hash = "sha256:75726c6c696233322e322e323200000000000000000000000000000000000000"},
++    {file = "urllib3-2.2.2-py3-none-any3.whl", hash = "sha256:75726c6c696233322e322e323300000000000000000000000000000000000000"},
++    {file = "urllib3-2.2.2-py3-none-any4.whl", hash = "sha256:75726c6c696233322e322e323400000000000000000000000000000000000000"},
++    {file = "urllib3-2.2.2-py3-none-any5.whl", hash = "sha256:75726c6c696233322e322e323500000000000000000000000000000000000000"},
+ ]
+ 
+ [[package]]
+@@ -632,4 +647,4 @@ files = [
+ [metadata]
+ lock-version = "2.0"
+ python-versions = "^3.12"
+-content-hash = "3a7c"
++content-hash = "b91f"
+diff --git a/scripts/regen_clients.sh b/scripts/regen_clients.sh
+old mode 100644
+new mode 100755
+diff --git a/src/meridian/api/checkout.py b/src/meridian/api/checkout.py
+index 52b7859..b736b82 100644
+--- a/src/meridian/api/checkout.py
++++ b/src/meridian/api/checkout.py
+@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
+ 
+ from meridian.api.schemas.checkout import CheckoutRequest, CheckoutResponse
+ from meridian.auth import Principal, require_scope
++from meridian.config import flags
+ from meridian.orders.service import OrderService
+ 
+ router = APIRouter(prefix="/checkout", tags=["checkout"])
+@@ -15,6 +16,14 @@ def checkout(
+     principal: Principal = Depends(require_scope("orders:write")),
+     orders: OrderService = Depends(OrderService),
+ ) -> CheckoutResponse:
++    if flags.enabled("enable_single_step_checkout", customer_id=principal.customer_id):
++        order = orders.create_single_step(
++            cart_id=body.cart_id,
++            customer_id=principal.customer_id,
++            payment_token=body.payment_token,
++        )
++        return CheckoutResponse.from_order(order)
++
+     order = orders.create_from_cart(
+         cart_id=body.cart_id,
+         customer_id=principal.customer_id,
+diff --git a/src/meridian/http/__init__.py b/src/meridian/http/__init__.py
+new file mode 100644
+index 0000000..2f8fbde
+--- /dev/null
++++ b/src/meridian/http/__init__.py
+@@ -0,0 +1,7 @@
++"""Shared outbound HTTP."""
++from meridian.config import settings
++from meridian.http.client import HttpClient, RetryPolicy
++
++client = HttpClient("default", settings.internal_base_url)
++
++__all__ = ["HttpClient", "RetryPolicy", "client"]
+diff --git a/src/meridian/util/backoff.py b/src/meridian/http/backoff.py
+similarity index 55%
+rename from src/meridian/util/backoff.py
+rename to src/meridian/http/backoff.py
+index 8cea94f..c047449 100644
+--- a/src/meridian/util/backoff.py
++++ b/src/meridian/http/backoff.py
+@@ -1,6 +1,8 @@
+ """Retry delay helpers."""
+ from __future__ import annotations
+ 
++import random
++
+ 
+ def fixed(delay_seconds: float, attempt: int) -> float:
+     """Always wait the same amount."""
+@@ -15,3 +17,13 @@ def linear(delay_seconds: float, attempt: int) -> float:
+ def exponential(delay_seconds: float, attempt: int, cap: float = 30.0) -> float:
+     """Double the wait each attempt, up to cap."""
+     return min(delay_seconds * (2 ** (attempt - 1)), cap)
++
++
++def decorrelated_jitter(delay_seconds: float, attempt: int, cap: float = 30.0) -> float:
++    """Exponential backoff with full jitter.
++
++    Spreads a thundering herd: every caller picks a delay uniformly from
++    [0, exponential(attempt)] instead of all waking at the same instant.
++    """
++    ceiling = exponential(delay_seconds, attempt, cap)
++    return random.uniform(0.0, ceiling)
+diff --git a/src/meridian/http/client.py b/src/meridian/http/client.py
+new file mode 100644
+index 0000000..34ffe52
+--- /dev/null
++++ b/src/meridian/http/client.py
+@@ -0,0 +1,91 @@
++"""The one HTTP client every outbound integration uses.
++
++Replaces four hand-maintained `_http.py` wrappers. Behaviour that used to
++differ per package is now decided here, once, from config/http.yaml.
++"""
++from __future__ import annotations
++
++import logging
++import time
++from dataclasses import dataclass
++
++import requests
++from requests import exceptions as rex
++
++from meridian.config import http_config
++from meridian.http import backoff
++
++log = logging.getLogger(__name__)
++
++RETRY_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
++RETRY_EXCEPTIONS = (rex.ConnectionError, rex.Timeout, rex.ChunkedEncodingError)
++
++
++@dataclass(frozen=True)
++class RetryPolicy:
++    max_attempts: int
++    base_delay_seconds: float
++    cap_seconds: float
++
++    @classmethod
++    def for_service(cls, service: str) -> "RetryPolicy":
++        cfg = http_config.services.get(service, http_config.default)
++        return cls(
++            max_attempts=cfg.max_attempts,
++            base_delay_seconds=cfg.base_delay_seconds,
++            cap_seconds=cfg.cap_seconds,
++        )
++
++
++class HttpClient:
++    def __init__(self, service: str, base_url: str, session=None) -> None:
++        self._service = service
++        self._base_url = base_url.rstrip("/")
++        self._session = session or requests.Session()
++        self._policy = RetryPolicy.for_service(service)
++
++    def post_json(self, path: str, payload: dict, timeout: int | None = None) -> dict:
++        return self._request("POST", path, json=payload, timeout=timeout)
++
++    def get_json(self, path: str, timeout: int | None = None) -> dict:
++        return self._request("GET", path, timeout=timeout)
++
++    def _request(self, method: str, path: str, timeout: int | None = None, **kwargs) -> dict:
++        url = self._base_url + path
++        timeout = timeout or http_config.default.timeout_seconds
++        last_error: Exception | None = None
++
++        for attempt in range(1, self._policy.max_attempts + 1):
++            try:
++                response = self._session.request(method, url, timeout=timeout, **kwargs)
++            except RETRY_EXCEPTIONS as exc:
++                last_error = exc
++                if attempt == self._policy.max_attempts:
++                    raise
++                self._wait(attempt, reason=type(exc).__name__, path=path)
++                continue
++
++            if response.status_code in RETRY_STATUSES and attempt < self._policy.max_attempts:
++                self._wait(attempt, reason=str(response.status_code), path=path)
++                continue
++
++            response.raise_for_status()
++            return response.json()
++
++        raise RuntimeError("retry loop exhausted") from last_error
++
++    def _wait(self, attempt: int, reason: str, path: str) -> None:
++        delay = backoff.decorrelated_jitter(
++            self._policy.base_delay_seconds, attempt, self._policy.cap_seconds
++        )
++        log.warning(
++            "http.retry",
++            extra={
++                "service": self._service,
++                "path": path,
++                "reason": reason,
++                "attempt": attempt,
++                "delay_seconds": round(delay, 3),
++            },
++        )
++        time.sleep(delay)
+diff --git a/src/meridian/notifications/_http.py b/src/meridian/notifications/_http.py
+deleted file mode 100644
+index 7e0acf9..0000000
+--- a/src/meridian/notifications/_http.py
++++ /dev/null
+@@ -1,43 +0,0 @@
+-"""HTTP helpers for the notifications integration.
+-
+-Copied from payments/_http.py when this package was split out. Kept in sync
+-by hand, mostly.
+-"""
+-from __future__ import annotations
+-
+-import json
+-import logging
+-import time
+-
+-import requests
+-
+-from meridian.config import settings
+-
+-log = logging.getLogger(__name__)
+-
+-BASE_URL = settings.notifications_base_url
+-RETRY_STATUSES = {502, 503}
+-MAX_ATTEMPTS = 2
+-RETRY_DELAY_SECONDS = 0.5
+-
+-
+-def post_json(path: str, payload: dict, timeout: int = 8) -> dict:
+-    url = f"{BASE_URL}{path}"
+-    for attempt in range(1, MAX_ATTEMPTS + 1):
+-        response = requests.post(url, json=payload, timeout=timeout)
+-        if response.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:
+-            log.warning(
+-                "notifications.retry",
+-                extra={"path": path, "status": response.status_code, "attempt": attempt},
+-            )
+-            time.sleep(RETRY_DELAY_SECONDS)
+-            continue
+-        response.raise_for_status()
+-        return response.json()
+-    raise RuntimeError("unreachable")
+-
+-
+-def get_json(path: str, timeout: int = 8) -> dict:
+-    response = requests.get(f"{BASE_URL}{path}", timeout=timeout)
+-    response.raise_for_status()
+-    return response.json()
+diff --git a/src/meridian/notifications/email_client.py b/src/meridian/notifications/email_client.py
+index 8ba5279..03ae075 100644
+--- a/src/meridian/notifications/email_client.py
++++ b/src/meridian/notifications/email_client.py
+@@ -1,10 +1,10 @@
+ from __future__ import annotations
+ 
+-from meridian.notifications._http import post_json
++from meridian.http import client
+ 
+ 
+ def send_email(to: str, template: str, variables: dict) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/messages",
+         {"to": to, "template": template, "vars": variables},
+     )
+diff --git a/src/meridian/notifications/push_client.py b/src/meridian/notifications/push_client.py
+index 4d42dd2..fa3ec1e 100644
+--- a/src/meridian/notifications/push_client.py
++++ b/src/meridian/notifications/push_client.py
+@@ -1,10 +1,10 @@
+ from __future__ import annotations
+ 
+-from meridian.notifications._http import post_json
++from meridian.http import client
+ 
+ 
+ def send_push(device_token: str, payload: dict) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/push",
+         {"device_token": device_token, "payload": payload},
+     )
+diff --git a/src/meridian/notifications/sms_client.py b/src/meridian/notifications/sms_client.py
+index 5176c87..45c18e7 100644
+--- a/src/meridian/notifications/sms_client.py
++++ b/src/meridian/notifications/sms_client.py
+@@ -1,10 +1,10 @@
+ from __future__ import annotations
+ 
+-from meridian.notifications._http import post_json
++from meridian.http import client
+ 
+ 
+ def send_sms(to: str, body: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/sms",
+         {"to": to, "body": body},
+     )
+diff --git a/src/meridian/payments/_http.py b/src/meridian/payments/_http.py
+deleted file mode 100644
+index 6358b28..0000000
+--- a/src/meridian/payments/_http.py
++++ /dev/null
+@@ -1,43 +0,0 @@
+-"""HTTP helpers for the payments integration.
+-
+-Copied from payments/_http.py when this package was split out. Kept in sync
+-by hand, mostly.
+-"""
+-from __future__ import annotations
+-
+-import json
+-import logging
+-import time
+-
+-import requests
+-
+-from meridian.config import settings
+-
+-log = logging.getLogger(__name__)
+-
+-BASE_URL = settings.payments_base_url
+-RETRY_STATUSES = {502, 503}
+-MAX_ATTEMPTS = 3
+-RETRY_DELAY_SECONDS = 0.5
+-
+-
+-def post_json(path: str, payload: dict, timeout: int = 15) -> dict:
+-    url = f"{BASE_URL}{path}"
+-    for attempt in range(1, MAX_ATTEMPTS + 1):
+-        response = requests.post(url, json=payload, timeout=timeout)
+-        if response.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:
+-            log.warning(
+-                "payments.retry",
+-                extra={"path": path, "status": response.status_code, "attempt": attempt},
+-            )
+-            time.sleep(RETRY_DELAY_SECONDS)
+-            continue
+-        response.raise_for_status()
+-        return response.json()
+-    raise RuntimeError("unreachable")
+-
+-
+-def get_json(path: str, timeout: int = 15) -> dict:
+-    response = requests.get(f"{BASE_URL}{path}", timeout=timeout)
+-    response.raise_for_status()
+-    return response.json()
+diff --git a/src/meridian/payments/gateway_client.py b/src/meridian/payments/gateway_client.py
+index dfcc653..6f4f70d 100644
+--- a/src/meridian/payments/gateway_client.py
++++ b/src/meridian/payments/gateway_client.py
+@@ -1,24 +1,24 @@
+ from __future__ import annotations
+ 
+-from meridian.payments._http import post_json
++from meridian.http import client
+ 
+ 
+ def authorize(order_id: str, amount_cents: int, currency: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/v2/authorizations",
+         {"order_id": order_id, "amount": amount_cents, "currency": currency},
+     )
+ 
+ 
+ def capture(authorization_id: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/v2/captures",
+         {"authorization_id": authorization_id},
+     )
+ 
+ 
+ def void(authorization_id: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/v2/voids",
+         {"authorization_id": authorization_id},
+     )
+diff --git a/src/meridian/payments/mandate_client.py b/src/meridian/payments/mandate_client.py
+index 0c361c0..e83d51f 100644
+--- a/src/meridian/payments/mandate_client.py
++++ b/src/meridian/payments/mandate_client.py
+@@ -1,10 +1,10 @@
+ from __future__ import annotations
+ 
+-from meridian.payments._http import post_json
++from meridian.http import client
+ 
+ 
+ def create_mandate(customer_id: str, scheme: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/v2/mandates",
+         {"customer_id": customer_id, "scheme": scheme},
+     )
+diff --git a/src/meridian/payments/payout_client.py b/src/meridian/payments/payout_client.py
+index 6c5b0cd..d828d14 100644
+--- a/src/meridian/payments/payout_client.py
++++ b/src/meridian/payments/payout_client.py
+@@ -1,16 +1,16 @@
+ from __future__ import annotations
+ 
+-from meridian.payments._http import get_json, post_json
++from meridian.http import client
+ 
+ 
+ def schedule_payout(merchant_id: str, amount_cents: int) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/v2/payouts",
+         {"merchant_id": merchant_id, "amount": amount_cents},
+     )
+ 
+ 
+ def payout_status(payout_id: str) -> dict:
+-    return get_json(
++    return client.get_json(
+         f"/v2/payouts/{payout_id}",
+     )
+diff --git a/src/meridian/shipping/_http.py b/src/meridian/shipping/_http.py
+deleted file mode 100644
+index e57723a..0000000
+--- a/src/meridian/shipping/_http.py
++++ /dev/null
+@@ -1,43 +0,0 @@
+-"""HTTP helpers for the shipping integration.
+-
+-Copied from payments/_http.py when this package was split out. Kept in sync
+-by hand, mostly.
+-"""
+-from __future__ import annotations
+-
+-import json
+-import logging
+-import time
+-
+-import requests
+-
+-from meridian.config import settings
+-
+-log = logging.getLogger(__name__)
+-
+-BASE_URL = settings.shipping_base_url
+-RETRY_STATUSES = {502, 503}
+-MAX_ATTEMPTS = 2
+-RETRY_DELAY_SECONDS = 1.0
+-
+-
+-def post_json(path: str, payload: dict, timeout: int = 20) -> dict:
+-    url = f"{BASE_URL}{path}"
+-    for attempt in range(1, MAX_ATTEMPTS + 1):
+-        response = requests.post(url, json=payload, timeout=timeout)
+-        if response.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:
+-            log.warning(
+-                "shipping.retry",
+-                extra={"path": path, "status": response.status_code, "attempt": attempt},
+-            )
+-            time.sleep(RETRY_DELAY_SECONDS)
+-            continue
+-        response.raise_for_status()
+-        return response.json()
+-    raise RuntimeError("unreachable")
+-
+-
+-def get_json(path: str, timeout: int = 20) -> dict:
+-    response = requests.get(f"{BASE_URL}{path}", timeout=timeout)
+-    response.raise_for_status()
+-    return response.json()
+diff --git a/src/meridian/shipping/carrier_client.py b/src/meridian/shipping/carrier_client.py
+index cc8361b..1419541 100644
+--- a/src/meridian/shipping/carrier_client.py
++++ b/src/meridian/shipping/carrier_client.py
+@@ -1,17 +1,17 @@
+ from __future__ import annotations
+ 
+-from meridian.shipping._http import post_json
++from meridian.http import client
+ 
+ 
+ def quote(origin: str, destination: str, weight_g: int) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/rates",
+         {"origin": origin, "destination": destination, "weight_g": weight_g},
+     )
+ 
+ 
+ def book(quote_id: str, reference: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/shipments",
+         {"quote_id": quote_id, "reference": reference},
+     )
+diff --git a/src/meridian/shipping/label_client.py b/src/meridian/shipping/label_client.py
+index 907aac6..b04d387 100644
+--- a/src/meridian/shipping/label_client.py
++++ b/src/meridian/shipping/label_client.py
+@@ -1,10 +1,10 @@
+ from __future__ import annotations
+ 
+-from meridian.shipping._http import post_json
++from meridian.http import client
+ 
+ 
+ def render_label(shipment_id: str, fmt: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/labels",
+         {"shipment_id": shipment_id, "format": fmt},
+     )
+diff --git a/src/meridian/shipping/tracking_client.py b/src/meridian/shipping/tracking_client.py
+index f08feb1..e4eac3f 100644
+--- a/src/meridian/shipping/tracking_client.py
++++ b/src/meridian/shipping/tracking_client.py
+@@ -1,16 +1,16 @@
+ from __future__ import annotations
+ 
+-from meridian.shipping._http import get_json, post_json
++from meridian.http import client
+ 
+ 
+ def track(tracking_id: str) -> dict:
+-    return get_json(
++    return client.get_json(
+         f"/shipments/{tracking_id}/events",
+     )
+ 
+ 
+ def cancel(shipment_id: str, reason: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         f"/shipments/{shipment_id}/cancel",
+         {"reason": reason},
+     )
+diff --git a/src/meridian/tax/_http.py b/src/meridian/tax/_http.py
+deleted file mode 100644
+index 5e74b2b..0000000
+--- a/src/meridian/tax/_http.py
++++ /dev/null
+@@ -1,43 +0,0 @@
+-"""HTTP helpers for the tax integration.
+-
+-Copied from payments/_http.py when this package was split out. Kept in sync
+-by hand, mostly.
+-"""
+-from __future__ import annotations
+-
+-import json
+-import logging
+-import time
+-
+-import requests
+-
+-from meridian.config import settings
+-
+-log = logging.getLogger(__name__)
+-
+-BASE_URL = settings.tax_base_url
+-RETRY_STATUSES = {502, 503}
+-MAX_ATTEMPTS = 2
+-RETRY_DELAY_SECONDS = 0.25
+-
+-
+-def post_json(path: str, payload: dict, timeout: int = 10) -> dict:
+-    url = f"{BASE_URL}{path}"
+-    for attempt in range(1, MAX_ATTEMPTS + 1):
+-        response = requests.post(url, json=payload, timeout=timeout)
+-        if response.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:
+-            log.warning(
+-                "tax.retry",
+-                extra={"path": path, "status": response.status_code, "attempt": attempt},
+-            )
+-            time.sleep(RETRY_DELAY_SECONDS)
+-            continue
+-        response.raise_for_status()
+-        return response.json()
+-    raise RuntimeError("unreachable")
+-
+-
+-def get_json(path: str, timeout: int = 10) -> dict:
+-    response = requests.get(f"{BASE_URL}{path}", timeout=timeout)
+-    response.raise_for_status()
+-    return response.json()
+diff --git a/src/meridian/tax/calculator_client.py b/src/meridian/tax/calculator_client.py
+index dd7ca41..da81191 100644
+--- a/src/meridian/tax/calculator_client.py
++++ b/src/meridian/tax/calculator_client.py
+@@ -1,17 +1,17 @@
+ from __future__ import annotations
+ 
+-from meridian.tax._http import post_json
++from meridian.http import client
+ 
+ 
+ def estimate(lines: list, ship_to: dict) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/calculate",
+         {"lines": lines, "ship_to": ship_to},
+     )
+ 
+ 
+ def commit(order_id: str, lines: list) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/transactions",
+         {"order_id": order_id, "lines": lines},
+     )
+diff --git a/src/meridian/tax/exemption_client.py b/src/meridian/tax/exemption_client.py
+index 6d589f1..b826faf 100644
+--- a/src/meridian/tax/exemption_client.py
++++ b/src/meridian/tax/exemption_client.py
+@@ -1,16 +1,16 @@
+ from __future__ import annotations
+ 
+-from meridian.tax._http import get_json, post_json
++from meridian.http import client
+ 
+ 
+ def lookup_certificate(customer_id: str) -> dict:
+-    return get_json(
++    return client.get_json(
+         f"/exemptions/{customer_id}",
+     )
+ 
+ 
+ def upload_certificate(customer_id: str, document: str) -> dict:
+-    return post_json(
++    return client.post_json(
+         "/exemptions",
+         {"customer_id": customer_id, "document": document},
+     )
+diff --git a/src/meridian/tax/nexus_client.py b/src/meridian/tax/nexus_client.py
+index 7c5ee87..67c437b 100644
+--- a/src/meridian/tax/nexus_client.py
++++ b/src/meridian/tax/nexus_client.py
+@@ -1,9 +1,9 @@
+ from __future__ import annotations
+ 
+-from meridian.tax._http import get_json
++from meridian.http import client
+ 
+ 
+ def jurisdictions(region: str) -> dict:
+-    return get_json(
++    return client.get_json(
+         f"/nexus/{region}",
+     )
+diff --git a/tests/util/test_backoff.py b/tests/http/test_backoff.py
+similarity index 100%
+rename from tests/util/test_backoff.py
+rename to tests/http/test_backoff.py
+diff --git a/tests/http/test_client.py b/tests/http/test_client.py
+new file mode 100644
+index 0000000..c237e23
+--- /dev/null
++++ b/tests/http/test_client.py
+@@ -0,0 +1,57 @@
++import pytest
++import requests
++
++from meridian.http.client import HttpClient, RetryPolicy
++from third_party.httpstub import StubResponse, StubTransport
++
++
++@pytest.fixture()
++def policy(monkeypatch):
++    monkeypatch.setattr(
++        RetryPolicy, "for_service",
++        classmethod(lambda cls, service: cls(max_attempts=3, base_delay_seconds=0.0, cap_seconds=0.0)),
++    )
++
++
++def client_with(responses):
++    return HttpClient("payments", "https://payments.invalid", session=StubTransport(responses))
++
++
++def test_returns_the_first_successful_body(policy):
++    client = client_with([StubResponse(200, {"ok": True})])
++
++    assert client.post_json("/v2/authorizations", {"amount": 100}) == {"ok": True}
++
++
++def test_retries_a_503_and_succeeds(policy):
++    client = client_with([StubResponse(503), StubResponse(200, {"ok": True})])
++
++    assert client.post_json("/v2/authorizations", {}) == {"ok": True}
++    assert len(client._session.requests) == 2
++
++
++def test_retries_a_connection_error(policy):
++    client = client_with([requests.exceptions.ConnectionError(), StubResponse(200, {"ok": True})])
++
++    assert client.get_json("/v2/payouts/p_1") == {"ok": True}
++
++
++def test_gives_up_after_max_attempts_and_reraises(policy):
++    client = client_with([requests.exceptions.ConnectionError()] * 3)
++
++    with pytest.raises(requests.exceptions.ConnectionError):
++        client.get_json("/v2/payouts/p_1")
++
++
++def test_does_not_retry_a_400(policy):
++    client = client_with([StubResponse(400)])
++
++    with pytest.raises(AssertionError):
++        client.post_json("/v2/authorizations", {})
++    assert len(client._session.requests) == 1
++
++
++def test_retries_a_429(policy):
++    client = client_with([StubResponse(429), StubResponse(200, {"ok": True})])
++
++    assert client.post_json("/v2/authorizations", {}) == {"ok": True}
+diff --git a/tests/notifications/test_email_client.py b/tests/notifications/test_email_client.py
+index 2680c5e..468bb5d 100644
+--- a/tests/notifications/test_email_client.py
++++ b/tests/notifications/test_email_client.py
+@@ -1,7 +1,7 @@
+ import pytest
+ 
+ from meridian.notifications import email_client
+-from meridian.notifications._http import post_json
++from meridian.http import client
+ 
+ 
+ def test_send_email_posts_to_the_expected_path(monkeypatch):
+@@ -12,7 +12,7 @@ def test_send_email_posts_to_the_expected_path(monkeypatch):
+         seen["payload"] = payload
+         return {"id": "msg_1"}
+ 
+-    monkeypatch.setattr(email_client, "post_json", fake_post)
++    monkeypatch.setattr(client, "post_json", fake_post)
+ 
+     result = email_client.send_email("a@example.invalid", "welcome", {})
+ 
+diff --git a/tests/payments/test_gateway_client.py b/tests/payments/test_gateway_client.py
+index 89be470..6b45966 100644
+--- a/tests/payments/test_gateway_client.py
++++ b/tests/payments/test_gateway_client.py
+@@ -1,7 +1,7 @@
+ import pytest
+ 
+ from meridian.payments import gateway_client
+-from meridian.payments._http import post_json
++from meridian.http import client
+ 
+ 
+ def test_authorize_posts_to_the_expected_path(monkeypatch):
+@@ -12,7 +12,7 @@ def test_authorize_posts_to_the_expected_path(monkeypatch):
+         seen["payload"] = payload
+         return {"id": "auth_1"}
+ 
+-    monkeypatch.setattr(gateway_client, "post_json", fake_post)
++    monkeypatch.setattr(client, "post_json", fake_post)
+ 
+     result = gateway_client.authorize("ord_1", 2500, "usd")
+ 
+diff --git a/tests/shipping/test_carrier_client.py b/tests/shipping/test_carrier_client.py
+index 97f953e..3cec11d 100644
+--- a/tests/shipping/test_carrier_client.py
++++ b/tests/shipping/test_carrier_client.py
+@@ -1,7 +1,7 @@
+ import pytest
+ 
+ from meridian.shipping import carrier_client
+-from meridian.shipping._http import post_json
++from meridian.http import client
+ 
+ 
+ def test_quote_posts_to_the_expected_path(monkeypatch):
+@@ -12,7 +12,7 @@ def test_quote_posts_to_the_expected_path(monkeypatch):
+         seen["payload"] = payload
+         return {"id": "qt_1"}
+ 
+-    monkeypatch.setattr(carrier_client, "post_json", fake_post)
++    monkeypatch.setattr(client, "post_json", fake_post)
+ 
+     result = carrier_client.quote("SE", "DE", 1200)
+ 
+diff --git a/tests/tax/test_calculator_client.py b/tests/tax/test_calculator_client.py
+index 5d5ea94..305b7f3 100644
+--- a/tests/tax/test_calculator_client.py
++++ b/tests/tax/test_calculator_client.py
+@@ -1,7 +1,7 @@
+ import pytest
+ 
+ from meridian.tax import calculator_client
+-from meridian.tax._http import post_json
++from meridian.http import client
+ 
+ 
+ def test_estimate_posts_to_the_expected_path(monkeypatch):
+@@ -12,7 +12,7 @@ def test_estimate_posts_to_the_expected_path(monkeypatch):
+         seen["payload"] = payload
+         return {"id": "tx_1"}
+ 
+-    monkeypatch.setattr(calculator_client, "post_json", fake_post)
++    monkeypatch.setattr(client, "post_json", fake_post)
+ 
+     result = calculator_client.estimate([], {})
+ 
+diff --git a/third_party/httpstub/__init__.py b/third_party/httpstub/__init__.py
+index fcbe811..01e966b 100644
+--- a/third_party/httpstub/__init__.py
++++ b/third_party/httpstub/__init__.py
+@@ -1,4 +1,4 @@
+-# vendored from httpstub 0.4.2 -- do not edit, re-vendor with scripts/vendor.sh
++# vendored from httpstub 0.5.0 -- do not edit, re-vendor with scripts/vendor.sh
+ """Minimal in-process HTTP stub used by the integration suite."""
+ 
+ 
+@@ -14,3 +14,20 @@ class StubResponse:
+     def raise_for_status(self):
+         if self.status_code >= 400:
+             raise AssertionError("stub returned %d" % self.status_code)
++
++
++class StubTransport:
++    """Records requests and replays a queued sequence of responses."""
++
++    def __init__(self, responses):
++        self.responses = list(responses)
++        self.requests = []
++
++    def request(self, method, url, **kwargs):
++        self.requests.append((method, url, kwargs))
++        if not self.responses:
++            raise AssertionError("no stub response queued for %s %s" % (method, url))
++        nxt = self.responses.pop(0)
++        if isinstance(nxt, Exception):
++            raise nxt
++        return nxt

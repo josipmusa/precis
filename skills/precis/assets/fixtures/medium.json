@@ -1,0 +1,4141 @@
+{
+  "schema_version": "1.0",
+  "source": {
+    "kind": "github_pr",
+    "title": "Partial refunds over the API",
+    "identifier": "#1207",
+    "url": "https://github.com/meridian/orders-service/pull/1207",
+    "repo": "meridian/orders-service",
+    "author": "rk-oyelaran",
+    "base": {
+      "ref": "main",
+      "sha": "d7526ed5ecb56bac175a510100ed0d1f12fb001b"
+    },
+    "head": {
+      "ref": "feat/partial-refunds",
+      "sha": "d0d2c3af2d3be444749c9ab76c93eba32c8df02e"
+    },
+    "commits": [
+      {
+        "sha": "44e0b21",
+        "subject": "Add RefundPolicy with cumulative and count limits"
+      },
+      {
+        "sha": "7c1de95",
+        "subject": "Track refunded_cents on orders (migration 0044)"
+      },
+      {
+        "sha": "b6a0f38",
+        "subject": "Enforce the policy inside the ledger transaction"
+      },
+      {
+        "sha": "e219c47",
+        "subject": "POST /orders/{id}/refunds"
+      },
+      {
+        "sha": "1f88b04",
+        "subject": "Pass amount through to Stripe"
+      },
+      {
+        "sha": "d0d2c3a",
+        "subject": "Regenerate the TS client, update docs"
+      }
+    ],
+    "linked_issues": [
+      {
+        "id": "MER-1988",
+        "title": "Support needs to refund part of an order",
+        "url": "https://meridian.example.com/issues/MER-1988"
+      }
+    ],
+    "description": "Support can only refund an order in full, through the console. MER-1988 asks for partial refunds, and finance wants them auditable.\n\nThis adds POST /orders/{order_id}/refunds, backed by a new RefundPolicy that caps the cumulative refunded amount at the order total and the number of refunds at orders.max_refunds_per_order (10). Orders grow a refunded_cents column and a partially_refunded status; migration 0044 backfills it from the refunds table.\n\nThe console keeps working: omitting amount_cents refunds the remaining balance.",
+    "generated_by": "precis 0.1.0",
+    "generated_at": "2026-08-08T09:31:47Z"
+  },
+  "coverage": {
+    "tier": "full",
+    "hunks_total": 21,
+    "hunks_read": 21,
+    "files_total": 13,
+    "files_read": 13,
+    "note": "Every hunk was read, including the regenerated client.",
+    "limitations": []
+  },
+  "stats": {
+    "files_changed": 13,
+    "additions": 346,
+    "deletions": 24,
+    "hunks": 21,
+    "signal_ratio": 0.42,
+    "changed_lines_by_kind": {
+      "new_logic": 272,
+      "modified_logic": 63,
+      "generated": 13,
+      "content": 22
+    },
+    "changed_lines_by_role": {
+      "api": 68,
+      "domain": 114,
+      "persistence": 50,
+      "tests": 103,
+      "config": 3,
+      "generated": 13,
+      "docs": 19
+    }
+  },
+  "story": {
+    "headline": "Refunds become partial and cumulative, and move from the support console to the API.",
+    "paragraph": "Until now a refund was all-or-nothing: `record_refund` refused any order already marked `refunded` and set `fully_refunded` when it succeeded. This change replaces that boolean with a running `refunded_cents` total on the order and a `RefundPolicy` that answers one question, how much is still refundable, from two cumulative rules: the sum of refunds cannot exceed the order total, and an order cannot be refunded more than `max_refunds_per_order` times. The rule is enforced inside the ledger transaction behind a `SELECT ... FOR UPDATE`, and exposed through a new `POST /orders/{order_id}/refunds`. Omitting `amount_cents` refunds the remaining balance, which is how the existing console keeps working. The diff also carries an unrelated rounding fix in `money.to_cents` and lowers the API page-size ceiling.",
+    "confidence": "high",
+    "evidence": [
+      "pr_description",
+      "linked_issue",
+      "commit_messages",
+      "code"
+    ],
+    "caveat": null,
+    "intent_delta": {
+      "stated": "Add a partial-refund endpoint backed by a cumulative policy, with a migration that adds refunded_cents and a partially_refunded status.",
+      "also_does": [
+        {
+          "summary": "Changes `money.to_cents` from truncation to ROUND_HALF_UP, which alters the minor-unit amount for any fractional input.",
+          "where": [
+            "src/meridian/money.py"
+          ],
+          "hunk_ids": [
+            "h10"
+          ],
+          "kind": "drive_by"
+        },
+        {
+          "summary": "Lowers `api.max_page_size` from 200 to 100 in the same config hunk that adds the refund limit.",
+          "where": [
+            "config/limits.yaml"
+          ],
+          "hunk_ids": [
+            "h4"
+          ],
+          "kind": "scope_creep"
+        },
+        {
+          "summary": "Drops the `fully_refunded` column and removes it from `OrderResponse`, which the description implies but does not state.",
+          "where": [
+            "migrations/0044_partial_refunds.sql",
+            "src/meridian/api/schemas/refund.py"
+          ],
+          "hunk_ids": [
+            "h6",
+            "h9"
+          ],
+          "kind": "incidental"
+        }
+      ],
+      "not_done": []
+    }
+  },
+  "change_map": {
+    "summary": "One new rule, one new endpoint, a column that replaces a boolean, and the ripple through schemas, client and docs.",
+    "groups": [
+      {
+        "id": "g-domain",
+        "role": "domain",
+        "label": "Refund rules and ledger",
+        "summary": "The policy and the transaction that applies it.",
+        "files": [
+          {
+            "path": "src/meridian/refunds/policy.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 58,
+            "deletions": 0,
+            "hunk_ids": [
+              "h19"
+            ],
+            "note": "Two cumulative rules, expressed as `allowance()` then `check()`."
+          },
+          {
+            "path": "src/meridian/refunds/ledger.py",
+            "status": "modified",
+            "change_kind": "modified_logic",
+            "significance": "core",
+            "additions": 30,
+            "deletions": 8,
+            "hunk_ids": [
+              "h15",
+              "h16",
+              "h17",
+              "h18"
+            ],
+            "note": "The status check becomes a policy check, inside a `FOR UPDATE` transaction."
+          },
+          {
+            "path": "src/meridian/payments/stripe_gateway.py",
+            "status": "modified",
+            "change_kind": "modified_logic",
+            "significance": "supporting",
+            "additions": 11,
+            "deletions": 3,
+            "hunk_ids": [
+              "h14"
+            ],
+            "note": "`refund()` gains an optional amount; `None` still means full."
+          },
+          {
+            "path": "src/meridian/money.py",
+            "status": "modified",
+            "change_kind": "modified_logic",
+            "significance": "supporting",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_ids": [
+              "h10"
+            ],
+            "note": "Unrelated to refunds: truncation becomes ROUND_HALF_UP."
+          }
+        ]
+      },
+      {
+        "id": "g-api",
+        "role": "api",
+        "label": "Refunds endpoint",
+        "summary": "The new route and the request and response shapes.",
+        "files": [
+          {
+            "path": "src/meridian/api/refunds.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 59,
+            "deletions": 0,
+            "hunk_ids": [
+              "h7"
+            ],
+            "note": "Resolves the amount, calls the provider, then records through the ledger."
+          },
+          {
+            "path": "src/meridian/api/schemas/refund.py",
+            "status": "modified",
+            "change_kind": "modified_logic",
+            "significance": "supporting",
+            "additions": 8,
+            "deletions": 1,
+            "hunk_ids": [
+              "h8",
+              "h9"
+            ],
+            "note": "`RefundRequest` is new; `OrderResponse` swaps a boolean for a total."
+          }
+        ]
+      },
+      {
+        "id": "g-persistence",
+        "role": "persistence",
+        "label": "Order state",
+        "summary": "The column the policy reads, and the query that fills it.",
+        "files": [
+          {
+            "path": "migrations/0044_partial_refunds.sql",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 32,
+            "deletions": 0,
+            "hunk_ids": [
+              "h6"
+            ],
+            "note": "Adds and backfills `refunded_cents`, then drops `fully_refunded`."
+          },
+          {
+            "path": "src/meridian/orders/repository.py",
+            "status": "modified",
+            "change_kind": "modified_logic",
+            "significance": "supporting",
+            "additions": 14,
+            "deletions": 4,
+            "hunk_ids": [
+              "h11",
+              "h12",
+              "h13"
+            ],
+            "note": "Column list moves to a constant; adds `refunded_total`."
+          }
+        ]
+      },
+      {
+        "id": "g-config",
+        "role": "config",
+        "label": "Limits",
+        "summary": "One new limit, one unrelated one.",
+        "files": [
+          {
+            "path": "config/limits.yaml",
+            "status": "modified",
+            "change_kind": "content",
+            "significance": "supporting",
+            "additions": 2,
+            "deletions": 1,
+            "hunk_ids": [
+              "h4"
+            ],
+            "note": "`max_refunds_per_order` is the policy's second rule."
+          }
+        ]
+      },
+      {
+        "id": "g-tests",
+        "role": "tests",
+        "label": "Policy and endpoint tests",
+        "files": [
+          {
+            "path": "tests/refunds/test_policy.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 44,
+            "deletions": 0,
+            "hunk_ids": [
+              "h21"
+            ],
+            "note": "Boundary cases for both rules."
+          },
+          {
+            "path": "tests/api/test_refunds_api.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 59,
+            "deletions": 0,
+            "hunk_ids": [
+              "h20"
+            ],
+            "note": "The endpoint contract, including the 409 and the scope check."
+          }
+        ]
+      },
+      {
+        "id": "g-generated",
+        "role": "generated",
+        "label": "TypeScript client",
+        "summary": "Regenerated from the OpenAPI spec.",
+        "files": [
+          {
+            "path": "clients/ts/src/api/refunds.ts",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 12,
+            "deletions": 1,
+            "hunk_ids": [
+              "h1",
+              "h2",
+              "h3"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-docs",
+        "role": "docs",
+        "label": "API reference",
+        "files": [
+          {
+            "path": "docs/api/refunds.md",
+            "status": "modified",
+            "change_kind": "content",
+            "significance": "mechanical",
+            "additions": 15,
+            "deletions": 4,
+            "hunk_ids": [
+              "h5"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "behavior": {
+    "changed": true,
+    "note": null,
+    "summary": "A refund used to be a single all-or-nothing write guarded by the order's status. It is now an amount checked against a running total inside a locked transaction, and it can happen more than once per order.",
+    "before": {
+      "kind": "flow",
+      "title": "Before",
+      "nodes": [
+        {
+          "id": "b0",
+          "label": "Support console",
+          "kind": "actor",
+          "emphasis": "removed"
+        },
+        {
+          "id": "b1",
+          "label": "record_refund(order)",
+          "kind": "process",
+          "emphasis": "changed"
+        },
+        {
+          "id": "b2",
+          "label": "status == 'refunded'?",
+          "kind": "decision",
+          "emphasis": "removed"
+        },
+        {
+          "id": "b3",
+          "label": "RefundError",
+          "kind": "end",
+          "emphasis": "removed"
+        },
+        {
+          "id": "b4",
+          "label": "INSERT refunds",
+          "kind": "store",
+          "emphasis": "unchanged"
+        },
+        {
+          "id": "b5",
+          "label": "status='refunded', fully_refunded=true",
+          "kind": "store",
+          "emphasis": "removed"
+        },
+        {
+          "id": "b6",
+          "label": "RefundRecord",
+          "kind": "end",
+          "emphasis": "unchanged"
+        }
+      ],
+      "edges": [
+        {
+          "from": "b0",
+          "to": "b1",
+          "kind": "call",
+          "emphasis": "removed"
+        },
+        {
+          "from": "b1",
+          "to": "b2",
+          "kind": "call",
+          "emphasis": "changed"
+        },
+        {
+          "from": "b2",
+          "to": "b3",
+          "label": "yes",
+          "kind": "error",
+          "emphasis": "removed"
+        },
+        {
+          "from": "b2",
+          "to": "b4",
+          "label": "no",
+          "kind": "call",
+          "emphasis": "changed"
+        },
+        {
+          "from": "b4",
+          "to": "b5",
+          "kind": "data",
+          "emphasis": "removed"
+        },
+        {
+          "from": "b5",
+          "to": "b6",
+          "kind": "return",
+          "emphasis": "unchanged"
+        }
+      ]
+    },
+    "after": {
+      "kind": "flow",
+      "title": "After",
+      "nodes": [
+        {
+          "id": "a0",
+          "label": "POST /orders/{id}/refunds",
+          "kind": "start",
+          "emphasis": "added"
+        },
+        {
+          "id": "a1",
+          "label": "require_scope('refunds:write')",
+          "kind": "decision",
+          "emphasis": "added"
+        },
+        {
+          "id": "a2",
+          "label": "amount or remaining balance",
+          "kind": "process",
+          "emphasis": "added"
+        },
+        {
+          "id": "a3",
+          "label": "Stripe refund(amount)",
+          "kind": "external",
+          "emphasis": "added"
+        },
+        {
+          "id": "a4",
+          "label": "SELECT sum(amount) FOR UPDATE",
+          "kind": "store",
+          "emphasis": "added"
+        },
+        {
+          "id": "a5",
+          "label": "policy.check(amount)",
+          "kind": "decision",
+          "emphasis": "added"
+        },
+        {
+          "id": "a6",
+          "label": "409 RefundNotAllowed",
+          "kind": "end",
+          "emphasis": "added"
+        },
+        {
+          "id": "a7",
+          "label": "INSERT refunds",
+          "kind": "store",
+          "emphasis": "unchanged"
+        },
+        {
+          "id": "a8",
+          "label": "refunded_cents += amount, status",
+          "kind": "store",
+          "emphasis": "changed"
+        },
+        {
+          "id": "a9",
+          "label": "201 RefundResponse",
+          "kind": "end",
+          "emphasis": "added"
+        }
+      ],
+      "edges": [
+        {
+          "from": "a0",
+          "to": "a1",
+          "kind": "call",
+          "emphasis": "added"
+        },
+        {
+          "from": "a1",
+          "to": "a2",
+          "label": "ok",
+          "kind": "call",
+          "emphasis": "added",
+          "hunk_ids": [
+            "h7"
+          ]
+        },
+        {
+          "from": "a2",
+          "to": "a3",
+          "kind": "call",
+          "emphasis": "added",
+          "hunk_ids": [
+            "h7",
+            "h14"
+          ]
+        },
+        {
+          "from": "a3",
+          "to": "a4",
+          "kind": "call",
+          "emphasis": "added",
+          "hunk_ids": [
+            "h17"
+          ]
+        },
+        {
+          "from": "a4",
+          "to": "a5",
+          "kind": "call",
+          "emphasis": "added",
+          "hunk_ids": [
+            "h19"
+          ]
+        },
+        {
+          "from": "a5",
+          "to": "a6",
+          "label": "over limit",
+          "kind": "error",
+          "emphasis": "added"
+        },
+        {
+          "from": "a5",
+          "to": "a7",
+          "label": "allowed",
+          "kind": "call",
+          "emphasis": "added"
+        },
+        {
+          "from": "a7",
+          "to": "a8",
+          "kind": "data",
+          "emphasis": "changed",
+          "hunk_ids": [
+            "h17"
+          ]
+        },
+        {
+          "from": "a8",
+          "to": "a9",
+          "kind": "return",
+          "emphasis": "added"
+        }
+      ]
+    },
+    "deltas": [
+      {
+        "summary": "The all-or-nothing status check is replaced by an amount check against a running total.",
+        "hunk_ids": [
+          "h17",
+          "h19"
+        ]
+      },
+      {
+        "summary": "Orders gain a third state, `partially_refunded`, between paid and refunded.",
+        "hunk_ids": [
+          "h17",
+          "h6"
+        ]
+      },
+      {
+        "summary": "The provider refund is issued before the policy runs.",
+        "hunk_ids": [
+          "h7"
+        ]
+      }
+    ]
+  },
+  "reading_order": {
+    "estimated_minutes": 12,
+    "preamble": "The rule first, then the state it reads, then the three places that call it. The generated client and the docs restate all of it.",
+    "steps": [
+      {
+        "n": 1,
+        "title": "The rule: what is still refundable",
+        "why": "Every other file in this PR either supplies input to this rule or reacts to its answer. Read `allowance` and `check` together; they are the whole feature.",
+        "path": "src/meridian/refunds/policy.py",
+        "hunk_ids": [
+          "h19",
+          "h4"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h19",
+            "new_line": 38,
+            "text": "Rule one: the remainder, floored at zero so an over-refunded order reads as exhausted rather than negative."
+          },
+          {
+            "hunk_id": "h19",
+            "new_line": 39,
+            "text": "Rule two collapses into rule one: hitting the count limit reports zero refundable, not a separate error."
+          },
+          {
+            "hunk_id": "h4",
+            "new_line": 12,
+            "text": "The count limit the policy defaults to."
+          },
+          {
+            "hunk_id": "h4",
+            "new_line": 5,
+            "text": "Same hunk, unrelated change: the API page-size ceiling drops from 200 to 100."
+          }
+        ]
+      },
+      {
+        "n": 2,
+        "title": "The state the rule reads",
+        "why": "The policy needs a running refunded total. This migration is where it comes from, and it removes the boolean the old logic used instead.",
+        "path": "migrations/0044_partial_refunds.sql",
+        "hunk_ids": [
+          "h6"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h6",
+            "new_line": 11,
+            "text": "The backfill derives the new column from the refunds table, so it is reconstructible."
+          },
+          {
+            "hunk_id": "h6",
+            "new_line": 26,
+            "text": "Dropped in the same transaction as the backfill."
+          },
+          {
+            "hunk_id": "h6",
+            "new_line": 29,
+            "text": "The database enforces rule one independently of the policy."
+          }
+        ]
+      },
+      {
+        "n": 3,
+        "title": "Where the rule is enforced",
+        "why": "The ledger is the only writer. This is where the read of the running total, the check, and the two writes have to line up, and where the locking decision lives.",
+        "path": "src/meridian/refunds/ledger.py",
+        "hunk_ids": [
+          "h15",
+          "h16",
+          "h17",
+          "h18"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h17",
+            "old_line": 39,
+            "text": "The old guard: an all-or-nothing status check. This is the line the policy replaces."
+          },
+          {
+            "hunk_id": "h17",
+            "new_line": 44,
+            "text": "The read and the check happen under a row lock, so two refunds on one order serialise here."
+          },
+          {
+            "hunk_id": "h17",
+            "new_line": 53,
+            "text": "Raises `RefundNotAllowed`, which the endpoint turns into a 409."
+          },
+          {
+            "hunk_id": "h17",
+            "new_line": 65,
+            "text": "Status is derived from the totals rather than set to a fixed value."
+          },
+          {
+            "hunk_id": "h16",
+            "new_line": 30,
+            "text": "The policy is injectable, which is how the tests pin a limit of 3 instead of 10."
+          }
+        ]
+      },
+      {
+        "n": 4,
+        "title": "The new endpoint",
+        "why": "The public surface, and the place where the call order matters: the provider refund is created before the ledger check runs.",
+        "path": "src/meridian/api/refunds.py",
+        "hunk_ids": [
+          "h7"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h7",
+            "new_line": 35,
+            "text": "Omitting the amount means the remaining balance, which is how the console's full-refund behaviour survives."
+          },
+          {
+            "hunk_id": "h7",
+            "new_line": 37,
+            "text": "The Stripe call happens here, before `record_refund` and therefore before `policy.check`."
+          },
+          {
+            "hunk_id": "h7",
+            "new_line": 50,
+            "text": "A rejected refund becomes a 409 at this point, after the provider call has already returned."
+          }
+        ]
+      },
+      {
+        "n": 5,
+        "title": "The provider call",
+        "why": "Short, but it changes what Meridian asks Stripe for. Worth confirming that the None case still means what it did.",
+        "path": "src/meridian/payments/stripe_gateway.py",
+        "hunk_ids": [
+          "h14"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h14",
+            "new_line": 31,
+            "text": "Stripe treats a null amount as a full refund, so the previous behaviour is preserved when the argument is omitted."
+          }
+        ]
+      },
+      {
+        "n": 6,
+        "title": "The shape callers see",
+        "why": "`OrderResponse` loses a field and gains one. Anything outside this repo reading `fully_refunded` is affected, so it is worth seeing exactly what replaced it.",
+        "path": "src/meridian/api/schemas/refund.py",
+        "hunk_ids": [
+          "h8",
+          "h9",
+          "h11",
+          "h12",
+          "h13"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h9",
+            "new_line": 26,
+            "text": "Replaces `fully_refunded`. Consumers compare it against `total_cents` instead of reading a boolean."
+          },
+          {
+            "hunk_id": "h11",
+            "new_line": 6,
+            "text": "The column list moves to one constant, which is why the two queries below show as changed."
+          }
+        ]
+      },
+      {
+        "n": 7,
+        "title": "The behaviour, as tests",
+        "why": "The API test file is the shortest complete statement of the endpoint's contract: the 201, the remainder default, the status transition, the 409, and the scope.",
+        "path": "tests/api/test_refunds_api.py",
+        "hunk_ids": [
+          "h20",
+          "h21"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h20",
+            "new_line": 31,
+            "text": "The state machine, in eight lines."
+          }
+        ]
+      },
+      {
+        "n": 8,
+        "title": "Unrelated: money rounding",
+        "why": "Not part of the refund feature. It changes `to_cents` for every caller, so it is here rather than in the skip list.",
+        "path": "src/meridian/money.py",
+        "hunk_ids": [
+          "h10"
+        ],
+        "annotations": [
+          {
+            "hunk_id": "h10",
+            "new_line": 27,
+            "text": "Truncation becomes half-up rounding. Any fractional minor unit now lands one cent higher than before at the .5 boundary."
+          }
+        ]
+      }
+    ],
+    "skippable": [
+      {
+        "label": "Regenerated TypeScript client",
+        "reason": "Emitted by `make client` from openapi.yaml; the file carries a DO NOT EDIT header and every change here mirrors the schema edits in step 6.",
+        "confidence": "high",
+        "group_ids": [
+          "g-generated"
+        ],
+        "files": [
+          "clients/ts/src/api/refunds.ts"
+        ],
+        "file_count": 1,
+        "additions": 12,
+        "deletions": 1
+      },
+      {
+        "label": "API reference",
+        "reason": "Prose restating the endpoint from step 4 and the field change from step 6. It adds no behaviour, though it is the only place the 409 conditions are written out in English.",
+        "confidence": "high",
+        "group_ids": [
+          "g-docs"
+        ],
+        "files": [
+          "docs/api/refunds.md"
+        ],
+        "file_count": 1,
+        "additions": 15,
+        "deletions": 4
+      }
+    ]
+  },
+  "attention": [
+    {
+      "kind": "irreversible_migration",
+      "title": "0044 drops orders.fully_refunded in the same transaction that backfills refunded_cents",
+      "why": "Rolling the deploy back leaves the old code selecting a column that no longer exists. The dropped value is derivable from `refunded_cents` and `total_cents`, so the data is recoverable, but the column is not.",
+      "path": "migrations/0044_partial_refunds.sql",
+      "hunk_ids": [
+        "h6"
+      ]
+    },
+    {
+      "kind": "external_contract",
+      "title": "The Stripe refund is created before the policy check runs",
+      "why": "`create_refund` calls `gateway.refund` and then `record_refund`, which is where `policy.check` raises. A request that returns 409 has already created a refund at Stripe with no matching row in the ledger.",
+      "path": "src/meridian/api/refunds.py",
+      "hunk_ids": [
+        "h7"
+      ]
+    },
+    {
+      "kind": "public_api",
+      "title": "OrderResponse drops fully_refunded and adds refunded_cents",
+      "why": "Every consumer of `GET /orders/{id}` that reads `fully_refunded` stops receiving it. The regenerated TypeScript client reflects the change; other clients do not.",
+      "path": "src/meridian/api/schemas/refund.py",
+      "hunk_ids": [
+        "h9",
+        "h2"
+      ]
+    },
+    {
+      "kind": "concurrency",
+      "title": "Concurrent refunds on one order serialise on SELECT ... FOR UPDATE",
+      "why": "The running total is read under a row lock held for the rest of the transaction, which includes no network calls. Two refund requests for the same order queue; requests for different orders do not.",
+      "path": "src/meridian/refunds/ledger.py",
+      "hunk_ids": [
+        "h17"
+      ]
+    },
+    {
+      "kind": "behavioral",
+      "title": "Orders gain a partially_refunded status",
+      "why": "The migration writes it to existing rows, and the ledger writes it going forward. Anything matching on `status == 'paid'` or `status == 'refunded'` sees a value it has not seen before.",
+      "path": "src/meridian/refunds/ledger.py",
+      "hunk_ids": [
+        "h17",
+        "h6"
+      ]
+    },
+    {
+      "kind": "security_surface",
+      "title": "New write endpoint behind the refunds:write scope",
+      "why": "`POST /orders/{id}/refunds` is the first route gated on `refunds:write`. Whichever tokens already carry that scope can now move money through the API.",
+      "path": "src/meridian/api/refunds.py",
+      "hunk_ids": [
+        "h7"
+      ]
+    },
+    {
+      "kind": "config_surface",
+      "title": "api.max_page_size drops from 200 to 100",
+      "why": "Unrelated to refunds and in the same hunk as the refund limit. It takes effect at the next boot and halves the maximum page any list endpoint will return.",
+      "path": "config/limits.yaml",
+      "hunk_ids": [
+        "h4"
+      ]
+    }
+  ],
+  "seams": {
+    "detected": false,
+    "note": null
+  },
+  "hunks": {
+    "h1": {
+      "id": "h1",
+      "path": "clients/ts/src/api/refunds.ts",
+      "language": "typescript",
+      "header": "@@ -7,6 +7,11 @@",
+      "old_start": 7,
+      "old_lines": 6,
+      "new_start": 7,
+      "new_lines": 11,
+      "section": "import type { AxiosRequestConfig } from 'axios';",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 7,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "import { http } from '../http';",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "export interface RefundRequest {",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "  amountCents?: number;",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "  reason?: string;",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "}",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "export interface RefundResponse {",
+          "old": 10,
+          "new": 15
+        },
+        {
+          "t": " ",
+          "c": "  id: string;",
+          "old": 11,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "  orderId: string;",
+          "old": 12,
+          "new": 17
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h2": {
+      "id": "h2",
+      "path": "clients/ts/src/api/refunds.ts",
+      "language": "typescript",
+      "header": "@@ -20,8 +25,8 @@",
+      "old_start": 20,
+      "old_lines": 8,
+      "new_start": 25,
+      "new_lines": 8,
+      "section": "export interface OrderResponse {",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "  customerId: string;",
+          "old": 20,
+          "new": 25
+        },
+        {
+          "t": " ",
+          "c": "  status: string;",
+          "old": 21,
+          "new": 26
+        },
+        {
+          "t": " ",
+          "c": "  totalCents: number;",
+          "old": 22,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "  refundedCents: number;",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": " ",
+          "c": "  currency: string;",
+          "old": 23,
+          "new": 29
+        },
+        {
+          "t": "-",
+          "c": "  fullyRefunded: boolean;",
+          "old": 24,
+          "new": null
+        },
+        {
+          "t": " ",
+          "c": "}",
+          "old": 25,
+          "new": 30
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 26,
+          "new": 31
+        },
+        {
+          "t": " ",
+          "c": "export const getOrder = (orderId: string, options?: AxiosRequestConfig) =>",
+          "old": 27,
+          "new": 32
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h3": {
+      "id": "h3",
+      "path": "clients/ts/src/api/refunds.ts",
+      "language": "typescript",
+      "header": "@@ -29,3 +34,9 @@",
+      "old_start": 29,
+      "old_lines": 3,
+      "new_start": 34,
+      "new_lines": 9,
+      "section": "export const getOrder = (orderId: string, options?: AxiosRequestConfig) =>",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 29,
+          "new": 34
+        },
+        {
+          "t": " ",
+          "c": "export const listRefunds = (orderId: string, options?: AxiosRequestConfig) =>",
+          "old": 30,
+          "new": 35
+        },
+        {
+          "t": " ",
+          "c": "  http.get<RefundResponse[]>(`/orders/${orderId}/refunds`, options);",
+          "old": 31,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "export const createRefund = (",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "  orderId: string,",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "  body: RefundRequest,",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "  options?: AxiosRequestConfig,",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": ") => http.post<RefundResponse>(`/orders/${orderId}/refunds`, body, options);",
+          "old": null,
+          "new": 42
+        }
+      ],
+      "change_kind": "generated",
+      "significance": "mechanical"
+    },
+    "h4": {
+      "id": "h4",
+      "path": "config/limits.yaml",
+      "language": "yaml",
+      "header": "@@ -2,13 +2,14 @@",
+      "old_start": 2,
+      "old_lines": 13,
+      "new_start": 2,
+      "new_lines": 14,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "# lifetime; changing one requires a restart.",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "api:",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": "-",
+          "c": "  max_page_size: 200",
+          "old": 5,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "  max_page_size: 100",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "  default_page_size: 50",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": " ",
+          "c": "  request_timeout_seconds: 30",
+          "old": 7,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "orders:",
+          "old": 9,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "  max_line_items: 100",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "  max_open_orders_per_customer: 25",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "  max_refunds_per_order: 10",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 12,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "payments:",
+          "old": 13,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "  charge_timeout_seconds: 15",
+          "old": 14,
+          "new": 15
+        }
+      ],
+      "change_kind": "content",
+      "significance": "supporting"
+    },
+    "h5": {
+      "id": "h5",
+      "path": "docs/api/refunds.md",
+      "language": "markdown",
+      "header": "@@ -10,8 +10,19 @@",
+      "old_start": 10,
+      "old_lines": 8,
+      "new_start": 10,
+      "new_lines": 19,
+      "section": "Returns every refund recorded against the order, oldest first.",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "## Refunding an order",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 12,
+          "new": 12
+        },
+        {
+          "t": "-",
+          "c": "Refunds are issued by support tooling, not by the API. Support calls",
+          "old": 13,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "`RefundLedger.record_refund` through the internal console, which refunds the",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "charge in full and marks the order `refunded`.",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "```",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "POST /orders/{order_id}/refunds",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "{ \"amount_cents\": 2500, \"reason\": \"damaged in transit\" }",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "```",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "Requires the `refunds:write` scope. Omit `amount_cents` to refund whatever is",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "still refundable, which is what the support console does.",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "An order may be refunded more than once. The sum of refunds may not exceed",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "`total_cents`, and an order may not be refunded more than",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "`orders.max_refunds_per_order` times. Either violation returns `409`.",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 16,
+          "new": 24
+        },
+        {
+          "t": "-",
+          "c": "An order can be refunded once. A second attempt raises `RefundError`.",
+          "old": 17,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "`OrderResponse` reports progress through `refunded_cents`; the `fully_refunded`",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "boolean is gone. An order is fully refunded when",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "`refunded_cents == total_cents`, and its status is `partially_refunded` in",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "between.",
+          "old": null,
+          "new": 28
+        }
+      ],
+      "change_kind": "content",
+      "significance": "mechanical"
+    },
+    "h6": {
+      "id": "h6",
+      "path": "migrations/0044_partial_refunds.sql",
+      "language": "sql",
+      "header": "@@ -0,0 +1,32 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 32,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "-- Partial refunds: track a running refunded total per order.",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "--",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "-- Backfill runs inline. orders is ~4.1M rows on production; the UPDATE takes",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "-- roughly two minutes and holds a row lock per batch, not a table lock.",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "BEGIN;",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "ALTER TABLE orders",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "    ADD COLUMN refunded_cents integer NOT NULL DEFAULT 0;",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "UPDATE orders o",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "   SET refunded_cents = coalesce(r.total, 0)",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "  FROM (",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "        SELECT order_id, sum(amount_cents) AS total",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "          FROM refunds",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "      GROUP BY order_id",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "       ) r",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": " WHERE r.order_id = o.id;",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "UPDATE orders",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "   SET status = 'partially_refunded'",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": " WHERE refunded_cents > 0",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "   AND refunded_cents < total_cents;",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "ALTER TABLE orders",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    DROP COLUMN fully_refunded;",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "ALTER TABLE orders",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "    ADD CONSTRAINT orders_refunded_within_total",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "    CHECK (refunded_cents <= total_cents);",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "COMMIT;",
+          "old": null,
+          "new": 32
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    },
+    "h7": {
+      "id": "h7",
+      "path": "src/meridian/api/refunds.py",
+      "language": "python",
+      "header": "@@ -0,0 +1,59 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 59,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "from __future__ import annotations",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "from fastapi import APIRouter, Depends, HTTPException",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "from meridian.api.schemas.refund import RefundRequest, RefundResponse",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "from meridian.auth import Principal, require_scope",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "from meridian.orders.repository import OrderRepository",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "from meridian.payments.stripe_gateway import StripeGateway",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "from meridian.refunds.ledger import RefundLedger",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "from meridian.refunds.policy import RefundNotAllowed",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "router = APIRouter(prefix=\"/orders\", tags=[\"refunds\"])",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "@router.post(\"/{order_id}/refunds\", response_model=RefundResponse, status_code=201)",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "def create_refund(",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "    order_id: str,",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "    body: RefundRequest,",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "    principal: Principal = Depends(require_scope(\"refunds:write\")),",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "    orders: OrderRepository = Depends(OrderRepository),",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "    ledger: RefundLedger = Depends(RefundLedger),",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "    gateway: StripeGateway = Depends(StripeGateway),",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": ") -> RefundResponse:",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"Refund an order, in full or in part.",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    Omitting `amount_cents` refunds everything still refundable, which keeps",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "    the previous console behaviour available over the API.",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "    order = orders.get(order_id)",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "    if order is None:",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "        raise HTTPException(status_code=404, detail=\"order not found\")",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "    amount = body.amount_cents",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "    if amount is None:",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "        amount = order.total_cents - order.refunded_cents",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "    provider_refund_id = gateway.refund(",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "        charge_id=order.charge_id,",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "        order_id=order_id,",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "        amount_cents=amount,",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "    )",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 42
+        },
+        {
+          "t": "+",
+          "c": "    try:",
+          "old": null,
+          "new": 43
+        },
+        {
+          "t": "+",
+          "c": "        record = ledger.record_refund(",
+          "old": null,
+          "new": 44
+        },
+        {
+          "t": "+",
+          "c": "            order_id=order_id,",
+          "old": null,
+          "new": 45
+        },
+        {
+          "t": "+",
+          "c": "            amount_cents=amount,",
+          "old": null,
+          "new": 46
+        },
+        {
+          "t": "+",
+          "c": "            currency=order.currency,",
+          "old": null,
+          "new": 47
+        },
+        {
+          "t": "+",
+          "c": "            provider_refund_id=provider_refund_id,",
+          "old": null,
+          "new": 48
+        },
+        {
+          "t": "+",
+          "c": "        )",
+          "old": null,
+          "new": 49
+        },
+        {
+          "t": "+",
+          "c": "    except RefundNotAllowed as exc:",
+          "old": null,
+          "new": 50
+        },
+        {
+          "t": "+",
+          "c": "        raise HTTPException(status_code=409, detail=str(exc)) from exc",
+          "old": null,
+          "new": 51
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 52
+        },
+        {
+          "t": "+",
+          "c": "    return RefundResponse(",
+          "old": null,
+          "new": 53
+        },
+        {
+          "t": "+",
+          "c": "        id=provider_refund_id,",
+          "old": null,
+          "new": 54
+        },
+        {
+          "t": "+",
+          "c": "        order_id=record.order_id,",
+          "old": null,
+          "new": 55
+        },
+        {
+          "t": "+",
+          "c": "        amount_cents=record.amount_cents,",
+          "old": null,
+          "new": 56
+        },
+        {
+          "t": "+",
+          "c": "        currency=record.currency,",
+          "old": null,
+          "new": 57
+        },
+        {
+          "t": "+",
+          "c": "        provider_refund_id=record.provider_refund_id,",
+          "old": null,
+          "new": 58
+        },
+        {
+          "t": "+",
+          "c": "    )",
+          "old": null,
+          "new": 59
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "core"
+    },
+    "h8": {
+      "id": "h8",
+      "path": "src/meridian/api/schemas/refund.py",
+      "language": "python",
+      "header": "@@ -3,6 +3,13 @@",
+      "old_start": 3,
+      "old_lines": 6,
+      "new_start": 3,
+      "new_lines": 13,
+      "section": "from __future__ import annotations",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from pydantic import BaseModel, Field",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "class RefundRequest(BaseModel):",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"A refund request. Omit amount_cents to refund the remaining balance.\"\"\"",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "    amount_cents: int | None = Field(default=None, gt=0)",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "    reason: str | None = Field(default=None, max_length=280)",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": " ",
+          "c": "class RefundResponse(BaseModel):",
+          "old": 6,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "    id: str",
+          "old": 7,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "    order_id: str",
+          "old": 8,
+          "new": 15
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    },
+    "h9": {
+      "id": "h9",
+      "path": "src/meridian/api/schemas/refund.py",
+      "language": "python",
+      "header": "@@ -16,5 +23,5 @@",
+      "old_start": 16,
+      "old_lines": 5,
+      "new_start": 23,
+      "new_lines": 5,
+      "section": "class OrderResponse(BaseModel):",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    customer_id: str",
+          "old": 16,
+          "new": 23
+        },
+        {
+          "t": " ",
+          "c": "    status: str",
+          "old": 17,
+          "new": 24
+        },
+        {
+          "t": " ",
+          "c": "    total_cents: int",
+          "old": 18,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    refunded_cents: int",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": " ",
+          "c": "    currency: str",
+          "old": 19,
+          "new": 27
+        },
+        {
+          "t": "-",
+          "c": "    fully_refunded: bool",
+          "old": 20,
+          "new": null
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "supporting"
+    },
+    "h10": {
+      "id": "h10",
+      "path": "src/meridian/money.py",
+      "language": "python",
+      "header": "@@ -24,5 +24,5 @@",
+      "old_start": 24,
+      "old_lines": 5,
+      "new_start": 24,
+      "new_lines": 5,
+      "section": "class Money:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "def to_cents(amount: Decimal, currency: str) -> int:",
+          "old": 24,
+          "new": 24
+        },
+        {
+          "t": " ",
+          "c": "    \"\"\"Convert a decimal amount to the provider's minor unit.\"\"\"",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "t": " ",
+          "c": "    if currency.lower() in ZERO_DECIMAL_CURRENCIES:",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "t": "-",
+          "c": "        return int(amount)",
+          "old": 27,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "    return int(amount * 100)",
+          "old": 28,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "        return int(amount.quantize(Decimal(\"1\"), rounding=ROUND_HALF_UP))",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "    return int((amount * 100).quantize(Decimal(\"1\"), rounding=ROUND_HALF_UP))",
+          "old": null,
+          "new": 28
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "supporting"
+    },
+    "h11": {
+      "id": "h11",
+      "path": "src/meridian/orders/repository.py",
+      "language": "python",
+      "header": "@@ -3,6 +3,8 @@",
+      "old_start": 3,
+      "old_lines": 6,
+      "new_start": 3,
+      "new_lines": 8,
+      "section": "from __future__ import annotations",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "from meridian.db import Pool",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "t": " ",
+          "c": "from meridian.orders.models import Order",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "_COLUMNS = \"id, customer_id, status, total_cents, refunded_cents, currency, charge_id\"",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 6,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "class OrderRepository:",
+          "old": 7,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "    def __init__(self, pool: Pool) -> None:",
+          "old": 8,
+          "new": 10
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "supporting"
+    },
+    "h12": {
+      "id": "h12",
+      "path": "src/meridian/orders/repository.py",
+      "language": "python",
+      "header": "@@ -11,8 +13,7 @@",
+      "old_start": 11,
+      "old_lines": 8,
+      "new_start": 13,
+      "new_lines": 7,
+      "section": "class OrderRepository:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    def get(self, order_id: str) -> Order | None:",
+          "old": 11,
+          "new": 13
+        },
+        {
+          "t": " ",
+          "c": "        with self._pool.connection() as conn:",
+          "old": 12,
+          "new": 14
+        },
+        {
+          "t": " ",
+          "c": "            row = conn.execute(",
+          "old": 13,
+          "new": 15
+        },
+        {
+          "t": "-",
+          "c": "                \"SELECT id, customer_id, status, total_cents, currency, fully_refunded \"",
+          "old": 14,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                \"FROM orders WHERE id = %s\",",
+          "old": 15,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "                f\"SELECT {_COLUMNS} FROM orders WHERE id = %s\",",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": " ",
+          "c": "                (order_id,),",
+          "old": 16,
+          "new": 17
+        },
+        {
+          "t": " ",
+          "c": "            ).fetchone()",
+          "old": 17,
+          "new": 18
+        },
+        {
+          "t": " ",
+          "c": "        return Order.from_row(row) if row else None",
+          "old": 18,
+          "new": 19
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "supporting"
+    },
+    "h13": {
+      "id": "h13",
+      "path": "src/meridian/orders/repository.py",
+      "language": "python",
+      "header": "@@ -20,12 +21,21 @@",
+      "old_start": 20,
+      "old_lines": 12,
+      "new_start": 21,
+      "new_lines": 21,
+      "section": "class OrderRepository:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    def list_for_customer(self, customer_id: str, limit: int = 50) -> list[Order]:",
+          "old": 20,
+          "new": 21
+        },
+        {
+          "t": " ",
+          "c": "        with self._pool.connection() as conn:",
+          "old": 21,
+          "new": 22
+        },
+        {
+          "t": " ",
+          "c": "            rows = conn.execute(",
+          "old": 22,
+          "new": 23
+        },
+        {
+          "t": "-",
+          "c": "                \"SELECT id, customer_id, status, total_cents, currency, fully_refunded \"",
+          "old": 23,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                \"FROM orders WHERE customer_id = %s ORDER BY created_at DESC LIMIT %s\",",
+          "old": 24,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "                f\"SELECT {_COLUMNS} FROM orders \"",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "                \"WHERE customer_id = %s ORDER BY created_at DESC LIMIT %s\",",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": " ",
+          "c": "                (customer_id, limit),",
+          "old": 25,
+          "new": 26
+        },
+        {
+          "t": " ",
+          "c": "            ).fetchall()",
+          "old": 26,
+          "new": 27
+        },
+        {
+          "t": " ",
+          "c": "        return [Order.from_row(r) for r in rows]",
+          "old": 27,
+          "new": 28
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 28,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "    def refunded_total(self, order_id: str) -> int:",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "        with self._pool.connection() as conn:",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "            row = conn.execute(",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "                \"SELECT coalesce(sum(amount_cents), 0) AS refunded \"",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "                \"FROM refunds WHERE order_id = %s\",",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "                (order_id,),",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "            ).fetchone()",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "        return row.refunded",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": " ",
+          "c": "    def mark_shipped(self, order_id: str) -> None:",
+          "old": 29,
+          "new": 39
+        },
+        {
+          "t": " ",
+          "c": "        with self._pool.transaction() as tx:",
+          "old": 30,
+          "new": 40
+        },
+        {
+          "t": " ",
+          "c": "            tx.execute(",
+          "old": 31,
+          "new": 41
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    },
+    "h14": {
+      "id": "h14",
+      "path": "src/meridian/payments/stripe_gateway.py",
+      "language": "python",
+      "header": "@@ -24,11 +24,19 @@",
+      "old_start": 24,
+      "old_lines": 11,
+      "new_start": 24,
+      "new_lines": 19,
+      "section": "class StripeGateway:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "        )",
+          "old": 24,
+          "new": 24
+        },
+        {
+          "t": " ",
+          "c": "        return charge.id",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "t": "-",
+          "c": "    def refund(self, charge_id: str, order_id: str) -> str:",
+          "old": 27,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "        \"\"\"Refund a charge in full.\"\"\"",
+          "old": 28,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    def refund(self, charge_id: str, order_id: str, amount_cents: int | None = None) -> str:",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "        \"\"\"Refund a charge, in full when amount_cents is None.\"\"\"",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": " ",
+          "c": "        refund = stripe.Refund.create(",
+          "old": 29,
+          "new": 29
+        },
+        {
+          "t": " ",
+          "c": "            charge=charge_id,",
+          "old": 30,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "            amount=amount_cents,",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": " ",
+          "c": "            metadata={\"order_id\": order_id},",
+          "old": 31,
+          "new": 32
+        },
+        {
+          "t": " ",
+          "c": "        )",
+          "old": 32,
+          "new": 33
+        },
+        {
+          "t": "-",
+          "c": "        log.info(\"stripe.refund\", extra={\"order_id\": order_id, \"refund_id\": refund.id})",
+          "old": 33,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "        log.info(",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "            \"stripe.refund\",",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "            extra={",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "                \"order_id\": order_id,",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "                \"refund_id\": refund.id,",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "                \"amount_cents\": amount_cents,",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "            },",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "        )",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": " ",
+          "c": "        return refund.id",
+          "old": 34,
+          "new": 42
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "supporting"
+    },
+    "h15": {
+      "id": "h15",
+      "path": "src/meridian/refunds/ledger.py",
+      "language": "python",
+      "header": "@@ -5,6 +5,7 @@",
+      "old_start": 5,
+      "old_lines": 6,
+      "new_start": 5,
+      "new_lines": 7,
+      "section": "from dataclasses import dataclass",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "t": " ",
+          "c": "from meridian.db import Pool",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "t": " ",
+          "c": "from meridian.money import Money",
+          "old": 7,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "from meridian.refunds.policy import RefundPolicy",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 8,
+          "new": 9
+        },
+        {
+          "t": " ",
+          "c": "log = logging.getLogger(__name__)",
+          "old": 9,
+          "new": 10
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 10,
+          "new": 11
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "core"
+    },
+    "h16": {
+      "id": "h16",
+      "path": "src/meridian/refunds/ledger.py",
+      "language": "python",
+      "header": "@@ -24,8 +25,9 @@",
+      "old_start": 24,
+      "old_lines": 8,
+      "new_start": 25,
+      "new_lines": 9,
+      "section": "class RefundRecord:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "class RefundLedger:",
+          "old": 24,
+          "new": 25
+        },
+        {
+          "t": " ",
+          "c": "    \"\"\"Append-only record of money returned to customers.\"\"\"",
+          "old": 25,
+          "new": 26
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 26,
+          "new": 27
+        },
+        {
+          "t": "-",
+          "c": "    def __init__(self, pool: Pool) -> None:",
+          "old": 27,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "    def __init__(self, pool: Pool, policy: RefundPolicy | None = None) -> None:",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": " ",
+          "c": "        self._pool = pool",
+          "old": 28,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "        self._policy = policy or RefundPolicy()",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 29,
+          "new": 31
+        },
+        {
+          "t": " ",
+          "c": "    def record_refund(",
+          "old": 30,
+          "new": 32
+        },
+        {
+          "t": " ",
+          "c": "        self,",
+          "old": 31,
+          "new": 33
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "core"
+    },
+    "h17": {
+      "id": "h17",
+      "path": "src/meridian/refunds/ledger.py",
+      "language": "python",
+      "header": "@@ -36,23 +38,42 @@",
+      "old_start": 36,
+      "old_lines": 23,
+      "new_start": 38,
+      "new_lines": 42,
+      "section": "class RefundLedger:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    ) -> RefundRecord:",
+          "old": 36,
+          "new": 38
+        },
+        {
+          "t": " ",
+          "c": "        order = self._load_order(order_id)",
+          "old": 37,
+          "new": 39
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 38,
+          "new": 40
+        },
+        {
+          "t": "-",
+          "c": "        if order.status == \"refunded\":",
+          "old": 39,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "            raise RefundError(f\"order {order_id} is already refunded\")",
+          "old": 40,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "",
+          "old": 41,
+          "new": null
+        },
+        {
+          "t": " ",
+          "c": "        with self._pool.transaction() as tx:",
+          "old": 42,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": "            state = tx.execute(",
+          "old": null,
+          "new": 42
+        },
+        {
+          "t": "+",
+          "c": "                \"SELECT coalesce(sum(amount_cents), 0) AS refunded, count(*) AS n \"",
+          "old": null,
+          "new": 43
+        },
+        {
+          "t": "+",
+          "c": "                \"FROM refunds WHERE order_id = %s FOR UPDATE\",",
+          "old": null,
+          "new": 44
+        },
+        {
+          "t": "+",
+          "c": "                (order_id,),",
+          "old": null,
+          "new": 45
+        },
+        {
+          "t": "+",
+          "c": "            ).fetchone()",
+          "old": null,
+          "new": 46
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 47
+        },
+        {
+          "t": "+",
+          "c": "            allowance = self._policy.allowance(",
+          "old": null,
+          "new": 48
+        },
+        {
+          "t": "+",
+          "c": "                total_cents=order.total_cents,",
+          "old": null,
+          "new": 49
+        },
+        {
+          "t": "+",
+          "c": "                refunded_cents=state.refunded,",
+          "old": null,
+          "new": 50
+        },
+        {
+          "t": "+",
+          "c": "                refund_count=state.n,",
+          "old": null,
+          "new": 51
+        },
+        {
+          "t": "+",
+          "c": "            )",
+          "old": null,
+          "new": 52
+        },
+        {
+          "t": "+",
+          "c": "            self._policy.check(amount_cents, allowance)",
+          "old": null,
+          "new": 53
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 54
+        },
+        {
+          "t": " ",
+          "c": "            tx.execute(",
+          "old": 43,
+          "new": 55
+        },
+        {
+          "t": " ",
+          "c": "                \"INSERT INTO refunds (order_id, amount_cents, currency, provider_refund_id) \"",
+          "old": 44,
+          "new": 56
+        },
+        {
+          "t": " ",
+          "c": "                \"VALUES (%s, %s, %s, %s)\",",
+          "old": 45,
+          "new": 57
+        },
+        {
+          "t": " ",
+          "c": "                (order_id, amount_cents, currency, provider_refund_id),",
+          "old": 46,
+          "new": 58
+        },
+        {
+          "t": " ",
+          "c": "            )",
+          "old": 47,
+          "new": 59
+        },
+        {
+          "t": "+",
+          "c": "            refunded_total = state.refunded + amount_cents",
+          "old": null,
+          "new": 60
+        },
+        {
+          "t": " ",
+          "c": "            tx.execute(",
+          "old": 48,
+          "new": 61
+        },
+        {
+          "t": "-",
+          "c": "                \"UPDATE orders SET status = 'refunded', fully_refunded = true WHERE id = %s\",",
+          "old": 49,
+          "new": null
+        },
+        {
+          "t": "-",
+          "c": "                (order_id,),",
+          "old": 50,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "                \"UPDATE orders SET refunded_cents = %s, status = %s WHERE id = %s\",",
+          "old": null,
+          "new": 62
+        },
+        {
+          "t": "+",
+          "c": "                (",
+          "old": null,
+          "new": 63
+        },
+        {
+          "t": "+",
+          "c": "                    refunded_total,",
+          "old": null,
+          "new": 64
+        },
+        {
+          "t": "+",
+          "c": "                    \"refunded\" if refunded_total >= order.total_cents else \"partially_refunded\",",
+          "old": null,
+          "new": 65
+        },
+        {
+          "t": "+",
+          "c": "                    order_id,",
+          "old": null,
+          "new": 66
+        },
+        {
+          "t": "+",
+          "c": "                ),",
+          "old": null,
+          "new": 67
+        },
+        {
+          "t": " ",
+          "c": "            )",
+          "old": 51,
+          "new": 68
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 52,
+          "new": 69
+        },
+        {
+          "t": " ",
+          "c": "        log.info(",
+          "old": 53,
+          "new": 70
+        },
+        {
+          "t": " ",
+          "c": "            \"refund.recorded\",",
+          "old": 54,
+          "new": 71
+        },
+        {
+          "t": "-",
+          "c": "            extra={\"order_id\": order_id, \"amount_cents\": amount_cents},",
+          "old": 55,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "            extra={",
+          "old": null,
+          "new": 72
+        },
+        {
+          "t": "+",
+          "c": "                \"order_id\": order_id,",
+          "old": null,
+          "new": 73
+        },
+        {
+          "t": "+",
+          "c": "                \"amount_cents\": amount_cents,",
+          "old": null,
+          "new": 74
+        },
+        {
+          "t": "+",
+          "c": "                \"refunded_total\": refunded_total,",
+          "old": null,
+          "new": 75
+        },
+        {
+          "t": "+",
+          "c": "            },",
+          "old": null,
+          "new": 76
+        },
+        {
+          "t": " ",
+          "c": "        )",
+          "old": 56,
+          "new": 77
+        },
+        {
+          "t": " ",
+          "c": "        return RefundRecord(order_id, amount_cents, currency, provider_refund_id)",
+          "old": 57,
+          "new": 78
+        },
+        {
+          "t": " ",
+          "c": "",
+          "old": 58,
+          "new": 79
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "core"
+    },
+    "h18": {
+      "id": "h18",
+      "path": "src/meridian/refunds/ledger.py",
+      "language": "python",
+      "header": "@@ -66,7 +87,8 @@",
+      "old_start": 66,
+      "old_lines": 7,
+      "new_start": 87,
+      "new_lines": 8,
+      "section": "class RefundLedger:",
+      "truncated": false,
+      "lines": [
+        {
+          "t": " ",
+          "c": "    def _load_order(self, order_id: str):",
+          "old": 66,
+          "new": 87
+        },
+        {
+          "t": " ",
+          "c": "        with self._pool.connection() as conn:",
+          "old": 67,
+          "new": 88
+        },
+        {
+          "t": " ",
+          "c": "            row = conn.execute(",
+          "old": 68,
+          "new": 89
+        },
+        {
+          "t": "-",
+          "c": "                \"SELECT id, status, total_cents, currency FROM orders WHERE id = %s\",",
+          "old": 69,
+          "new": null
+        },
+        {
+          "t": "+",
+          "c": "                \"SELECT id, status, total_cents, refunded_cents, currency \"",
+          "old": null,
+          "new": 90
+        },
+        {
+          "t": "+",
+          "c": "                \"FROM orders WHERE id = %s\",",
+          "old": null,
+          "new": 91
+        },
+        {
+          "t": " ",
+          "c": "                (order_id,),",
+          "old": 70,
+          "new": 92
+        },
+        {
+          "t": " ",
+          "c": "            ).fetchone()",
+          "old": 71,
+          "new": 93
+        },
+        {
+          "t": " ",
+          "c": "        if row is None:",
+          "old": 72,
+          "new": 94
+        }
+      ],
+      "change_kind": "modified_logic",
+      "significance": "core"
+    },
+    "h19": {
+      "id": "h19",
+      "path": "src/meridian/refunds/policy.py",
+      "language": "python",
+      "header": "@@ -0,0 +1,58 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 58,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "from __future__ import annotations",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "from dataclasses import dataclass",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "from meridian.config import limits",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "class RefundNotAllowed(Exception):",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"Raised when a requested refund exceeds what the order permits.\"\"\"",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "@dataclass(frozen=True)",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "class RefundAllowance:",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"What is still refundable on an order, and why.\"\"\"",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "    order_id: str",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "    refundable_cents: int",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "    refunds_so_far: int",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "    @property",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "    def exhausted(self) -> bool:",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "        return self.refundable_cents == 0",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "class RefundPolicy:",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"Decides whether a requested refund amount is permitted.",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "    Two rules, both cumulative over the life of the order:",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "      1. the sum of refunds may never exceed the order total",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "      2. an order may not be refunded more times than limits.max_refunds_per_order",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "    \"\"\"",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "    def __init__(self, max_refunds_per_order: int | None = None) -> None:",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "        self._max_refunds = max_refunds_per_order or limits.orders.max_refunds_per_order",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "    def allowance(self, total_cents: int, refunded_cents: int, refund_count: int) -> RefundAllowance:",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "        remaining = max(total_cents - refunded_cents, 0)",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "        if refund_count >= self._max_refunds:",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "            remaining = 0",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "        return RefundAllowance(",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": "            order_id=\"\",",
+          "old": null,
+          "new": 42
+        },
+        {
+          "t": "+",
+          "c": "            refundable_cents=remaining,",
+          "old": null,
+          "new": 43
+        },
+        {
+          "t": "+",
+          "c": "            refunds_so_far=refund_count,",
+          "old": null,
+          "new": 44
+        },
+        {
+          "t": "+",
+          "c": "        )",
+          "old": null,
+          "new": 45
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 46
+        },
+        {
+          "t": "+",
+          "c": "    def check(self, amount_cents: int, allowance: RefundAllowance) -> None:",
+          "old": null,
+          "new": 47
+        },
+        {
+          "t": "+",
+          "c": "        if amount_cents <= 0:",
+          "old": null,
+          "new": 48
+        },
+        {
+          "t": "+",
+          "c": "            raise RefundNotAllowed(\"refund amount must be positive\")",
+          "old": null,
+          "new": 49
+        },
+        {
+          "t": "+",
+          "c": "        if allowance.refunds_so_far >= self._max_refunds:",
+          "old": null,
+          "new": 50
+        },
+        {
+          "t": "+",
+          "c": "            raise RefundNotAllowed(",
+          "old": null,
+          "new": 51
+        },
+        {
+          "t": "+",
+          "c": "                f\"order already refunded {allowance.refunds_so_far} times \"",
+          "old": null,
+          "new": 52
+        },
+        {
+          "t": "+",
+          "c": "                f\"(limit {self._max_refunds})\"",
+          "old": null,
+          "new": 53
+        },
+        {
+          "t": "+",
+          "c": "            )",
+          "old": null,
+          "new": 54
+        },
+        {
+          "t": "+",
+          "c": "        if amount_cents > allowance.refundable_cents:",
+          "old": null,
+          "new": 55
+        },
+        {
+          "t": "+",
+          "c": "            raise RefundNotAllowed(",
+          "old": null,
+          "new": 56
+        },
+        {
+          "t": "+",
+          "c": "                f\"refund of {amount_cents} exceeds remaining {allowance.refundable_cents}\"",
+          "old": null,
+          "new": 57
+        },
+        {
+          "t": "+",
+          "c": "            )",
+          "old": null,
+          "new": 58
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "core"
+    },
+    "h20": {
+      "id": "h20",
+      "path": "tests/api/test_refunds_api.py",
+      "language": "python",
+      "header": "@@ -0,0 +1,59 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 59,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "import pytest",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "from tests.factories import make_order",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "@pytest.fixture()",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "def order(db):",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "    return make_order(db, total_cents=10_000, currency=\"usd\", status=\"paid\")",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "def test_partial_refund_returns_201_and_the_amount(client, order):",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "    response = client.post(",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "        f\"/orders/{order.id}/refunds\",",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "        json={\"amount_cents\": 2_500, \"reason\": \"damaged in transit\"},",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "        scopes=[\"refunds:write\"],",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "    )",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "    assert response.status_code == 201",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "    assert response.json()[\"amount_cents\"] == 2_500",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "def test_omitting_the_amount_refunds_the_remainder(client, order):",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "    client.post(f\"/orders/{order.id}/refunds\", json={\"amount_cents\": 4_000}, scopes=[\"refunds:write\"])",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "    response = client.post(f\"/orders/{order.id}/refunds\", json={}, scopes=[\"refunds:write\"])",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "    assert response.status_code == 201",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "    assert response.json()[\"amount_cents\"] == 6_000",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "def test_order_becomes_partially_refunded_then_refunded(client, order, orders_repo):",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "    client.post(f\"/orders/{order.id}/refunds\", json={\"amount_cents\": 4_000}, scopes=[\"refunds:write\"])",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "    assert orders_repo.get(order.id).status == \"partially_refunded\"",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "    client.post(f\"/orders/{order.id}/refunds\", json={\"amount_cents\": 6_000}, scopes=[\"refunds:write\"])",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "    assert orders_repo.get(order.id).status == \"refunded\"",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "def test_refunding_more_than_the_total_is_a_conflict(client, order):",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "    client.post(f\"/orders/{order.id}/refunds\", json={\"amount_cents\": 9_000}, scopes=[\"refunds:write\"])",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": "    response = client.post(",
+          "old": null,
+          "new": 42
+        },
+        {
+          "t": "+",
+          "c": "        f\"/orders/{order.id}/refunds\",",
+          "old": null,
+          "new": 43
+        },
+        {
+          "t": "+",
+          "c": "        json={\"amount_cents\": 2_000},",
+          "old": null,
+          "new": 44
+        },
+        {
+          "t": "+",
+          "c": "        scopes=[\"refunds:write\"],",
+          "old": null,
+          "new": 45
+        },
+        {
+          "t": "+",
+          "c": "    )",
+          "old": null,
+          "new": 46
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 47
+        },
+        {
+          "t": "+",
+          "c": "    assert response.status_code == 409",
+          "old": null,
+          "new": 48
+        },
+        {
+          "t": "+",
+          "c": "    assert \"exceeds remaining\" in response.json()[\"detail\"]",
+          "old": null,
+          "new": 49
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 50
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 51
+        },
+        {
+          "t": "+",
+          "c": "def test_requires_the_refunds_write_scope(client, order):",
+          "old": null,
+          "new": 52
+        },
+        {
+          "t": "+",
+          "c": "    response = client.post(",
+          "old": null,
+          "new": 53
+        },
+        {
+          "t": "+",
+          "c": "        f\"/orders/{order.id}/refunds\",",
+          "old": null,
+          "new": 54
+        },
+        {
+          "t": "+",
+          "c": "        json={\"amount_cents\": 100},",
+          "old": null,
+          "new": 55
+        },
+        {
+          "t": "+",
+          "c": "        scopes=[\"orders:read\"],",
+          "old": null,
+          "new": 56
+        },
+        {
+          "t": "+",
+          "c": "    )",
+          "old": null,
+          "new": 57
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 58
+        },
+        {
+          "t": "+",
+          "c": "    assert response.status_code == 403",
+          "old": null,
+          "new": 59
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    },
+    "h21": {
+      "id": "h21",
+      "path": "tests/refunds/test_policy.py",
+      "language": "python",
+      "header": "@@ -0,0 +1,44 @@",
+      "old_start": 0,
+      "old_lines": 0,
+      "new_start": 1,
+      "new_lines": 44,
+      "section": null,
+      "truncated": false,
+      "lines": [
+        {
+          "t": "+",
+          "c": "import pytest",
+          "old": null,
+          "new": 1
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "t": "+",
+          "c": "from meridian.refunds.policy import RefundNotAllowed, RefundPolicy",
+          "old": null,
+          "new": 3
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 5
+        },
+        {
+          "t": "+",
+          "c": "@pytest.fixture()",
+          "old": null,
+          "new": 6
+        },
+        {
+          "t": "+",
+          "c": "def policy():",
+          "old": null,
+          "new": 7
+        },
+        {
+          "t": "+",
+          "c": "    return RefundPolicy(max_refunds_per_order=3)",
+          "old": null,
+          "new": 8
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 9
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 10
+        },
+        {
+          "t": "+",
+          "c": "def test_allowance_is_the_unrefunded_remainder(policy):",
+          "old": null,
+          "new": 11
+        },
+        {
+          "t": "+",
+          "c": "    allowance = policy.allowance(total_cents=10_000, refunded_cents=2_500, refund_count=1)",
+          "old": null,
+          "new": 12
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 13
+        },
+        {
+          "t": "+",
+          "c": "    assert allowance.refundable_cents == 7_500",
+          "old": null,
+          "new": 14
+        },
+        {
+          "t": "+",
+          "c": "    assert not allowance.exhausted",
+          "old": null,
+          "new": 15
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 16
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 17
+        },
+        {
+          "t": "+",
+          "c": "def test_allowance_is_zero_once_the_count_limit_is_reached(policy):",
+          "old": null,
+          "new": 18
+        },
+        {
+          "t": "+",
+          "c": "    allowance = policy.allowance(total_cents=10_000, refunded_cents=100, refund_count=3)",
+          "old": null,
+          "new": 19
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 20
+        },
+        {
+          "t": "+",
+          "c": "    assert allowance.refundable_cents == 0",
+          "old": null,
+          "new": 21
+        },
+        {
+          "t": "+",
+          "c": "    assert allowance.exhausted",
+          "old": null,
+          "new": 22
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 23
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 24
+        },
+        {
+          "t": "+",
+          "c": "def test_refund_above_the_remainder_is_rejected(policy):",
+          "old": null,
+          "new": 25
+        },
+        {
+          "t": "+",
+          "c": "    allowance = policy.allowance(total_cents=10_000, refunded_cents=9_000, refund_count=1)",
+          "old": null,
+          "new": 26
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 27
+        },
+        {
+          "t": "+",
+          "c": "    with pytest.raises(RefundNotAllowed, match=\"exceeds remaining\"):",
+          "old": null,
+          "new": 28
+        },
+        {
+          "t": "+",
+          "c": "        policy.check(1_001, allowance)",
+          "old": null,
+          "new": 29
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 30
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 31
+        },
+        {
+          "t": "+",
+          "c": "def test_refund_equal_to_the_remainder_is_allowed(policy):",
+          "old": null,
+          "new": 32
+        },
+        {
+          "t": "+",
+          "c": "    allowance = policy.allowance(total_cents=10_000, refunded_cents=9_000, refund_count=1)",
+          "old": null,
+          "new": 33
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 34
+        },
+        {
+          "t": "+",
+          "c": "    policy.check(1_000, allowance)",
+          "old": null,
+          "new": 35
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 36
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 37
+        },
+        {
+          "t": "+",
+          "c": "def test_zero_and_negative_amounts_are_rejected(policy):",
+          "old": null,
+          "new": 38
+        },
+        {
+          "t": "+",
+          "c": "    allowance = policy.allowance(total_cents=10_000, refunded_cents=0, refund_count=0)",
+          "old": null,
+          "new": 39
+        },
+        {
+          "t": "+",
+          "c": "",
+          "old": null,
+          "new": 40
+        },
+        {
+          "t": "+",
+          "c": "    with pytest.raises(RefundNotAllowed, match=\"must be positive\"):",
+          "old": null,
+          "new": 41
+        },
+        {
+          "t": "+",
+          "c": "        policy.check(0, allowance)",
+          "old": null,
+          "new": 42
+        },
+        {
+          "t": "+",
+          "c": "    with pytest.raises(RefundNotAllowed, match=\"must be positive\"):",
+          "old": null,
+          "new": 43
+        },
+        {
+          "t": "+",
+          "c": "        policy.check(-50, allowance)",
+          "old": null,
+          "new": 44
+        }
+      ],
+      "change_kind": "new_logic",
+      "significance": "supporting"
+    }
+  }
+}
