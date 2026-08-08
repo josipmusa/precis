@@ -1,0 +1,32 @@
+{
+  "name": "precis",
+  "owner": {
+    "name": "Josip Musa"
+  },
+  "metadata": {
+    "description": "Comprehension artifacts for pull requests. Not a code review tool.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "precis",
+      "source": "./",
+      "description": "Turn a PR, MR, or diff into a self-contained HTML report that explains what the change does, which parts are the real change, and in what order to read them. Never reviews the code.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Josip Musa"
+      },
+      "homepage": "https://github.com/josipm/precis",
+      "repository": "https://github.com/josipm/precis",
+      "license": "MIT",
+      "keywords": [
+        "pull-request",
+        "code-review",
+        "comprehension",
+        "diff",
+        "github",
+        "gitlab"
+      ]
+    }
+  ]
+}

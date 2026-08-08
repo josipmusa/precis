@@ -1,0 +1,10 @@
+{
+  "name": "precis",
+  "version": "0.1.0",
+  "description": "Turn a PR, MR, or diff into a self-contained HTML report that explains what the change does, which parts are the real change, and in what order to read them. Never reviews the code.",
+  "author": {
+    "name": "Josip Musa"
+  },
+  "homepage": "https://github.com/josipm/precis",
+  "license": "MIT"
+}
