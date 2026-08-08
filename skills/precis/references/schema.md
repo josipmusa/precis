@@ -765,7 +765,7 @@ graph edge, a reading step, a delta, and a check at once.
 | `path` | required | Path in the new tree. For a deleted file, the old path. |
 | `old_path` | optional | Set when the file was renamed or copied. |
 | `language` | optional | Lowercase identifier for syntax tinting (`python`, `typescript`, `sql`, `yaml`, …). Absent means no tinting. |
-| `header` | optional | The verbatim `@@` line. |
+| `header` | optional | The position half of the `@@` line, e.g. `@@ -24,8 +25,9 @@`. The context git appends after it belongs in `section`; the template renders the two in separate spans, so a header carrying both prints the context twice. |
 | `old_start`, `old_lines`, `new_start`, `new_lines` | required | Integers from the hunk header. |
 | `section` | optional | The function or class context git puts after `@@`. |
 | `change_kind`, `significance` | required | Same enumerations as `change_map`. A file may contain hunks of differing significance; this is how a `core` hunk inside an otherwise mechanical file stays visible. |

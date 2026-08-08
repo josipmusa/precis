@@ -259,6 +259,15 @@ def test_the_pass_persists_under_the_head_sha(template_text):
     assert match and "head" in match.group(0) and "sha" in match.group(0)
 
 
+def test_a_carriage_return_cannot_double_the_line_height(template_text):
+    """CRLF content keeps its CR in the model. Under pre-wrap a lone CR is a
+    line break, so the renderer has to drop it or every Windows file prints
+    double-spaced."""
+    assert re.search(r'endsWith\("\\r"\)', template_text), (
+        "the renderer no longer strips the carriage return"
+    )
+
+
 def test_the_treemap_is_gone(template_text):
     """It answered a question no reviewer was asking. It does not come back."""
     for ghost in ("drawTreemap", "squarify", ".treemap", "tmwrap", "tmnote", "filelabel"):

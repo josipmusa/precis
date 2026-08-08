@@ -1811,11 +1811,15 @@ function hunkNode(hunk, annotations) {
   }
   for (const line of lines) {
     const cls = line.t === "+" ? "add" : line.t === "-" ? "del" : "ctx";
+    /* A CRLF file keeps its carriage returns in the model so the analysis can
+       see a line-ending change. Under `white-space: pre-wrap` a lone CR is a
+       line break, so it would print every such line with a blank one under it. */
+    const text = line.c.endsWith("\r") ? line.c.slice(0, -1) : line.c;
     /* Two tinters: the old side and the new side each carry their own open
        docstring, so a deletion cannot leak string state into an addition. */
-    const code = line.t === "-" ? tintOld(line.c)
-      : line.t === "+" ? tintNew(line.c)
-      : (tintOld(line.c), tintNew(line.c));
+    const code = line.t === "-" ? tintOld(text)
+      : line.t === "+" ? tintNew(text)
+      : (tintOld(text), tintNew(text));
     body.append(h("div", { class: "hline " + cls },
       h("span", { class: "gut" },
         hasOld ? h("span", { text: line.old == null ? "" : line.old }) : null,

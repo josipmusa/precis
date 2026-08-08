@@ -2404,61 +2404,61 @@
       "lines": [
         {
           "t": " ",
-          "c": "[agent]",
+          "c": "[agent]\r",
           "old": 2,
           "new": 2
         },
         {
           "t": " ",
-          "c": "poll_interval_seconds=60",
+          "c": "poll_interval_seconds=60\r",
           "old": 3,
           "new": 3
         },
         {
           "t": " ",
-          "c": "endpoint=https://ingest.meridian.invalid/v1",
+          "c": "endpoint=https://ingest.meridian.invalid/v1\r",
           "old": 4,
           "new": 4
         },
         {
           "t": "-",
-          "c": "retry_attempts=2",
+          "c": "retry_attempts=2\r",
           "old": 5,
           "new": null
         },
         {
           "t": "+",
-          "c": "retry_attempts=3",
+          "c": "retry_attempts=3\r",
           "old": null,
           "new": 5
         },
         {
           "t": " ",
-          "c": "retry_delay_seconds=5",
+          "c": "retry_delay_seconds=5\r",
           "old": 6,
           "new": 6
         },
         {
           "t": "+",
-          "c": "retry_jitter=true",
+          "c": "retry_jitter=true\r",
           "old": null,
           "new": 7
         },
         {
           "t": " ",
-          "c": "",
+          "c": "\r",
           "old": 7,
           "new": 8
         },
         {
           "t": " ",
-          "c": "[logging]",
+          "c": "[logging]\r",
           "old": 8,
           "new": 9
         },
         {
           "t": " ",
-          "c": "level=INFO",
+          "c": "level=INFO\r",
           "old": 9,
           "new": 10
         }
