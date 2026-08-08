@@ -78,7 +78,7 @@
     "limitations": [
       "docs/assets/http-topology.png is binary and was not analysed.",
       "poetry.lock and clients/ts/pnpm-lock.yaml were read as dependency deltas only, not line by line.",
-      "gen/pb/shipping_pb2.py was read far enough to identify which messages changed; the serialised descriptor was not decoded.",
+      "gen/pb/shipping_pb2.py was read far enough to identify which messages changed, not decoded.",
       "The call-site files were read as a group after the first three matched the same two-line shape."
     ]
   },
@@ -109,7 +109,20 @@
   },
   "story": {
     "headline": "Four copied HTTP wrappers collapse into one client, and the retry rules change while they do.",
-    "paragraph": "`payments`, `shipping`, `tax` and `notifications` each carried their own copy of the same `_http.py`, drifted apart in timeout, attempt count and delay. This change deletes all four and routes every outbound call through `meridian.http.HttpClient`, with the per-service differences moved into `config/http.yaml`. The description calls this a refactor with no behaviour change, and the call sites are indeed a two-line swap each. The client itself is not a merge of the four wrappers: it retries seven status codes instead of two, retries connection and timeout errors that previously propagated on the first failure, and waits a jittered exponential delay instead of a fixed one. The diff also carries two things the description does not mention: a single-step checkout feature flag enabled for 5% of customers, and a dependency and toolchain refresh.",
+    "beats": [
+      {
+        "label": "Was",
+        "text": "Four packages each carried a copy of `_http.py`, drifted apart in timeout and retries."
+      },
+      {
+        "label": "Now",
+        "text": "One `HttpClient`, with the per-service numbers moved into `config/http.yaml`."
+      },
+      {
+        "label": "Watch",
+        "text": "The retry rules are not a merge of the four. They are new."
+      }
+    ],
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -122,7 +135,7 @@
       "stated": "Replace four copied _http.py wrappers with one HttpClient and move per-service settings into config/http.yaml. No behaviour change intended.",
       "also_does": [
         {
-          "summary": "Changes what gets retried: seven status codes instead of two, plus connection, timeout and chunked-encoding errors that previously raised on the first failure.",
+          "summary": "Retries seven status codes instead of two, plus three transport errors that used to raise.",
           "where": [
             "src/meridian/http/client.py",
             "config/http.yaml"
@@ -147,7 +160,7 @@
           "kind": "scope_creep"
         },
         {
-          "summary": "Refreshes dependencies and the CI toolchain: 14 Python packages including a protobuf major bump, two npm packages, and CI Node 18 to 20.",
+          "summary": "Refreshes 14 Python packages including a protobuf major bump, 2 npm packages, and CI Node 18 to 20.",
           "where": [
             "poetry.lock",
             "clients/ts/pnpm-lock.yaml",
@@ -159,7 +172,7 @@
           "kind": "scope_creep"
         },
         {
-          "summary": "Raises retry_attempts from 2 to 3 and enables jitter in the Windows collection agent, a component that shares no code with this service.",
+          "summary": "Raises retry_attempts and enables jitter in the Windows collection agent, which shares no code here.",
           "where": [
             "config/windows-agent.ini"
           ],
@@ -171,14 +184,217 @@
       ],
       "not_done": [
         {
-          "summary": "The description says per-service behaviour moves into config/http.yaml unchanged; the attempt counts there are higher than the wrappers used for three of the four services.",
+          "summary": "The description says the per-service numbers move across unchanged; three of the four are higher.",
           "note": "Compare config/http.yaml in step 4 with the constants in the deleted wrappers."
         }
       ]
     }
   },
   "change_map": {
-    "summary": "One new client, four deletions, twelve two-line call-site swaps, and a large tail of regenerated and unrelated files.",
+    "summary": "One new client, four deletions, twelve two-line call-site swaps, and a long tail of regenerated and unrelated files.",
+    "graph": {
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "gateway_client.authorize()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/payments/gateway_client.py",
+          "hunk_ids": [
+            "h34"
+          ]
+        },
+        {
+          "id": "n2",
+          "label": "email_client.send()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/notifications/email_client.py",
+          "hunk_ids": [
+            "h30"
+          ]
+        },
+        {
+          "id": "n3",
+          "label": "carrier_client.rates()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/shipping/carrier_client.py",
+          "hunk_ids": [
+            "h38"
+          ]
+        },
+        {
+          "id": "n4",
+          "label": "calculator_client.quote()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/tax/calculator_client.py",
+          "hunk_ids": [
+            "h42"
+          ]
+        },
+        {
+          "id": "n5",
+          "label": "payments/_http.py post()",
+          "kind": "function",
+          "emphasis": "removed",
+          "path": "src/meridian/payments/_http.py",
+          "hunk_ids": [
+            "h33"
+          ],
+          "note": "Three identical siblings went with it."
+        },
+        {
+          "id": "n6",
+          "label": "HttpClient.request()",
+          "kind": "function",
+          "emphasis": "added",
+          "path": "src/meridian/http/client.py",
+          "hunk_ids": [
+            "h28"
+          ],
+          "note": "Retries all three transport errors, and seven status codes."
+        },
+        {
+          "id": "n7",
+          "label": "config/http.yaml",
+          "kind": "config",
+          "emphasis": "added",
+          "path": "config/http.yaml",
+          "hunk_ids": [
+            "h9"
+          ],
+          "note": "Where the four sets of constants ended up."
+        },
+        {
+          "id": "n8",
+          "label": "decorrelated_jitter()",
+          "kind": "function",
+          "emphasis": "added",
+          "path": "src/meridian/http/backoff.py",
+          "hunk_ids": [
+            "h27"
+          ]
+        },
+        {
+          "id": "n9",
+          "label": "requests.Session",
+          "kind": "external",
+          "emphasis": "unchanged",
+          "hunk_ids": []
+        },
+        {
+          "id": "n10",
+          "label": "ConnectionError / Timeout",
+          "kind": "error",
+          "emphasis": "unchanged",
+          "hunk_ids": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "n1",
+          "to": "n6",
+          "kind": "calls",
+          "emphasis": "changed",
+          "evidence": {
+            "hunk_ids": [
+              "h34"
+            ]
+          }
+        },
+        {
+          "from": "n2",
+          "to": "n6",
+          "kind": "calls",
+          "emphasis": "changed",
+          "evidence": {
+            "hunk_ids": [
+              "h30"
+            ]
+          }
+        },
+        {
+          "from": "n3",
+          "to": "n6",
+          "kind": "calls",
+          "emphasis": "changed",
+          "evidence": {
+            "hunk_ids": [
+              "h38"
+            ]
+          }
+        },
+        {
+          "from": "n4",
+          "to": "n6",
+          "kind": "calls",
+          "emphasis": "changed",
+          "evidence": {
+            "hunk_ids": [
+              "h42"
+            ]
+          }
+        },
+        {
+          "from": "n1",
+          "to": "n5",
+          "kind": "calls",
+          "emphasis": "removed",
+          "label": "was",
+          "evidence": {
+            "hunk_ids": [
+              "h34"
+            ]
+          }
+        },
+        {
+          "from": "n6",
+          "to": "n7",
+          "kind": "reads",
+          "emphasis": "added",
+          "label": "per service",
+          "evidence": {
+            "hunk_ids": [
+              "h28"
+            ]
+          }
+        },
+        {
+          "from": "n6",
+          "to": "n8",
+          "kind": "calls",
+          "emphasis": "added",
+          "label": "between tries",
+          "evidence": {
+            "hunk_ids": [
+              "h28"
+            ]
+          }
+        },
+        {
+          "from": "n6",
+          "to": "n9",
+          "kind": "calls",
+          "emphasis": "added",
+          "evidence": {
+            "hunk_ids": [
+              "h28"
+            ]
+          }
+        },
+        {
+          "from": "n9",
+          "to": "n10",
+          "kind": "raises",
+          "emphasis": "unchanged",
+          "evidence": {
+            "ref": "src/meridian/http/client.py:52"
+          }
+        }
+      ]
+    },
     "groups": [
       {
         "id": "g-http",
@@ -729,7 +945,7 @@
   "behavior": {
     "changed": true,
     "note": null,
-    "summary": "The description calls this a pure refactor. The retry loop is not the same loop: it catches transport exceptions that used to propagate immediately, matches five more status codes, and sleeps a random interval instead of a fixed one.",
+    "summary": "The retry loop is not the same loop: it catches transport exceptions that used to propagate, matches five more status codes, and sleeps a random interval.",
     "before": {
       "kind": "flow",
       "title": "Before: payments/_http.post_json",
@@ -966,14 +1182,13 @@
       }
     ]
   },
-  "reading_order": {
+  "review_pass": {
     "estimated_minutes": 18,
-    "preamble": "817 changed lines, of which about 130 are the change. Read the new client against the wrapper it replaces; everything after that is either configuration, a two-line swap repeated twelve times, or unrelated.",
     "steps": [
       {
         "n": 1,
         "title": "The new client",
-        "why": "The whole PR is this file plus the decision to call it from everywhere. Read the retry loop closely; it is where the refactor stops being a refactor.",
+        "why": "The whole PR is this file plus the decision to call it everywhere. The retry loop is where the refactor stops being a refactor.",
         "path": "src/meridian/http/client.py",
         "hunk_ids": [
           "h28"
@@ -1009,7 +1224,7 @@
       {
         "n": 2,
         "title": "What it replaces",
-        "why": "The deleted wrapper is the only place the previous retry semantics are written down. Reading it beside step 1 is the fastest way to see what changed, and the other three deletions differ from it only in constants.",
+        "why": "The deleted wrapper is the only place the previous retry semantics are written down. Read it beside step 1.",
         "path": "src/meridian/payments/_http.py",
         "hunk_ids": [
           "h33"
@@ -1030,7 +1245,7 @@
       {
         "n": 3,
         "title": "The jitter helper",
-        "why": "Moved from `meridian.util` and given a new function. `decorrelated_jitter` is what makes the retry timing non-deterministic, which matters for anything that measured tail latency before.",
+        "why": "Moved from `meridian.util` and given a new function. `decorrelated_jitter` makes retry timing non-deterministic.",
         "path": "src/meridian/http/backoff.py",
         "hunk_ids": [
           "h26",
@@ -1047,7 +1262,7 @@
       {
         "n": 4,
         "title": "The numbers that used to live in four files",
-        "why": "This is where the per-service differences ended up. Compare each block against the constants in the wrapper from step 2: three of the four services get a larger attempt budget than they had.",
+        "why": "Compare each block against the constants in the wrapper from step 2. Three of the four services get a larger attempt budget.",
         "path": "config/http.yaml",
         "hunk_ids": [
           "h9",
@@ -1069,7 +1284,7 @@
       {
         "n": 5,
         "title": "One call site, then trust the pattern",
-        "why": "Twelve files change the same two lines. This one has three functions instead of one, so it is the largest; if this shape is what you expect, the other eleven hold no surprises.",
+        "why": "Twelve files change the same two lines. This one has three functions, so it is the largest; the other eleven follow it.",
         "path": "src/meridian/payments/gateway_client.py",
         "hunk_ids": [
           "h34"
@@ -1085,7 +1300,7 @@
       {
         "n": 6,
         "title": "The new client's tests",
-        "why": "The clearest enumeration of the new retry surface: a 503 retried, a connection error retried, a 400 not retried, a 429 retried. Reading these is faster than deriving the same list from step 1.",
+        "why": "The clearest enumeration of the new retry surface: 503 retried, connection error retried, 400 not retried, 429 retried.",
         "path": "tests/http/test_client.py",
         "hunk_ids": [
           "h45"
@@ -1101,7 +1316,7 @@
       {
         "n": 7,
         "title": "The vendored stub was edited in place",
-        "why": "`third_party/httpstub` carries a re-vendor instruction in its header, and this diff edits it by hand and changes the recorded version. The new tests depend on the added class.",
+        "why": "`third_party/httpstub` carries a re-vendor instruction. This diff edits it by hand and moves the recorded version.",
         "path": "third_party/httpstub/__init__.py",
         "hunk_ids": [
           "h54",
@@ -1118,7 +1333,7 @@
       {
         "n": 8,
         "title": "Changes unrelated to the extraction",
-        "why": "Four files that have nothing to do with HTTP. They are here rather than in the skip list because each changes behaviour on its own.",
+        "why": "Four files with nothing to do with HTTP. They are here rather than in the skip list because each changes behaviour.",
         "path": "src/meridian/api/checkout.py",
         "hunk_ids": [
           "h23",
@@ -1151,10 +1366,111 @@
         ]
       }
     ],
+    "checks": [
+      {
+        "kind": "behavioral",
+        "title": "Connection and timeout errors are now retried, not raised",
+        "why": "The wrappers wrapped a bare `requests.post`, so `ConnectionError` and `Timeout` reached the caller at once. `HttpClient` catches all three and retries.",
+        "question": "Are `authorize`, `capture`, `schedule_payout` and `book` idempotent at the provider?",
+        "path": "src/meridian/http/client.py",
+        "hunk_ids": [
+          "h28"
+        ]
+      },
+      {
+        "kind": "behavioral",
+        "title": "The retryable status set grows from two codes to seven",
+        "why": "429, 408, 425, 500 and 504 join 502 and 503. A 429 used to surface at once; it is now retried up to the service's attempt budget.",
+        "question": "How does your rate-limited upstream respond to a retried 429?",
+        "path": "src/meridian/http/client.py",
+        "hunk_ids": [
+          "h28"
+        ]
+      },
+      {
+        "kind": "config_surface",
+        "title": "Attempt budgets rise for three of the four services",
+        "why": "config/http.yaml sets notifications to 5 attempts where the wrapper used 2, shipping to 4, tax to 3. With the wider status set, worst-case wall time grows.",
+        "question": "Do the new worst-case call times fit inside your own request timeout?",
+        "path": "config/http.yaml",
+        "hunk_ids": [
+          "h9"
+        ]
+      },
+      {
+        "kind": "feature_flag",
+        "title": "Single-step checkout ships enabled at 5%",
+        "why": "`enable_single_step_checkout` is `enabled: true, percentage: 5`, routing flagged customers to `create_single_step` instead of `create_from_cart`.",
+        "question": "Was a 5% checkout rollout part of the plan for this deploy?",
+        "path": "config/flags.yaml",
+        "hunk_ids": [
+          "h8",
+          "h24"
+        ]
+      },
+      {
+        "kind": "dependency_surface",
+        "title": "poetry.lock adds tenacity 8.5.0, which nothing here imports",
+        "why": "The new client implements its own retry loop. `tenacity` appears as a direct lockfile entry, and no file in this diff imports it.",
+        "question": "Where does `tenacity` enter the tree, if no file here imports it?",
+        "path": "poetry.lock"
+      },
+      {
+        "kind": "dependency_surface",
+        "title": "protobuf crosses a major version, 4.25 to 5.27",
+        "why": "The bump is paired with a regenerated `shipping_pb2.py`. Descriptors built by the 4.x runtime share a global pool with these, so mixed versions in one interpreter matter.",
+        "question": "Does any process in your fleet load 4.x descriptors in the same interpreter?",
+        "path": "poetry.lock",
+        "hunk_ids": [
+          "h12"
+        ]
+      },
+      {
+        "kind": "concurrency",
+        "title": "Retry timing becomes non-deterministic",
+        "why": "`decorrelated_jitter` draws uniformly from `[0, exponential(attempt)]`, replacing a fixed 0.25 to 1.0 second wait. Simultaneous retries no longer align.",
+        "question": "Do your latency alerts or load tests assume a fixed retry interval?",
+        "path": "src/meridian/http/backoff.py",
+        "hunk_ids": [
+          "h27"
+        ]
+      },
+      {
+        "kind": "public_api",
+        "title": "Generated clients expose a RetryHint with no server route",
+        "why": "The regenerated protobuf and all three orval modules gain `RetryHint`, and orders.ts gains a `/orders/{orderId}/retry-hint` operation. No handler appears here.",
+        "question": "Which service is meant to serve `/orders/{orderId}/retry-hint`?",
+        "path": "clients/ts/src/api/generated/orders.ts",
+        "hunk_ids": [
+          "h5"
+        ]
+      },
+      {
+        "kind": "dependency_surface",
+        "title": "A vendored file was edited rather than re-vendored",
+        "why": "`third_party/httpstub/__init__.py` says to re-vendor with scripts/vendor.sh. This diff edits it directly and moves the recorded version from 0.4.2 to 0.5.0.",
+        "question": "Does `scripts/vendor.sh` still reproduce `third_party/httpstub` byte for byte?",
+        "path": "third_party/httpstub/__init__.py",
+        "hunk_ids": [
+          "h54",
+          "h55"
+        ]
+      },
+      {
+        "kind": "config_surface",
+        "title": "The Windows collection agent gets more retries and jitter",
+        "why": "config/windows-agent.ini moves retry_attempts from 2 to 3 and adds retry_jitter. That agent deploys separately from this service and shares none of this code.",
+        "question": "Who owns the Windows collection agent's deploy schedule?",
+        "path": "config/windows-agent.ini",
+        "hunk_ids": [
+          "h10"
+        ]
+      }
+    ],
     "skippable": [
       {
         "label": "The other eleven call sites",
-        "reason": "Every one is the same two-line change read in step 5: `from meridian.<pkg>._http import ...` becomes `from meridian.http import client`, and each call gains a `client.` prefix. No signature, path or payload changes.",
+        "reason": "Every one is the two-line change read in step 5: the import moves to `meridian.http.client`, and each call gains a `client.` prefix.",
         "confidence": "high",
         "group_ids": [
           "g-callsites"
@@ -1178,7 +1494,7 @@
       },
       {
         "label": "The other three deleted wrappers",
-        "reason": "Byte-identical to the payments copy read in step 2 apart from BASE_URL, MAX_ATTEMPTS, RETRY_DELAY_SECONDS and the log event name. Those four constants are exactly what config/http.yaml replaces, and step 4 compares them.",
+        "reason": "Identical to the payments copy in step 2 apart from BASE_URL, MAX_ATTEMPTS, RETRY_DELAY_SECONDS and the log event name. Step 4 compares them.",
         "confidence": "high",
         "group_ids": [
           "g-wrappers"
@@ -1194,7 +1510,7 @@
       },
       {
         "label": "Service tests: monkeypatch target swap",
-        "reason": "Each file patches a different module attribute now that the import moved. The assertions, paths and payloads are unchanged, so they still pin the same behaviour they pinned before.",
+        "reason": "Each file patches a different module attribute now that the import moved. Assertions, paths and payloads are unchanged.",
         "confidence": "high",
         "group_ids": [
           "g-tests"
@@ -1211,7 +1527,7 @@
       },
       {
         "label": "Regenerated clients",
-        "reason": "Emitted by scripts/regen_clients.sh. The protobuf file is entirely shifted byte offsets plus one new RetryHint message; the three orval modules add the matching TypeScript interface. Nothing in this diff produces or consumes a RetryHint, which is noted in the attention map.",
+        "reason": "Emitted by scripts/regen_clients.sh. The protobuf file is shifted byte offsets plus one RetryHint message; the orval modules add the interface.",
         "confidence": "high",
         "group_ids": [
           "g-generated"
@@ -1228,7 +1544,7 @@
       },
       {
         "label": "Lockfiles",
-        "reason": "227 changed lines of version strings and wheel hashes from `poetry lock` and `pnpm install`. The substantive deltas are in the attention map rather than the file: 14 Python packages, 2 npm packages, one new transitive dependency.",
+        "reason": "227 changed lines of version strings and wheel hashes from `poetry lock` and `pnpm install`. The substantive deltas are in the checks above.",
         "confidence": "high",
         "group_ids": [
           "g-build"
@@ -1243,7 +1559,7 @@
       },
       {
         "label": "Documentation",
-        "reason": "New architecture page describing the client from step 1 and the config keys from step 4, plus a PNG. The page states the retry behaviour in English, which is useful if step 1 was heavy going.",
+        "reason": "New architecture page describing the client from step 1 and the config keys from step 4, plus a PNG. It states the retry behaviour in English.",
         "confidence": "high",
         "group_ids": [
           "g-docs"
@@ -1286,97 +1602,6 @@
       }
     ]
   },
-  "attention": [
-    {
-      "kind": "behavioral",
-      "title": "Connection and timeout errors are now retried instead of raised",
-      "why": "The four wrappers wrapped a bare `requests.post`, so a `ConnectionError` or `Timeout` reached the caller on the first failure. `HttpClient` catches all three transport exceptions and retries. A POST that timed out after the server received it is re-sent, so `authorize`, `capture`, `schedule_payout` and `book` can reach the provider more than once for one logical call.",
-      "path": "src/meridian/http/client.py",
-      "hunk_ids": [
-        "h28"
-      ]
-    },
-    {
-      "kind": "behavioral",
-      "title": "The retryable status set grows from two codes to seven",
-      "why": "429, 408, 425, 500 and 504 join 502 and 503. A provider returning 429 used to surface immediately; it is now retried up to the service's attempt budget, which multiplies request volume against a rate-limited upstream.",
-      "path": "src/meridian/http/client.py",
-      "hunk_ids": [
-        "h28"
-      ]
-    },
-    {
-      "kind": "config_surface",
-      "title": "Attempt budgets rise for three of the four services",
-      "why": "config/http.yaml sets notifications to 5 attempts where the wrapper used 2, shipping to 4 where it used 2, and tax to 3 where it used 2. Combined with the wider status set, the worst-case wall time for one call grows accordingly.",
-      "path": "config/http.yaml",
-      "hunk_ids": [
-        "h9"
-      ]
-    },
-    {
-      "kind": "feature_flag",
-      "title": "Single-step checkout ships enabled at 5%",
-      "why": "`enable_single_step_checkout` is `enabled: true, percentage: 5`, and `checkout` routes flagged customers to `OrderService.create_single_step`, a different code path from `create_from_cart`. This is live on deploy and unrelated to the HTTP work.",
-      "path": "config/flags.yaml",
-      "hunk_ids": [
-        "h8",
-        "h24"
-      ]
-    },
-    {
-      "kind": "dependency_surface",
-      "title": "poetry.lock adds tenacity 8.5.0, which nothing in this diff imports",
-      "why": "The new client implements its own retry loop. `tenacity` appears in the lockfile as a direct entry, and no file in this diff imports it. Either the manifest change lives outside this diff, or it arrived as a transitive dependency.",
-      "path": "poetry.lock"
-    },
-    {
-      "kind": "dependency_surface",
-      "title": "protobuf crosses a major version, 4.25 to 5.27",
-      "why": "The lockfile bump is paired with a regenerated `shipping_pb2.py`. Any process loading protobuf descriptors built by the 4.x runtime shares a global descriptor pool with these, so mixed versions in one interpreter matter here.",
-      "path": "poetry.lock",
-      "hunk_ids": [
-        "h12"
-      ]
-    },
-    {
-      "kind": "concurrency",
-      "title": "Retry timing becomes non-deterministic",
-      "why": "`decorrelated_jitter` draws uniformly from `[0, exponential(attempt)]`, replacing a fixed 0.25 to 1.0 second wait. Retries from simultaneous failures no longer align, and per-call latency now varies between attempts.",
-      "path": "src/meridian/http/backoff.py",
-      "hunk_ids": [
-        "h27"
-      ]
-    },
-    {
-      "kind": "public_api",
-      "title": "Generated clients expose a RetryHint type with no server implementation",
-      "why": "The regenerated protobuf and all three orval modules gain `RetryHint`, and orders.ts gains a `/orders/{orderId}/retry-hint` operation. No handler for that route appears in this diff.",
-      "path": "clients/ts/src/api/generated/orders.ts",
-      "hunk_ids": [
-        "h5"
-      ]
-    },
-    {
-      "kind": "dependency_surface",
-      "title": "A vendored file was edited rather than re-vendored",
-      "why": "`third_party/httpstub/__init__.py` says to re-vendor with scripts/vendor.sh. This diff edits it directly and moves the recorded version from 0.4.2 to 0.5.0, so the file no longer matches any upstream release.",
-      "path": "third_party/httpstub/__init__.py",
-      "hunk_ids": [
-        "h54",
-        "h55"
-      ]
-    },
-    {
-      "kind": "config_surface",
-      "title": "The Windows collection agent gets more retries and jitter",
-      "why": "config/windows-agent.ini moves retry_attempts from 2 to 3 and adds retry_jitter. That agent is deployed separately from this service and shares none of this code.",
-      "path": "config/windows-agent.ini",
-      "hunk_ids": [
-        "h10"
-      ]
-    }
-  ],
   "seams": {
     "detected": true,
     "note": "Three groups of files that share no symbols and no call path. Each compiles, tests and deploys without the other two.",

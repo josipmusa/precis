@@ -75,7 +75,7 @@ def test_coverage_counts_are_consistent(fixture_model):
 def test_reading_order_starts_at_a_core_hunk(fixture_model):
     """Step 1 is the change itself, never the entry point or the test."""
     name, model = fixture_model
-    first = model["reading_order"]["steps"][0]
+    first = model["review_pass"]["steps"][0]
     kinds = {model["hunks"][h]["significance"] for h in first["hunk_ids"]}
     assert "core" in kinds, (
         f"{name}: step 1 ({first['title']!r}) references no core hunk"
@@ -85,7 +85,7 @@ def test_reading_order_starts_at_a_core_hunk(fixture_model):
 def test_mechanical_hunks_are_never_in_the_reading_order_alone(fixture_model):
     """A step made only of mechanical hunks is asking a reader to read ripple."""
     name, model = fixture_model
-    for step in model["reading_order"]["steps"]:
+    for step in model["review_pass"]["steps"]:
         kinds = {model["hunks"][h]["significance"] for h in step["hunk_ids"]}
         assert kinds != {"mechanical"}, (
             f"{name}: step {step['n']} ({step['title']!r}) is entirely mechanical"
@@ -121,8 +121,8 @@ def _authored_prose(model):
         elif isinstance(node, str):
             out.append((path, node))
 
-    for section in ("story", "change_map", "behavior", "reading_order",
-                    "attention", "seams", "coverage"):
+    for section in ("story", "change_map", "behavior", "review_pass",
+                    "seams", "coverage"):
         walk(model.get(section), section)
     return out
 
@@ -138,12 +138,22 @@ def test_no_review_verdicts_anywhere(fixture_model):
     assert hits == [], "\n".join(hits)
 
 
-def test_attention_items_never_carry_a_score(fixture_model):
+def test_checks_never_carry_a_score(fixture_model):
     name, model = fixture_model
-    for item in model["attention"]:
+    for item in model["review_pass"]["checks"]:
         assert "severity" not in item
         assert "priority" not in item
         assert "score" not in item
+
+
+def test_every_check_asks_a_question_precis_cannot_answer(fixture_model):
+    """A check hands the decision to the reviewer. If it does not end in a
+    question mark it has become an assertion, which is a verdict."""
+    name, model = fixture_model
+    for item in model["review_pass"]["checks"]:
+        question = item["question"]
+        assert question.rstrip().endswith("?"), f"{name}: {question!r}"
+        assert len(question) <= 140, f"{name}: question is {len(question)} chars"
 
 
 def test_low_confidence_story_is_labelled(fixture_model):
@@ -156,7 +166,7 @@ def test_low_confidence_story_is_labelled(fixture_model):
 def test_skippable_groups_earn_the_skip(fixture_model):
     """A reason that does not explain the mechanism is a demand for trust."""
     name, model = fixture_model
-    for group in model["reading_order"]["skippable"]:
+    for group in model["review_pass"]["skippable"]:
         assert len(group["reason"]) > 60, (
             f"{name}: {group['label']!r} reason is too thin to earn a skip: "
             f"{group['reason']!r}"
@@ -196,5 +206,60 @@ def test_fixtures_contain_nothing_private():
 def test_headline_is_a_statement_not_a_verdict(fixture_model):
     name, model = fixture_model
     headline = model["story"]["headline"]
-    assert len(headline) <= 120, f"{name}: headline is {len(headline)} chars"
+    assert len(headline) <= 100, f"{name}: headline is {len(headline)} chars"
     assert not headline.endswith("?"), f"{name}: headline is a question"
+
+
+# ------------------------------------------------------- the shape of a page
+
+# Nothing in the report may become a wall of text. The validator caps each field
+# individually; this is the ceiling across all of them, and the guarantee that
+# report length tracks the change rather than the size of the diff.
+PROSE_BUDGET_WORDS = 1800
+FIRST_SCREEN_WORDS = 70
+
+
+def test_no_field_is_a_wall_of_text(fixture_model):
+    from validate_model import _authored_prose
+    name, model = fixture_model
+    for where, text in _authored_prose(model):
+        assert len(text) <= 180, f"{name} {where}: {len(text)} chars, {text[:80]!r}"
+
+
+def test_the_report_stays_within_its_prose_budget(fixture_model):
+    from validate_model import _authored_prose
+    name, model = fixture_model
+    words = sum(len(text.split()) for _, text in _authored_prose(model))
+    assert words <= PROSE_BUDGET_WORDS, f"{name}: {words} words of prose"
+
+
+def test_the_first_screen_scans_in_seconds(fixture_model):
+    """Headline plus beats is everything above the fold. It has to be readable
+    in one look, on any size of change."""
+    name, model = fixture_model
+    story = model["story"]
+    words = len(story["headline"].split())
+    words += sum(len(b["label"].split()) + len(b["text"].split()) for b in story["beats"])
+    assert words <= FIRST_SCREEN_WORDS, f"{name}: first screen is {words} words"
+    assert 2 <= len(story["beats"]) <= 4
+
+
+def test_the_graph_stays_readable(fixture_model):
+    """Twelve nodes is the ceiling, and every node the change touched points at
+    the hunks that touched it."""
+    name, model = fixture_model
+    graph = model["change_map"]["graph"]
+    if graph is None:
+        return
+    assert 2 <= len(graph["nodes"]) <= 12, f"{name}: {len(graph['nodes'])} nodes"
+    mapped = {f["path"] for g in model["change_map"]["groups"] for f in g["files"]}
+    for node in graph["nodes"]:
+        if node["emphasis"] != "unchanged":
+            assert node["hunk_ids"], f"{name}: {node['label']!r} claims a change with no hunk"
+        if node["hunk_ids"]:
+            assert node["path"] in mapped, f"{name}: {node['path']!r} is not in the change map"
+    for edge in graph["edges"]:
+        evidence = edge["evidence"]
+        assert evidence.get("hunk_ids") or re.match(r"^[^\s:]+:\d+$", evidence.get("ref", "")), (
+            f"{name}: edge {edge['from']}->{edge['to']} has no evidence"
+        )

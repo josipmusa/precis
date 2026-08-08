@@ -40,19 +40,19 @@ def test_missing_section_is_reported(model):
 
 
 def test_dangling_hunk_reference_names_its_location(model):
-    model["attention"][0]["hunk_ids"] = ["h9999"]
+    model["review_pass"]["checks"][0]["hunk_ids"] = ["h9999"]
     hits = problems_matching(model, "unknown hunk 'h9999'")
-    assert hits and "attention[0]" in hits[0]
+    assert hits and "review_pass.checks[0]" in hits[0]
 
 
 def test_reading_step_may_not_reference_a_truncated_hunk(monster):
     hid = next(h for h, v in monster["hunks"].items() if v["truncated"])
-    monster["reading_order"]["steps"][0]["hunk_ids"] = [hid]
+    monster["review_pass"]["steps"][0]["hunk_ids"] = [hid]
     assert problems_matching(monster, "truncated hunk")
 
 
 def test_step_numbering_must_match_position(model):
-    model["reading_order"]["steps"][1]["n"] = 7
+    model["review_pass"]["steps"][1]["n"] = 7
     assert problems_matching(model, "n is 7, expected 2")
 
 
@@ -72,21 +72,21 @@ def test_a_file_in_neither_steps_nor_skippable_is_caught(model):
 
 
 def test_a_file_in_both_steps_and_skippable_is_caught(model):
-    skip = model["reading_order"]["skippable"][0]
+    skip = model["review_pass"]["skippable"][0]
     skip["files"] = skip["files"] + ["src/meridian/refunds/policy.py"]
     skip["file_count"] = len(skip["files"])
     assert problems_matching(model, "both in the reading order and in the skippable")
 
 
 def test_the_same_file_may_not_be_skipped_twice(model):
-    a, b = model["reading_order"]["skippable"][0], model["reading_order"]["skippable"][1]
+    a, b = model["review_pass"]["skippable"][0], model["review_pass"]["skippable"][1]
     b["files"] = b["files"] + a["files"]
     b["file_count"] = len(b["files"])
     assert problems_matching(model, "is also in skippable group")
 
 
 def test_file_count_must_match_the_file_list(model):
-    model["reading_order"]["skippable"][0]["file_count"] = 99
+    model["review_pass"]["skippable"][0]["file_count"] = 99
     assert problems_matching(model, "file_count is 99")
 
 
@@ -97,7 +97,7 @@ def test_low_confidence_story_without_a_caveat_is_refused(model):
 
 
 def test_behavior_changed_false_needs_a_note(model):
-    model["behavior"] = {"changed": False}
+    model["behavior"] = {"changed": False, "note": None}
     assert problems_matching(model, "note is required when changed is false")
 
 
@@ -125,15 +125,15 @@ def test_node_lane_must_be_declared(model):
 def test_unknown_enumeration_values_are_reported(model):
     model["change_map"]["groups"][0]["role"] = "backend"
     model["change_map"]["groups"][0]["files"][0]["change_kind"] = "refactor"
-    model["attention"][0]["kind"] = "codesmell"
+    model["review_pass"]["checks"][0]["kind"] = "codesmell"
     assert problems_matching(model, "role is 'backend'")
     assert problems_matching(model, "change_kind is 'refactor'")
     assert problems_matching(model, "kind is 'codesmell'")
 
 
-def test_severity_on_an_attention_item_is_refused(model):
+def test_severity_on_a_check_is_refused(model):
     """precis flags significance; it never scores. The schema enforces it."""
-    model["attention"][0]["severity"] = "high"
+    model["review_pass"]["checks"][0]["severity"] = "high"
     assert problems_matching(model, "does not score findings")
 
 
@@ -151,7 +151,7 @@ def test_a_truncated_hunk_is_exempt_from_the_line_count_check(model):
 
 
 def test_annotation_line_must_exist_in_its_hunk(model):
-    model["reading_order"]["steps"][0]["annotations"][0]["new_line"] = 99999
+    model["review_pass"]["steps"][0]["annotations"][0]["new_line"] = 99999
     assert problems_matching(model, "is not a line in hunk")
 
 
@@ -180,7 +180,7 @@ def test_renamed_file_needs_moved_from(monster):
 
 
 def test_skippable_confidence_below_medium_is_refused(model):
-    model["reading_order"]["skippable"][0]["confidence"] = "low"
+    model["review_pass"]["skippable"][0]["confidence"] = "low"
     assert problems_matching(model, "anything less confident belongs in steps")
 
 
@@ -201,7 +201,7 @@ def test_a_non_object_model_is_rejected_without_crashing():
 def test_every_problem_is_a_readable_string(model):
     model["schema_version"] = "9.9"
     del model["story"]["headline"]
-    model["attention"][0]["kind"] = "nope"
+    model["review_pass"]["checks"][0]["kind"] = "nope"
     problems = validate(model)
     assert len(problems) >= 3
     assert all(isinstance(p, str) and ": " in p for p in problems)
@@ -210,3 +210,106 @@ def test_every_problem_is_a_readable_string(model):
 def test_a_hunk_from_a_file_the_map_omits_is_caught(model):
     model["hunks"]["h19"]["path"] = "src/meridian/not_in_the_map.py"
     assert problems_matching(model, "does not appear in change_map")
+
+
+# ---------------------------------------------- caps, verdicts, and the graph
+
+def test_an_over_long_field_names_itself(model):
+    model["review_pass"]["steps"][0]["why"] = "x" * 200
+    hits = problems_matching(model, "the cap is 140")
+    assert hits and "review_pass.steps[0]" in hits[0]
+    assert "200 characters" in hits[0]
+
+
+def test_the_story_paragraph_cannot_come_back(model):
+    model["story"]["paragraph"] = "Once upon a time there were four sentences."
+    assert problems_matching(model, "carried by beats")
+
+
+def test_beats_must_number_two_to_four(model):
+    model["story"]["beats"] = model["story"]["beats"][:1]
+    assert problems_matching(model, "beats must be an array of 2 to 4")
+
+
+def test_a_verdict_word_is_refused_with_its_location(model):
+    model["review_pass"]["checks"][0]["why"] = "The migration order here is wrong."
+    hits = problems_matching(model, "reads as a verdict")
+    assert hits and "review_pass.checks[0].why" in hits[0]
+
+
+def test_the_authors_own_words_are_not_scanned(model):
+    """A PR titled "Fix double refund bug" keeps its title."""
+    model["source"]["title"] = "Fix the double refund bug"
+    model["source"]["description"] = "This should never have shipped."
+    model["story"]["intent_delta"]["stated"] = "Fix a bug in the refund path."
+    assert not problems_matching(model, "reads as a verdict")
+
+
+def test_a_check_that_asserts_instead_of_asking_is_refused(model):
+    model["review_pass"]["checks"][0]["question"] = "This migration needs splitting."
+    assert problems_matching(model, "must end in a question mark")
+
+
+def test_a_graph_edge_without_evidence_is_refused(model):
+    del model["change_map"]["graph"]["edges"][0]["evidence"]
+    assert problems_matching(model, "evidence is required")
+
+
+def test_a_graph_edge_needs_hunks_or_a_line_reference(model):
+    model["change_map"]["graph"]["edges"][0]["evidence"] = {"ref": "somewhere in the file"}
+    assert problems_matching(model, "path/to/file.py:118")
+
+
+def test_a_changed_graph_node_must_name_its_hunks(model):
+    node = next(n for n in model["change_map"]["graph"]["nodes"] if n["emphasis"] != "unchanged")
+    node["hunk_ids"] = []
+    assert problems_matching(model, "hunk_ids must name the hunks that changed this node")
+
+
+def test_an_unchanged_graph_node_may_live_outside_the_diff(fixtures):
+    """The caller that did not change is exactly the context GitHub hides."""
+    small = copy.deepcopy(fixtures["small"])
+    outside = [n for n in small["change_map"]["graph"]["nodes"]
+               if n["emphasis"] == "unchanged" and n.get("path")]
+    assert outside, "the small fixture should carry unchanged context nodes"
+    assert validate(small) == []
+
+
+def test_a_graph_node_with_hunks_must_be_in_the_change_map(model):
+    node = next(n for n in model["change_map"]["graph"]["nodes"] if n["hunk_ids"])
+    node["path"] = "src/meridian/nowhere.py"
+    assert problems_matching(model, "does not appear in\nchange_map.groups".replace("\n", " "))
+
+
+def test_a_graph_of_only_unchanged_nodes_is_refused(model):
+    for node in model["change_map"]["graph"]["nodes"]:
+        node["emphasis"] = "unchanged"
+        node["hunk_ids"] = []
+    assert problems_matching(model, "must show at least")
+
+
+def test_too_many_graph_nodes_is_refused(model):
+    graph = model["change_map"]["graph"]
+    template = graph["nodes"][0]
+    while len(graph["nodes"]) <= 12:
+        clone = copy.deepcopy(template)
+        clone["id"] = "extra%d" % len(graph["nodes"])
+        graph["nodes"].append(clone)
+    assert problems_matching(model, "a graph carries 2 to 12")
+
+
+def test_a_null_graph_is_valid(model):
+    model["change_map"]["graph"] = None
+    assert validate(model) == []
+
+
+def test_a_missing_graph_key_is_refused(model):
+    del model["change_map"]["graph"]
+    assert problems_matching(model, "use null when there is no call relationship")
+
+
+def test_the_old_sections_are_refused_by_name(model):
+    model["attention"] = []
+    model["reading_order"] = {}
+    assert problems_matching(model, "attention was merged into review_pass.checks")
+    assert problems_matching(model, "reading_order was merged into review_pass")

@@ -85,7 +85,20 @@
   },
   "story": {
     "headline": "Refunds become partial and cumulative, and move from the support console to the API.",
-    "paragraph": "Until now a refund was all-or-nothing: `record_refund` refused any order already marked `refunded` and set `fully_refunded` when it succeeded. This change replaces that boolean with a running `refunded_cents` total on the order and a `RefundPolicy` that answers one question, how much is still refundable, from two cumulative rules: the sum of refunds cannot exceed the order total, and an order cannot be refunded more than `max_refunds_per_order` times. The rule is enforced inside the ledger transaction behind a `SELECT ... FOR UPDATE`, and exposed through a new `POST /orders/{order_id}/refunds`. Omitting `amount_cents` refunds the remaining balance, which is how the existing console keeps working. The diff also carries an unrelated rounding fix in `money.to_cents` and lowers the API page-size ceiling.",
+    "beats": [
+      {
+        "label": "Was",
+        "text": "A refund was all-or-nothing, gated on the order's `refunded` status."
+      },
+      {
+        "label": "Now",
+        "text": "`RefundPolicy` answers how much is still refundable, against a running total."
+      },
+      {
+        "label": "Watch",
+        "text": "It ships as `POST /orders/{id}/refunds`, alongside two unrelated changes."
+      }
+    ],
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -134,7 +147,226 @@
     }
   },
   "change_map": {
-    "summary": "One new rule, one new endpoint, a column that replaces a boolean, and the ripple through schemas, client and docs.",
+    "summary": "One new rule, one new endpoint, a column replacing a boolean, and the ripple through schemas, client and docs.",
+    "graph": {
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "POST /orders/{id}/refunds",
+          "kind": "entrypoint",
+          "emphasis": "added",
+          "path": "src/meridian/api/refunds.py",
+          "hunk_ids": [
+            "h7"
+          ]
+        },
+        {
+          "id": "n2",
+          "label": "create_refund()",
+          "kind": "function",
+          "emphasis": "added",
+          "path": "src/meridian/api/refunds.py",
+          "hunk_ids": [
+            "h7"
+          ],
+          "note": "Calls the provider before the ledger checks anything."
+        },
+        {
+          "id": "n3",
+          "label": "gateway.refund()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/payments/stripe_gateway.py",
+          "hunk_ids": [
+            "h14"
+          ]
+        },
+        {
+          "id": "n4",
+          "label": "Stripe",
+          "kind": "external",
+          "emphasis": "unchanged",
+          "hunk_ids": []
+        },
+        {
+          "id": "n5",
+          "label": "record_refund()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/refunds/ledger.py",
+          "hunk_ids": [
+            "h17"
+          ],
+          "note": "The only writer, and where the lock is taken."
+        },
+        {
+          "id": "n6",
+          "label": "RefundPolicy.check()",
+          "kind": "function",
+          "emphasis": "added",
+          "path": "src/meridian/refunds/policy.py",
+          "hunk_ids": [
+            "h19"
+          ],
+          "note": "Two cumulative rules: total and count."
+        },
+        {
+          "id": "n7",
+          "label": "OrderRepo.get_for_update()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/orders/repository.py",
+          "hunk_ids": [
+            "h13"
+          ]
+        },
+        {
+          "id": "n8",
+          "label": "orders.refunded_cents",
+          "kind": "store",
+          "emphasis": "added",
+          "path": "migrations/0044_partial_refunds.sql",
+          "hunk_ids": [
+            "h6"
+          ],
+          "note": "Replaces the fully_refunded boolean."
+        },
+        {
+          "id": "n9",
+          "label": "max_refunds_per_order",
+          "kind": "config",
+          "emphasis": "added",
+          "path": "config/limits.yaml",
+          "hunk_ids": [
+            "h4"
+          ]
+        },
+        {
+          "id": "n10",
+          "label": "OrderResponse",
+          "kind": "type",
+          "emphasis": "changed",
+          "path": "src/meridian/api/schemas/refund.py",
+          "hunk_ids": [
+            "h8",
+            "h9"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "n1",
+          "to": "n2",
+          "kind": "calls",
+          "emphasis": "added",
+          "evidence": {
+            "hunk_ids": [
+              "h7"
+            ]
+          }
+        },
+        {
+          "from": "n2",
+          "to": "n3",
+          "kind": "calls",
+          "emphasis": "added",
+          "label": "first",
+          "evidence": {
+            "hunk_ids": [
+              "h7"
+            ]
+          }
+        },
+        {
+          "from": "n3",
+          "to": "n4",
+          "kind": "calls",
+          "emphasis": "unchanged",
+          "evidence": {
+            "ref": "src/meridian/payments/stripe_gateway.py:31"
+          }
+        },
+        {
+          "from": "n2",
+          "to": "n5",
+          "kind": "calls",
+          "emphasis": "added",
+          "label": "then",
+          "evidence": {
+            "hunk_ids": [
+              "h7"
+            ]
+          }
+        },
+        {
+          "from": "n5",
+          "to": "n7",
+          "kind": "calls",
+          "emphasis": "changed",
+          "label": "FOR UPDATE",
+          "evidence": {
+            "hunk_ids": [
+              "h17"
+            ]
+          }
+        },
+        {
+          "from": "n7",
+          "to": "n8",
+          "kind": "reads",
+          "emphasis": "changed",
+          "evidence": {
+            "hunk_ids": [
+              "h13"
+            ]
+          }
+        },
+        {
+          "from": "n5",
+          "to": "n6",
+          "kind": "calls",
+          "emphasis": "added",
+          "evidence": {
+            "hunk_ids": [
+              "h17"
+            ]
+          }
+        },
+        {
+          "from": "n6",
+          "to": "n9",
+          "kind": "reads",
+          "emphasis": "added",
+          "evidence": {
+            "hunk_ids": [
+              "h19"
+            ]
+          }
+        },
+        {
+          "from": "n5",
+          "to": "n8",
+          "kind": "writes",
+          "emphasis": "added",
+          "evidence": {
+            "hunk_ids": [
+              "h17"
+            ]
+          }
+        },
+        {
+          "from": "n2",
+          "to": "n10",
+          "kind": "returns",
+          "emphasis": "changed",
+          "evidence": {
+            "hunk_ids": [
+              "h7"
+            ]
+          }
+        }
+      ]
+    },
     "groups": [
       {
         "id": "g-domain",
@@ -357,7 +589,7 @@
   "behavior": {
     "changed": true,
     "note": null,
-    "summary": "A refund used to be a single all-or-nothing write guarded by the order's status. It is now an amount checked against a running total inside a locked transaction, and it can happen more than once per order.",
+    "summary": "A refund used to be one all-or-nothing write gated on the order's status. It is now an amount checked against a running total inside a locked transaction.",
     "before": {
       "kind": "flow",
       "title": "Before",
@@ -610,14 +842,13 @@
       }
     ]
   },
-  "reading_order": {
+  "review_pass": {
     "estimated_minutes": 12,
-    "preamble": "The rule first, then the state it reads, then the three places that call it. The generated client and the docs restate all of it.",
     "steps": [
       {
         "n": 1,
         "title": "The rule: what is still refundable",
-        "why": "Every other file in this PR either supplies input to this rule or reacts to its answer. Read `allowance` and `check` together; they are the whole feature.",
+        "why": "Read `allowance` and `check` together. Every other file supplies input to this rule or reacts to its answer.",
         "path": "src/meridian/refunds/policy.py",
         "hunk_ids": [
           "h19",
@@ -649,7 +880,7 @@
       {
         "n": 2,
         "title": "The state the rule reads",
-        "why": "The policy needs a running refunded total. This migration is where it comes from, and it removes the boolean the old logic used instead.",
+        "why": "The policy needs a running refunded total. This migration is where it comes from, and it drops the boolean the old logic used.",
         "path": "migrations/0044_partial_refunds.sql",
         "hunk_ids": [
           "h6"
@@ -675,7 +906,7 @@
       {
         "n": 3,
         "title": "Where the rule is enforced",
-        "why": "The ledger is the only writer. This is where the read of the running total, the check, and the two writes have to line up, and where the locking decision lives.",
+        "why": "The ledger is the only writer. The read of the running total, the check and the two writes line up here, and so does the locking.",
         "path": "src/meridian/refunds/ledger.py",
         "hunk_ids": [
           "h15",
@@ -714,7 +945,7 @@
       {
         "n": 4,
         "title": "The new endpoint",
-        "why": "The public surface, and the place where the call order matters: the provider refund is created before the ledger check runs.",
+        "why": "The public surface, and where the call order matters: the provider refund is created before the ledger check runs.",
         "path": "src/meridian/api/refunds.py",
         "hunk_ids": [
           "h7"
@@ -740,7 +971,7 @@
       {
         "n": 5,
         "title": "The provider call",
-        "why": "Short, but it changes what Meridian asks Stripe for. Worth confirming that the None case still means what it did.",
+        "why": "Short, but it changes what Meridian asks Stripe for. Worth confirming the None case still means what it did.",
         "path": "src/meridian/payments/stripe_gateway.py",
         "hunk_ids": [
           "h14"
@@ -756,7 +987,7 @@
       {
         "n": 6,
         "title": "The shape callers see",
-        "why": "`OrderResponse` loses a field and gains one. Anything outside this repo reading `fully_refunded` is affected, so it is worth seeing exactly what replaced it.",
+        "why": "`OrderResponse` loses a field and gains one. Anything outside this repo reading `fully_refunded` is affected.",
         "path": "src/meridian/api/schemas/refund.py",
         "hunk_ids": [
           "h8",
@@ -781,7 +1012,7 @@
       {
         "n": 7,
         "title": "The behaviour, as tests",
-        "why": "The API test file is the shortest complete statement of the endpoint's contract: the 201, the remainder default, the status transition, the 409, and the scope.",
+        "why": "The shortest complete statement of the endpoint's contract: the 201, the remainder default, the status change, the 409, the scope.",
         "path": "tests/api/test_refunds_api.py",
         "hunk_ids": [
           "h20",
@@ -812,10 +1043,84 @@
         ]
       }
     ],
+    "checks": [
+      {
+        "kind": "irreversible_migration",
+        "title": "0044 drops orders.fully_refunded while backfilling refunded_cents",
+        "why": "A rollback leaves the old code selecting a column that is gone. The value is derivable from `refunded_cents` and `total_cents`; the column is not.",
+        "question": "Is `orders.fully_refunded` read by anything outside this repository?",
+        "path": "migrations/0044_partial_refunds.sql",
+        "hunk_ids": [
+          "h6"
+        ]
+      },
+      {
+        "kind": "external_contract",
+        "title": "The Stripe refund is created before the policy check runs",
+        "why": "`create_refund` calls `gateway.refund`, then `record_refund`, which is where `policy.check` raises. A 409 leaves a refund at Stripe with no ledger row.",
+        "question": "Who reconciles a Stripe refund that has no matching ledger row?",
+        "path": "src/meridian/api/refunds.py",
+        "hunk_ids": [
+          "h7"
+        ]
+      },
+      {
+        "kind": "public_api",
+        "title": "OrderResponse drops fully_refunded and adds refunded_cents",
+        "why": "Every consumer of `GET /orders/{id}` that reads `fully_refunded` stops receiving it. The regenerated TypeScript client follows; other clients do not.",
+        "question": "Which consumers of `GET /orders/{id}` read `fully_refunded` today?",
+        "path": "src/meridian/api/schemas/refund.py",
+        "hunk_ids": [
+          "h9",
+          "h2"
+        ]
+      },
+      {
+        "kind": "concurrency",
+        "title": "Concurrent refunds on one order serialise on a row lock",
+        "why": "The running total is read under `SELECT ... FOR UPDATE`, held for the rest of the transaction, which makes no network calls. Different orders do not queue.",
+        "question": "Does serialising per order hold up at your peak refund rate?",
+        "path": "src/meridian/refunds/ledger.py",
+        "hunk_ids": [
+          "h17"
+        ]
+      },
+      {
+        "kind": "behavioral",
+        "title": "Orders gain a partially_refunded status",
+        "why": "The migration writes it to existing rows and the ledger writes it going forward. Anything matching on `status == 'paid'` or `'refunded'` sees a new value.",
+        "question": "Where do you match on order status exhaustively?",
+        "path": "src/meridian/refunds/ledger.py",
+        "hunk_ids": [
+          "h17",
+          "h6"
+        ]
+      },
+      {
+        "kind": "security_surface",
+        "title": "New write endpoint behind the refunds:write scope",
+        "why": "`POST /orders/{id}/refunds` is the first route gated on `refunds:write`. Whichever tokens already carry that scope can now move money through the API.",
+        "question": "Which tokens already carry the `refunds:write` scope?",
+        "path": "src/meridian/api/refunds.py",
+        "hunk_ids": [
+          "h7"
+        ]
+      },
+      {
+        "kind": "config_surface",
+        "title": "api.max_page_size drops from 200 to 100",
+        "why": "Unrelated to refunds, and in the same hunk as the refund limit. It takes effect at the next boot and halves the largest page any list endpoint returns.",
+        "question": "Does any client page through orders assuming a 200-item page?",
+        "path": "config/limits.yaml",
+        "hunk_ids": [
+          "h4"
+        ]
+      }
+    ],
     "skippable": [
       {
         "label": "Regenerated TypeScript client",
-        "reason": "Emitted by `make client` from openapi.yaml; the file carries a DO NOT EDIT header and every change here mirrors the schema edits in step 6.",
+        "reason": "Emitted by `make client` from openapi.yaml. The file carries a DO NOT EDIT header, and every change mirrors the schema edits in step 6.",
         "confidence": "high",
         "group_ids": [
           "g-generated"
@@ -829,7 +1134,7 @@
       },
       {
         "label": "API reference",
-        "reason": "Prose restating the endpoint from step 4 and the field change from step 6. It adds no behaviour, though it is the only place the 409 conditions are written out in English.",
+        "reason": "Prose restating the endpoint from step 4 and the field change from step 6. It is the only place the 409 conditions are written out in English.",
         "confidence": "high",
         "group_ids": [
           "g-docs"
@@ -843,73 +1148,6 @@
       }
     ]
   },
-  "attention": [
-    {
-      "kind": "irreversible_migration",
-      "title": "0044 drops orders.fully_refunded in the same transaction that backfills refunded_cents",
-      "why": "Rolling the deploy back leaves the old code selecting a column that no longer exists. The dropped value is derivable from `refunded_cents` and `total_cents`, so the data is recoverable, but the column is not.",
-      "path": "migrations/0044_partial_refunds.sql",
-      "hunk_ids": [
-        "h6"
-      ]
-    },
-    {
-      "kind": "external_contract",
-      "title": "The Stripe refund is created before the policy check runs",
-      "why": "`create_refund` calls `gateway.refund` and then `record_refund`, which is where `policy.check` raises. A request that returns 409 has already created a refund at Stripe with no matching row in the ledger.",
-      "path": "src/meridian/api/refunds.py",
-      "hunk_ids": [
-        "h7"
-      ]
-    },
-    {
-      "kind": "public_api",
-      "title": "OrderResponse drops fully_refunded and adds refunded_cents",
-      "why": "Every consumer of `GET /orders/{id}` that reads `fully_refunded` stops receiving it. The regenerated TypeScript client reflects the change; other clients do not.",
-      "path": "src/meridian/api/schemas/refund.py",
-      "hunk_ids": [
-        "h9",
-        "h2"
-      ]
-    },
-    {
-      "kind": "concurrency",
-      "title": "Concurrent refunds on one order serialise on SELECT ... FOR UPDATE",
-      "why": "The running total is read under a row lock held for the rest of the transaction, which includes no network calls. Two refund requests for the same order queue; requests for different orders do not.",
-      "path": "src/meridian/refunds/ledger.py",
-      "hunk_ids": [
-        "h17"
-      ]
-    },
-    {
-      "kind": "behavioral",
-      "title": "Orders gain a partially_refunded status",
-      "why": "The migration writes it to existing rows, and the ledger writes it going forward. Anything matching on `status == 'paid'` or `status == 'refunded'` sees a value it has not seen before.",
-      "path": "src/meridian/refunds/ledger.py",
-      "hunk_ids": [
-        "h17",
-        "h6"
-      ]
-    },
-    {
-      "kind": "security_surface",
-      "title": "New write endpoint behind the refunds:write scope",
-      "why": "`POST /orders/{id}/refunds` is the first route gated on `refunds:write`. Whichever tokens already carry that scope can now move money through the API.",
-      "path": "src/meridian/api/refunds.py",
-      "hunk_ids": [
-        "h7"
-      ]
-    },
-    {
-      "kind": "config_surface",
-      "title": "api.max_page_size drops from 200 to 100",
-      "why": "Unrelated to refunds and in the same hunk as the refund limit. It takes effect at the next boot and halves the maximum page any list endpoint will return.",
-      "path": "config/limits.yaml",
-      "hunk_ids": [
-        "h4"
-      ]
-    }
-  ],
   "seams": {
     "detected": false,
     "note": null

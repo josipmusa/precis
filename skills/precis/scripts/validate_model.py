@@ -5,6 +5,12 @@ The schema is the contract between the analysis phase and the template. This is
 that contract in executable form: `render_report.py` runs it before writing HTML,
 and the test suite runs it against every fixture.
 
+Two of the checks here are the product rather than hygiene. Character caps keep
+the report readable by a human in a hurry; the verdict scan keeps precis out of
+the business of judging code. Both fail the run. Guidance drifts, and the model
+running this skill drifts toward reviewing every single time; a validator that
+exits 1 is the only thing that has reliably stopped it.
+
 A failure here is a bug in whatever produced the model, not something to render
 around. The renderer refuses rather than emitting a report that lies.
 
@@ -16,6 +22,7 @@ Exits 0 when every document is valid, 1 otherwise.
 from __future__ import annotations
 
 import json
+import re
 import sys
 
 SUPPORTED_MAJOR = 1
@@ -39,8 +46,33 @@ DIAGRAM_KINDS = {"sequence", "flow"}
 NODE_KINDS = {"actor", "service", "process", "decision", "store", "external",
               "queue", "note", "start", "end"}
 EDGE_KINDS = {"call", "return", "async", "error", "data"}
+GRAPH_NODE_KINDS = {"entrypoint", "function", "type", "store", "config",
+                    "external", "error"}
+REL_KINDS = {"calls", "returns", "reads", "writes", "raises", "imports", "renders"}
 EMPHASIS = {"unchanged", "added", "removed", "changed"}
 LINE_TYPES = {" ", "+", "-"}
+
+MAX_GRAPH_NODES = 12
+MIN_GRAPH_NODES = 2
+
+# A reviewer who wanted paragraphs would have read the diff.
+VERDICT_WORDS = ("should", "bug", "issue", "incorrect", "consider", "problem",
+                 "wrong", "better", "worse", "suboptimal", "unnecessary",
+                 "redundant", "misleading")
+VERDICT_RE = re.compile(r"\b(%s)\b" % "|".join(VERDICT_WORDS), re.I)
+
+# Keys whose string values are prose precis wrote itself. Bare string arrays are
+# paths and enum values almost everywhere, so they are named rather than assumed.
+PROSE_KEYS = {"headline", "text", "why", "summary", "note", "reason", "label",
+              "question", "caveat", "title"}
+PROSE_ARRAYS = {"coverage.limitations"}
+
+# Prose precis is quoting rather than writing. A PR titled "Fix double refund
+# bug" keeps its title; the author's words are evidence, not precis's voice.
+QUOTED = ("source.title", "source.description", "source.linked_issues",
+          "source.commits", "story.intent_delta.stated")
+
+REF_RE = re.compile(r"^[^\s:]+:\d+$")
 
 
 class Report:
@@ -70,6 +102,21 @@ def _int(rep, obj, key, where):
         rep.fail(where, "%s must be an integer, got %r" % (key, value))
 
 
+def _text(rep, obj, key, where, limit, required=True):
+    """Required-ness and the character cap in one place, since they always pair."""
+    value = obj.get(key)
+    if value is None or value == "":
+        if required:
+            rep.fail(where, "%s is required" % key)
+        return
+    if not isinstance(value, str):
+        rep.fail(where, "%s must be a string, got %r" % (key, value))
+        return
+    if len(value) > limit:
+        rep.fail(where, "%s is %d characters, the cap is %d: %r"
+                 % (key, len(value), limit, value[:56] + "..."))
+
+
 def _validate_diagram(rep, diagram, where):
     if not isinstance(diagram, dict):
         rep.fail(where, "diagram must be an object")
@@ -80,6 +127,8 @@ def _validate_diagram(rep, diagram, where):
     nodes = diagram.get("nodes") or []
     edges = diagram.get("edges")
 
+    _text(rep, diagram, "title", where, 40, required=False)
+
     lane_ids = set()
     for i, lane in enumerate(lanes):
         if "id" not in lane or "label" not in lane:
@@ -88,6 +137,7 @@ def _validate_diagram(rep, diagram, where):
         if lane["id"] in lane_ids:
             rep.fail("%s.lanes[%d]" % (where, i), "duplicate lane id %r" % lane["id"])
         lane_ids.add(lane["id"])
+        _text(rep, lane, "label", "%s.lanes[%d]" % (where, i), 28)
 
     node_ids = set()
     for i, node in enumerate(nodes):
@@ -98,6 +148,7 @@ def _validate_diagram(rep, diagram, where):
         if node["id"] in node_ids:
             rep.fail(nwhere, "duplicate node id %r" % node["id"])
         node_ids.add(node["id"])
+        _text(rep, node, "label", nwhere, 48)
         rep.enum(node.get("kind"), NODE_KINDS, nwhere, "kind")
         rep.enum(node.get("emphasis"), EMPHASIS, nwhere, "emphasis")
         if node.get("lane") is not None and node["lane"] not in lane_ids:
@@ -117,10 +168,91 @@ def _validate_diagram(rep, diagram, where):
         ewhere = "%s.edges[%d]" % (where, i)
         rep.enum(edge.get("kind"), EDGE_KINDS, ewhere, "kind")
         rep.enum(edge.get("emphasis"), EMPHASIS, ewhere, "emphasis")
+        _text(rep, edge, "label", ewhere, 40, required=False)
         for end in ("from", "to"):
             if edge.get(end) not in endpoints:
                 rep.fail(ewhere, "%s %r is not a declared %s id"
                          % (end, edge.get(end), what))
+
+
+def _validate_graph(rep, graph, mapped_files):
+    """The symbol graph: what calls what, and how we know."""
+    where = "change_map.graph"
+    if graph is None:
+        return
+    if not isinstance(graph, dict):
+        rep.fail(where, "must be an object or null")
+        return
+
+    nodes = graph.get("nodes")
+    if not isinstance(nodes, list):
+        rep.fail(where, "nodes must be an array")
+        return
+    if not MIN_GRAPH_NODES <= len(nodes) <= MAX_GRAPH_NODES:
+        rep.fail(where, "nodes has %d entries; a graph carries %d to %d, and a "
+                        "change with nothing to draw sets graph to null"
+                 % (len(nodes), MIN_GRAPH_NODES, MAX_GRAPH_NODES))
+
+    node_ids = set()
+    changed = False
+    for i, node in enumerate(nodes):
+        nwhere = "%s.nodes[%d]" % (where, i)
+        nid = node.get("id")
+        if not nid:
+            rep.fail(nwhere, "id is required")
+        elif nid in node_ids:
+            rep.fail(nwhere, "duplicate node id %r" % nid)
+        node_ids.add(nid)
+        _text(rep, node, "label", nwhere, 34)
+        _text(rep, node, "note", nwhere, 80, required=False)
+        rep.enum(node.get("kind"), GRAPH_NODE_KINDS, nwhere, "kind")
+        rep.enum(node.get("emphasis"), EMPHASIS, nwhere, "emphasis")
+        touched = node.get("emphasis") != "unchanged"
+        changed = changed or touched
+        path = node.get("path")
+        hids = node.get("hunk_ids")
+        if not isinstance(hids, list):
+            rep.fail(nwhere, "hunk_ids must be an array (empty is allowed)")
+            hids = []
+        # Unchanged neighbours are context and usually live outside the diff.
+        # Anything the change touched has to point at the code that touched it.
+        if touched and not hids:
+            rep.fail(nwhere, "emphasis is %r, so hunk_ids must name the hunks that "
+                             "changed this node" % node.get("emphasis"))
+        if hids and not path:
+            rep.fail(nwhere, "path is required when hunk_ids is non-empty")
+        elif hids and path not in mapped_files:
+            rep.fail(nwhere, "path %r carries hunks but does not appear in "
+                             "change_map.groups" % path)
+
+    if nodes and not changed:
+        rep.fail(where, "every node is 'unchanged'; the graph must show at least "
+                        "one thing this change touched")
+
+    edges = graph.get("edges")
+    if not isinstance(edges, list) or not edges:
+        rep.fail(where, "edges must be a non-empty array")
+        return
+    for i, edge in enumerate(edges):
+        ewhere = "%s.edges[%d]" % (where, i)
+        rep.enum(edge.get("kind"), REL_KINDS, ewhere, "kind")
+        rep.enum(edge.get("emphasis"), EMPHASIS, ewhere, "emphasis")
+        _text(rep, edge, "label", ewhere, 20, required=False)
+        for end in ("from", "to"):
+            if edge.get(end) not in node_ids:
+                rep.fail(ewhere, "%s %r is not a declared node id" % (end, edge.get(end)))
+        # An edge you cannot point at a line for is an edge you do not draw.
+        ev = edge.get("evidence")
+        if not isinstance(ev, dict):
+            rep.fail(ewhere, "evidence is required: either hunk_ids or a path:line ref")
+            continue
+        hids, ref = ev.get("hunk_ids"), ev.get("ref")
+        if isinstance(hids, list) and hids:
+            continue
+        if isinstance(ref, str) and REF_RE.match(ref):
+            continue
+        rep.fail(ewhere, "evidence must carry a non-empty hunk_ids array or a "
+                         "ref of the form 'path/to/file.py:118', got %r" % (ev,))
 
 
 def _validate_hunks(rep, model):
@@ -184,10 +316,53 @@ def _collect_refs(model):
             for i, item in enumerate(node):
                 walk(item, "%s[%d]" % (path, i))
 
-    for section in ("story", "change_map", "behavior", "reading_order",
-                    "attention", "seams"):
+    for section in ("story", "change_map", "behavior", "review_pass", "seams"):
         walk(model.get(section), section)
     return refs
+
+
+def _authored_prose(model):
+    """Every (location, string) precis wrote in its own voice.
+
+    The hunk store is diff text and the quoted fields are the author's words;
+    neither is precis speaking, so neither is scanned.
+    """
+    found = []
+
+    def walk(node, path):
+        if path.startswith(QUOTED):
+            return
+        if isinstance(node, dict):
+            for key, value in node.items():
+                here = "%s.%s" % (path, key)
+                if isinstance(value, str):
+                    if key in PROSE_KEYS and not here.startswith(QUOTED):
+                        found.append((here, value))
+                elif isinstance(value, list) and here in PROSE_ARRAYS:
+                    for i, item in enumerate(value):
+                        if isinstance(item, str):
+                            found.append(("%s[%d]" % (here, i), item))
+                else:
+                    walk(value, here)
+        elif isinstance(node, list):
+            for i, item in enumerate(node):
+                walk(item, "%s[%d]" % (path, i))
+
+    for key, value in model.items():
+        if key == "hunks":
+            continue
+        walk(value, key)
+    return found
+
+
+def verdict_words(model):
+    """Prose that reviews rather than describes. Returns (location, word) pairs."""
+    hits = []
+    for where, text in _authored_prose(model):
+        match = VERDICT_RE.search(text)
+        if match:
+            hits.append((where, match.group(0)))
+    return hits
 
 
 def validate(model, label="report") -> list[str]:
@@ -206,7 +381,7 @@ def validate(model, label="report") -> list[str]:
                  % (version, SUPPORTED_MAJOR))
 
     for key in ("source", "coverage", "stats", "story", "change_map",
-                "behavior", "reading_order", "attention", "seams", "hunks"):
+                "behavior", "review_pass", "seams", "hunks"):
         if key not in model:
             rep.fail("root", "missing required section %r" % key)
     if rep.problems and "hunks" not in model:
@@ -229,8 +404,17 @@ def validate(model, label="report") -> list[str]:
     rep.enum(coverage.get("tier"), COVERAGE_TIERS, "coverage", "tier")
     for key in ("hunks_total", "hunks_read", "files_total", "files_read"):
         _int(rep, coverage, key, "coverage")
-    if not isinstance(coverage.get("limitations"), list):
+    _text(rep, coverage, "note", "coverage", 160, required=False)
+    limitations = coverage.get("limitations")
+    if not isinstance(limitations, list):
         rep.fail("coverage", "limitations must be an array, even when empty")
+    else:
+        for i, item in enumerate(limitations):
+            if not isinstance(item, str):
+                rep.fail("coverage.limitations[%d]" % i, "must be a string")
+            elif len(item) > 120:
+                rep.fail("coverage.limitations[%d]" % i,
+                         "is %d characters, the cap is 120" % len(item))
 
     # ---- stats
     stats = model.get("stats") or {}
@@ -242,10 +426,23 @@ def validate(model, label="report") -> list[str]:
 
     # ---- story
     story = model.get("story") or {}
-    if not story.get("headline"):
-        rep.fail("story", "headline is required")
-    if not story.get("paragraph"):
-        rep.fail("story", "paragraph is required")
+    _text(rep, story, "headline", "story", 100)
+    _text(rep, story, "caveat", "story", 160, required=False)
+    beats = story.get("beats")
+    if not isinstance(beats, list) or not 2 <= len(beats) <= 4:
+        rep.fail("story", "beats must be an array of 2 to 4 entries, got %r"
+                 % (len(beats) if isinstance(beats, list) else beats))
+        beats = beats if isinstance(beats, list) else []
+    for i, beat in enumerate(beats):
+        bwhere = "story.beats[%d]" % i
+        if not isinstance(beat, dict):
+            rep.fail(bwhere, "must be an object with label and text")
+            continue
+        _text(rep, beat, "label", bwhere, 14)
+        _text(rep, beat, "text", bwhere, 100)
+    if "paragraph" in story:
+        rep.fail("story", "paragraph is not part of the contract; the story is "
+                          "carried by beats")
     rep.enum(story.get("confidence"), CONFIDENCE, "story", "confidence")
     evidence = story.get("evidence")
     if not isinstance(evidence, list) or not evidence:
@@ -259,20 +456,26 @@ def validate(model, label="report") -> list[str]:
     if not isinstance(delta, dict):
         rep.fail("story", "intent_delta is required (arrays may be empty)")
     else:
+        if delta.get("stated") is not None:
+            _text(rep, delta, "stated", "story.intent_delta", 160)
         for key in ("also_does", "not_done"):
             if not isinstance(delta.get(key), list):
                 rep.fail("story.intent_delta", "%s must be an array" % key)
         for i, item in enumerate(delta.get("also_does") or []):
             where = "story.intent_delta.also_does[%d]" % i
-            if not item.get("summary"):
-                rep.fail(where, "summary is required")
+            _text(rep, item, "summary", where, 120)
             rep.enum(item.get("kind"), DELTA_KINDS, where, "kind")
+        for i, item in enumerate(delta.get("not_done") or []):
+            where = "story.intent_delta.not_done[%d]" % i
+            _text(rep, item, "summary", where, 120)
+            _text(rep, item, "note", where, 100, required=False)
 
     # ---- hunks
     hunks = _validate_hunks(rep, model)
 
     # ---- change_map
     change_map = model.get("change_map") or {}
+    _text(rep, change_map, "summary", "change_map", 140, required=False)
     groups = change_map.get("groups")
     mapped_files = {}
     if not isinstance(groups, list) or not groups:
@@ -288,8 +491,8 @@ def validate(model, label="report") -> list[str]:
             rep.fail(where, "duplicate group id %r" % gid)
         group_ids.add(gid)
         rep.enum(group.get("role"), ROLES, where, "role")
-        if not group.get("label"):
-            rep.fail(where, "label is required")
+        _text(rep, group, "label", where, 40)
+        _text(rep, group, "summary", where, 100, required=False)
         files = group.get("files")
         if not isinstance(files, list) or not files:
             rep.fail(where, "files must be a non-empty array")
@@ -306,6 +509,7 @@ def validate(model, label="report") -> list[str]:
             rep.enum(entry.get("status"), FILE_STATUS, fwhere, "status")
             rep.enum(entry.get("change_kind"), CHANGE_KINDS, fwhere, "change_kind")
             rep.enum(entry.get("significance"), SIGNIFICANCE, fwhere, "significance")
+            _text(rep, entry, "note", fwhere, 100, required=False)
             _int(rep, entry, "additions", fwhere)
             _int(rep, entry, "deletions", fwhere)
             if not isinstance(entry.get("hunk_ids"), list):
@@ -313,38 +517,50 @@ def validate(model, label="report") -> list[str]:
             if entry.get("status") in ("renamed", "copied") and not entry.get("moved_from"):
                 rep.fail(fwhere, "moved_from is required when status is %r" % entry["status"])
 
+    if "graph" not in change_map:
+        rep.fail("change_map", "graph is required; use null when there is no call "
+                               "relationship worth drawing")
+    else:
+        _validate_graph(rep, change_map.get("graph"), mapped_files)
+
     # ---- behavior
     behavior = model.get("behavior") or {}
     changed = behavior.get("changed")
     if not isinstance(changed, bool):
         rep.fail("behavior", "changed must be a boolean")
     elif changed:
-        if not behavior.get("summary"):
-            rep.fail("behavior", "summary is required when changed is true")
+        _text(rep, behavior, "summary", "behavior", 180)
         for side in ("before", "after"):
             if behavior.get(side) is None:
                 rep.fail("behavior", "%s is required when changed is true" % side)
             else:
                 _validate_diagram(rep, behavior[side], "behavior.%s" % side)
+        for i, item in enumerate(behavior.get("deltas") or []):
+            _text(rep, item, "summary", "behavior.deltas[%d]" % i, 110)
     else:
         if not behavior.get("note"):
             rep.fail("behavior", "note is required when changed is false")
+        else:
+            _text(rep, behavior, "note", "behavior", 160)
 
-    # ---- reading_order
-    reading = model.get("reading_order") or {}
-    steps = reading.get("steps")
-    skippable = reading.get("skippable")
+    # ---- review_pass
+    review = model.get("review_pass") or {}
+    if "preamble" in review:
+        rep.fail("review_pass", "preamble is not part of the contract; the section "
+                                "subtitle carries the framing")
+    steps = review.get("steps")
+    checks = review.get("checks")
+    skippable = review.get("skippable")
     step_paths, step_hunks = set(), set()
     if not isinstance(steps, list) or not steps:
-        rep.fail("reading_order", "steps must be a non-empty array")
+        rep.fail("review_pass", "steps must be a non-empty array")
         steps = []
     for i, step in enumerate(steps):
-        where = "reading_order.steps[%d]" % i
+        where = "review_pass.steps[%d]" % i
         if step.get("n") != i + 1:
             rep.fail(where, "n is %r, expected %d" % (step.get("n"), i + 1))
-        for key in ("title", "why"):
-            if not step.get(key):
-                rep.fail(where, "%s is required" % key)
+        _text(rep, step, "title", where, 60)
+        _text(rep, step, "why", where, 140)
         hids = step.get("hunk_ids")
         if not isinstance(hids, list) or not hids:
             rep.fail(where, "hunk_ids must be a non-empty array")
@@ -359,8 +575,7 @@ def validate(model, label="report") -> list[str]:
             step_paths.add(step["path"])
         for ai, note in enumerate(step.get("annotations") or []):
             awhere = "%s.annotations[%d]" % (where, ai)
-            if not note.get("text"):
-                rep.fail(awhere, "text is required")
+            _text(rep, note, "text", awhere, 150)
             if not note.get("hunk_id"):
                 rep.fail(awhere, "hunk_id is required")
                 continue
@@ -374,15 +589,32 @@ def validate(model, label="report") -> list[str]:
                     rep.fail(awhere, "%s %r is not a line in hunk %s"
                              % (field, note[field], note["hunk_id"]))
 
+    if not isinstance(checks, list):
+        rep.fail("review_pass", "checks must be an array, even when empty")
+        checks = []
+    for i, item in enumerate(checks):
+        where = "review_pass.checks[%d]" % i
+        rep.enum(item.get("kind"), ATTENTION_KINDS, where, "kind")
+        _text(rep, item, "title", where, 80)
+        _text(rep, item, "why", where, 180)
+        _text(rep, item, "question", where, 140)
+        question = item.get("question")
+        if isinstance(question, str) and question and not question.rstrip().endswith("?"):
+            rep.fail(where, "question must end in a question mark; a check is "
+                            "something the reviewer decides, not something precis "
+                            "asserts: %r" % question)
+        if "severity" in item:
+            rep.fail(where, "severity is not part of the contract; precis does "
+                            "not score findings")
+
     if not isinstance(skippable, list):
-        rep.fail("reading_order", "skippable must be an array, even when empty")
+        rep.fail("review_pass", "skippable must be an array, even when empty")
         skippable = []
     skipped_files = {}
     for i, group in enumerate(skippable):
-        where = "reading_order.skippable[%d]" % i
-        for key in ("label", "reason"):
-            if not group.get(key):
-                rep.fail(where, "%s is required" % key)
+        where = "review_pass.skippable[%d]" % i
+        _text(rep, group, "label", where, 40)
+        _text(rep, group, "reason", where, 150)
         if group.get("confidence") not in ("high", "medium"):
             rep.fail(where, "confidence must be 'high' or 'medium'; anything less "
                             "confident belongs in steps")
@@ -414,26 +646,16 @@ def validate(model, label="report") -> list[str]:
                         in_steps = any(h in step_hunks for h in entry.get("hunk_ids") or [])
         in_skip = path in skipped_files
         if in_steps and in_skip:
-            rep.fail("reading_order", "%r is both in the reading order and in the "
-                                      "skippable group %r" % (path, skipped_files[path]))
+            rep.fail("review_pass", "%r is both in the reading order and in the "
+                                    "skippable group %r" % (path, skipped_files[path]))
         elif not in_steps and not in_skip:
-            rep.fail("reading_order", "%r (change_map group %r) is neither in the "
-                                      "reading order nor in any skippable group" % (path, gid))
+            rep.fail("review_pass", "%r (change_map group %r) is neither in the "
+                                    "reading order nor in any skippable group" % (path, gid))
 
-    # ---- attention
-    attention = model.get("attention")
-    if not isinstance(attention, list):
-        rep.fail("attention", "must be an array, even when empty")
-    else:
-        for i, item in enumerate(attention):
-            where = "attention[%d]" % i
-            rep.enum(item.get("kind"), ATTENTION_KINDS, where, "kind")
-            for key in ("title", "why"):
-                if not item.get(key):
-                    rep.fail(where, "%s is required" % key)
-            if "severity" in item:
-                rep.fail(where, "severity is not part of the contract; precis does "
-                                "not score findings")
+    if "attention" in model:
+        rep.fail("root", "attention was merged into review_pass.checks")
+    if "reading_order" in model:
+        rep.fail("root", "reading_order was merged into review_pass")
 
     # ---- seams
     seams = model.get("seams") or {}
@@ -443,6 +665,8 @@ def validate(model, label="report") -> list[str]:
     elif detected:
         if not seams.get("note"):
             rep.fail("seams", "note is required when detected is true")
+        else:
+            _text(rep, seams, "note", "seams", 160)
         clusters = seams.get("clusters")
         if not isinstance(clusters, list) or len(clusters) < 2:
             rep.fail("seams", "detected means two or more clusters")
@@ -450,9 +674,10 @@ def validate(model, label="report") -> list[str]:
         cluster_ids = {c.get("id") for c in clusters}
         for i, cluster in enumerate(clusters):
             where = "seams.clusters[%d]" % i
-            for key in ("id", "label", "summary"):
-                if not cluster.get(key):
-                    rep.fail(where, "%s is required" % key)
+            if not cluster.get("id"):
+                rep.fail(where, "id is required")
+            _text(rep, cluster, "label", where, 40)
+            _text(rep, cluster, "summary", where, 140)
             files = cluster.get("files")
             if not isinstance(files, list) or not files:
                 rep.fail(where, "files must be a non-empty array")
@@ -476,6 +701,11 @@ def validate(model, label="report") -> list[str]:
             rep.fail("hunks[%s]" % hid,
                      "path %r does not appear in change_map; the report would show "
                      "code from a file it never lists" % path)
+
+    # ---- precis describes, it does not judge
+    for where, word in verdict_words(model):
+        rep.fail(where, "reads as a verdict: %r. Say what the code does, not what "
+                        "you make of it." % word)
 
     return rep.problems
 

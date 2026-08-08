@@ -106,7 +106,8 @@ def test_the_page_reaches_for_nothing(template_text):
 
 def test_storage_access_is_guarded(template_text):
     """file:// denies localStorage in some browsers; the page must still open."""
-    for match in re.finditer(r"localStorage", template_text):
+    # `localStorage.` is a call; a comment that merely names it is not.
+    for match in re.finditer(r"localStorage\s*\.", template_text):
         window = template_text[max(0, match.start() - 400):match.start() + 200]
         assert "try {" in window, "localStorage used outside a try block"
 
@@ -134,6 +135,9 @@ def js_object_keys(template_text, name):
     ("SOURCE_KIND_LABEL", validate_model.SOURCE_KINDS),
     ("DELTA_LABEL", validate_model.DELTA_KINDS),
     ("EVIDENCE_LABEL", validate_model.EVIDENCE),
+    ("GRAPH_KIND_LABEL", validate_model.GRAPH_NODE_KINDS),
+    ("REL_LABEL", validate_model.REL_KINDS),
+    ("EMPH_LABEL", validate_model.EMPHASIS),
 ])
 def test_every_enumeration_value_has_a_label(template_text, map_name, allowed):
     """An unlabelled enum value renders as a raw identifier in front of a human."""
@@ -199,7 +203,7 @@ def test_cli_renders_each_fixture(name, tmp_path):
 def test_cli_refuses_an_invalid_model(tmp_path):
     """render_report.py fails loudly rather than producing a report that lies."""
     model = json.loads((FIXTURES / "small.json").read_text(encoding="utf-8"))
-    model["reading_order"]["steps"][0]["hunk_ids"] = ["h404"]
+    model["review_pass"]["steps"][0]["hunk_ids"] = ["h404"]
     broken = tmp_path / "broken.json"
     broken.write_text(json.dumps(model), encoding="utf-8")
     out = tmp_path / "broken.html"
@@ -233,6 +237,32 @@ def test_the_schema_minimal_example_renders(tmp_path, template_text):
     model = json.loads(block.group(1))
     html = rendered(model, template_text)
     assert json.loads(embedded_json(html)) == model
+
+
+# ------------------------------------------------------ the shape of a page
+
+def test_every_graph_node_kind_has_a_shape(template_text):
+    """An unhandled kind falls through to a plain rectangle, which silently
+    tells the reader that a table and a function are the same sort of thing."""
+    match = re.search(r"function nodeShape\(.*?\n\}", template_text, re.S)
+    assert match, "template has no nodeShape function"
+    body = match.group(0)
+    generic = {"function"}  # the plain rectangle is correct for these
+    for kind in validate_model.GRAPH_NODE_KINDS - generic:
+        assert f'"{kind}"' in body, f"nodeShape gives {kind} no shape of its own"
+
+
+def test_the_pass_persists_under_the_head_sha(template_text):
+    """A new head must start a clean pass; a reload must resume the old one."""
+    assert "precis-pass:" in template_text
+    match = re.search(r"const PASS_KEY = .*?;", template_text, re.S)
+    assert match and "head" in match.group(0) and "sha" in match.group(0)
+
+
+def test_the_treemap_is_gone(template_text):
+    """It answered a question no reviewer was asking. It does not come back."""
+    for ghost in ("drawTreemap", "squarify", ".treemap", "tmwrap", "tmnote", "filelabel"):
+        assert ghost not in template_text, f"{ghost} survived the redesign"
 
 
 # --------------------------------------------------------------- house style

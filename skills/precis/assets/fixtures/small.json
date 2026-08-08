@@ -67,7 +67,20 @@
   },
   "story": {
     "headline": "Refund and dispute webhooks now claim their event id before touching the ledger.",
-    "paragraph": "Stripe redelivers a webhook until it receives a 2xx, and a slow first attempt can succeed after the retry has already been sent. On 2 August that produced a second `record_refund` call for 14 orders. This change introduces `EventClaim`, which inserts the Stripe event id into `webhook_events` with `ON CONFLICT DO NOTHING`; the insert either wins and returns True, or loses and returns False. `handle_refund` claims before it writes to the ledger, so a second delivery returns 200 without side effects. The same guard was added to `handle_dispute`, which the description does not mention.",
+    "beats": [
+      {
+        "label": "Before",
+        "text": "Stripe redelivers until it gets a 2xx. A slow first attempt lands after the retry."
+      },
+      {
+        "label": "Impact",
+        "text": "On 2 August that meant a second `record_refund` call for 14 orders."
+      },
+      {
+        "label": "Now",
+        "text": "`EventClaim` takes the event id first. A second delivery returns 200 and stops."
+      }
+    ],
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -92,7 +105,7 @@
       ],
       "not_done": [
         {
-          "summary": "The description promises a backfill for the 14 double-refunded orders; no backfill script or migration appears in the diff.",
+          "summary": "The description promises a backfill for the 14 double-refunded orders; none appears in the diff.",
           "note": "The description says it is a follow-up, so this is expected here."
         }
       ]
@@ -100,6 +113,148 @@
   },
   "change_map": {
     "summary": "One new guard, two call sites in the webhook entrypoint, and the tests that pin it.",
+    "graph": {
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "stripe_webhook()",
+          "kind": "entrypoint",
+          "emphasis": "unchanged",
+          "path": "src/meridian/webhooks/handlers.py",
+          "hunk_ids": []
+        },
+        {
+          "id": "n2",
+          "label": "handle_refund()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/webhooks/handlers.py",
+          "hunk_ids": [
+            "h3"
+          ],
+          "note": "Returns early when the claim is lost."
+        },
+        {
+          "id": "n3",
+          "label": "handle_dispute()",
+          "kind": "function",
+          "emphasis": "changed",
+          "path": "src/meridian/webhooks/handlers.py",
+          "hunk_ids": [
+            "h4"
+          ],
+          "note": "Same early return; the description does not mention it."
+        },
+        {
+          "id": "n4",
+          "label": "EventClaim.claim()",
+          "kind": "function",
+          "emphasis": "added",
+          "path": "src/meridian/webhooks/dedupe.py",
+          "hunk_ids": [
+            "h1"
+          ],
+          "note": "The insert is the lock."
+        },
+        {
+          "id": "n5",
+          "label": "webhook_events",
+          "kind": "store",
+          "emphasis": "unchanged",
+          "hunk_ids": []
+        },
+        {
+          "id": "n6",
+          "label": "record_refund()",
+          "kind": "function",
+          "emphasis": "unchanged",
+          "path": "src/meridian/ledger/refunds.py",
+          "hunk_ids": []
+        },
+        {
+          "id": "n7",
+          "label": "open_dispute()",
+          "kind": "function",
+          "emphasis": "unchanged",
+          "path": "src/meridian/disputes/service.py",
+          "hunk_ids": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "n1",
+          "to": "n2",
+          "kind": "calls",
+          "emphasis": "unchanged",
+          "evidence": {
+            "ref": "src/meridian/webhooks/handlers.py:22"
+          }
+        },
+        {
+          "from": "n1",
+          "to": "n3",
+          "kind": "calls",
+          "emphasis": "unchanged",
+          "evidence": {
+            "ref": "src/meridian/webhooks/handlers.py:24"
+          }
+        },
+        {
+          "from": "n2",
+          "to": "n4",
+          "kind": "calls",
+          "emphasis": "added",
+          "label": "first",
+          "evidence": {
+            "hunk_ids": [
+              "h3"
+            ]
+          }
+        },
+        {
+          "from": "n3",
+          "to": "n4",
+          "kind": "calls",
+          "emphasis": "added",
+          "label": "first",
+          "evidence": {
+            "hunk_ids": [
+              "h4"
+            ]
+          }
+        },
+        {
+          "from": "n4",
+          "to": "n5",
+          "kind": "writes",
+          "emphasis": "added",
+          "label": "ON CONFLICT",
+          "evidence": {
+            "hunk_ids": [
+              "h1"
+            ]
+          }
+        },
+        {
+          "from": "n2",
+          "to": "n6",
+          "kind": "calls",
+          "emphasis": "unchanged",
+          "evidence": {
+            "ref": "src/meridian/webhooks/handlers.py:38"
+          }
+        },
+        {
+          "from": "n3",
+          "to": "n7",
+          "kind": "calls",
+          "emphasis": "unchanged",
+          "evidence": {
+            "ref": "src/meridian/webhooks/handlers.py:52"
+          }
+        }
+      ]
+    },
     "groups": [
       {
         "id": "g-dedupe",
@@ -359,9 +514,8 @@
       }
     ]
   },
-  "reading_order": {
+  "review_pass": {
     "estimated_minutes": 4,
-    "preamble": "Three files, all worth reading. Start with the guard, then the two call sites, then the test that names the behaviour.",
     "steps": [
       {
         "n": 1,
@@ -387,7 +541,7 @@
       {
         "n": 2,
         "title": "The two call sites",
-        "why": "The guard only changes behaviour where it is invoked. Both side-effecting handlers get an early return; the description only mentions one of them.",
+        "why": "The guard only changes behaviour where it is invoked. Both side-effecting handlers get an early return.",
         "path": "src/meridian/webhooks/handlers.py",
         "hunk_ids": [
           "h2",
@@ -425,48 +579,52 @@
         ]
       }
     ],
+    "checks": [
+      {
+        "kind": "concurrency",
+        "title": "The claim and the ledger write are separate transactions",
+        "why": "`claim` commits and returns before `record_refund` runs. A delivery that dies after claiming leaves the event claimed, and the retry is then suppressed.",
+        "question": "If `record_refund` fails after the claim commits, how does that event get reprocessed?",
+        "path": "src/meridian/webhooks/dedupe.py",
+        "hunk_ids": [
+          "h1",
+          "h3"
+        ]
+      },
+      {
+        "kind": "external_contract",
+        "title": "Suppressed deliveries still answer Stripe with 200",
+        "why": "Stripe stops retrying on a 2xx. A duplicate now gets 200 with no ledger write, which is what ends the retry loop.",
+        "question": "Is a silent 200 what your on-call expects to see for a suppressed delivery?",
+        "path": "src/meridian/webhooks/handlers.py",
+        "hunk_ids": [
+          "h3",
+          "h4"
+        ]
+      },
+      {
+        "kind": "behavioral",
+        "title": "Dispute webhooks are deduplicated too",
+        "why": "`handle_dispute` gets the same early return. Anything that relied on repeat dispute deliveries reaching `open_dispute` now sees one call.",
+        "question": "Does anything downstream depend on repeat dispute deliveries reaching `open_dispute`?",
+        "path": "src/meridian/webhooks/handlers.py",
+        "hunk_ids": [
+          "h4"
+        ]
+      },
+      {
+        "kind": "security_surface",
+        "title": "The guard runs after signature verification",
+        "why": "`verify_stripe_signature` still gates every delivery in `stripe_webhook`, so an unsigned payload cannot reach `claim` or occupy an event id.",
+        "question": "Does any other route reach `claim` without passing through `verify_stripe_signature`?",
+        "path": "src/meridian/webhooks/handlers.py",
+        "hunk_ids": [
+          "h2"
+        ]
+      }
+    ],
     "skippable": []
   },
-  "attention": [
-    {
-      "kind": "concurrency",
-      "title": "The claim and the ledger write are separate transactions",
-      "why": "`claim` commits its insert and returns before `record_refund` runs. A delivery that fails after claiming leaves the event claimed and unprocessed, and the Stripe retry is then suppressed by the guard.",
-      "path": "src/meridian/webhooks/dedupe.py",
-      "hunk_ids": [
-        "h1",
-        "h3"
-      ]
-    },
-    {
-      "kind": "external_contract",
-      "title": "Suppressed deliveries still answer Stripe with 200",
-      "why": "Stripe stops retrying on a 2xx. A duplicate now gets 200 without any ledger write, which is what ends the retry loop.",
-      "path": "src/meridian/webhooks/handlers.py",
-      "hunk_ids": [
-        "h3",
-        "h4"
-      ]
-    },
-    {
-      "kind": "behavioral",
-      "title": "Dispute webhooks are deduplicated too",
-      "why": "`handle_dispute` gets the same early return. Any workflow that relied on repeat dispute deliveries reaching `open_dispute` sees one call instead of several.",
-      "path": "src/meridian/webhooks/handlers.py",
-      "hunk_ids": [
-        "h4"
-      ]
-    },
-    {
-      "kind": "security_surface",
-      "title": "The guard runs after signature verification, not before",
-      "why": "`verify_stripe_signature` still gates every delivery in `stripe_webhook`, so an unsigned payload cannot reach `claim` and cannot occupy an event id.",
-      "path": "src/meridian/webhooks/handlers.py",
-      "hunk_ids": [
-        "h2"
-      ]
-    }
-  ],
   "seams": {
     "detected": false,
     "note": null
