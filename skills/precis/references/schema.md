@@ -896,7 +896,8 @@ Identical to the report model's hunk objects, minus `change_kind` and `significa
 ```json
 "budget": {
   "tier": "core",
-  "max_hunk_lines": 120,
+  "max_hunk_lines": 400,
+  "max_bytes": 200000,
   "hunks_total": 51,
   "hunks_included": 22,
   "hunks_elided": 29,
@@ -904,10 +905,25 @@ Identical to the report model's hunk objects, minus `change_kind` and `significa
 }
 ```
 
-The parser decides the tier from the size of the diff and emits the corresponding subset
-of hunk content. The analysis phase reads what it is given and reports the result in
-`coverage`. The two must agree: `coverage.tier` is copied from `budget.tier` unless the
-analysis phase read less than it was offered.
+The two scripts split this. `parse_diff.py` shortens any single hunk past
+`max_hunk_lines` and marks it `truncated`; it elides nothing and leaves the tier `full`.
+`classify.py` then spends `max_bytes` on the hunks worth quoting: when the diff is larger
+than the budget it empties hunk bodies, mechanical first, then supporting, then core,
+biggest hunk first within each. An elided hunk keeps its header, its counts, and its
+place in the file - the report can still say what changed there, it just cannot quote it.
+
+The tier follows from what that cost: `full` when nothing was elided, `core` when only
+mechanical hunks were, `summary` once anything else had to go. The analysis phase reads
+what it is given and reports the result in `coverage`. The two must agree: `coverage.tier`
+is copied from `budget.tier` unless the analysis phase read less than it was offered.
+
+## `warnings`
+
+Array of strings, empty when the diff parsed cleanly. Each one is something the scripts
+could not do faithfully: a merge diff they refused, a hunk whose body ran out before its
+header said it should, hunks shortened to fit. These are the raw material for
+`coverage.limitations` - the analysis phase rewrites them for a reader rather than
+copying them, but it may not silently drop one.
 
 ---
 
