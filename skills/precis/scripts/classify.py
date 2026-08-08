@@ -79,8 +79,10 @@ BUILD_PATTERNS = re.compile(
     r"cargo\.toml|go\.mod|gemfile|build\.gradle[^/]*|pom\.xml|"
     r"tsconfig[^/]*\.json|vite\.config\.[a-z]+|webpack\.config\.[a-z]+|"
     r"rollup\.config\.[a-z]+|babel\.config\.[a-z]+|jest\.config\.[a-z]+|"
-    r"\.eslintrc[^/]*|\.prettierrc[^/]*|tox\.ini|noxfile\.py)$"
-    r"|(^|/)scripts?/", re.I)
+    r"\.eslintrc[^/]*|\.prettierrc[^/]*|tox\.ini|noxfile\.py)$", re.I)
+# Note the absence of `scripts/`. Plenty of repositories keep real source there,
+# and demoting a language file on the strength of its directory name is exactly
+# the mistake that buries the change. Shell under scripts/ is caught by language.
 
 INFRA_PATTERNS = re.compile(
     r"\.tf(vars)?$|(^|/)(terraform|k8s|kubernetes|helm|charts?|ansible|"

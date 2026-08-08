@@ -270,6 +270,15 @@ def test_the_path_decides_the_role(path, role):
     assert only_file(edit(path))["role"] == role, path
 
 
+def test_a_directory_called_scripts_does_not_demote_the_code_in_it():
+    """Real source lives under scripts/ often enough that the directory name is
+    not evidence. Shell there is still tooling; Python there is still code."""
+    assert only_file(edit("scripts/deploy.sh"))["role"] == "build"
+    code = only_file(edit("scripts/parse_diff.py"))
+    assert code["role"] == "domain"
+    assert code["significance_hint"] == "core"
+
+
 def test_a_test_file_is_tests_before_it_is_anything_else():
     """`tests/api/test_refunds.py` is a test, not an api file."""
     assert only_file(edit("tests/api/test_refunds.py"))["role"] == "tests"
