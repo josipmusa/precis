@@ -284,3 +284,38 @@ def test_no_em_dashes_anywhere_in_the_skill():
         if "—" in path.read_text(encoding="utf-8", errors="replace"):
             offenders.append(str(path.relative_to(SKILL)))
     assert offenders == []
+
+
+# ------------------------------------------- prose renders as the contract says
+
+# Every field the contract calls prose, and the expression that draws it. The
+# test suite cannot run the template's JavaScript, so this holds the call sites
+# by name: the failure it exists to catch is a field quietly switching back to
+# `text:`, which prints the contract's backticks as characters.
+PROSE_SITES = [
+    ("story.headline", "prose(story.headline"),
+    ("story.beats[].label", "prose(b.label)"),
+    ("change_map.groups[].label", "prose(g.label)"),
+    ("change_map.graph.nodes[].note", "prose(node.note)"),
+    ("behavior.<side>.title", "prose(d.title"),
+    ("review_pass.steps[].title", "prose(step.title)"),
+    ("review_pass.checks[].title", "prose(check.title)"),
+    ("review_pass.skippable[].label", "prose(g.label)"),
+    ("seams.clusters[].label", "prose(c.label)"),
+]
+
+
+@pytest.mark.parametrize("field,call", PROSE_SITES, ids=[f for f, _ in PROSE_SITES])
+def test_a_prose_field_renders_its_code_spans(field, call, template_text):
+    assert call in template_text, f"{field} no longer goes through prose()"
+
+
+def test_a_diagram_label_drops_backticks_it_cannot_render(template_text):
+    """SVG text cannot hold a <code> element, so the markers have to go."""
+    assert 'String(v).replace(/`/g, "")' in template_text
+
+
+def test_a_graph_node_counts_its_own_hunks_not_its_file(template_text):
+    """An unchanged neighbour must not wear the diff stats of the file it sits in."""
+    assert "function nodeCounts(node)" in template_text
+    assert "basename(node.path) + nodeCounts(node)" in template_text

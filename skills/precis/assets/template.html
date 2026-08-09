@@ -703,7 +703,10 @@ function s(tag, attrs, ...kids) {
   if (attrs) for (const k in attrs) {
     const v = attrs[k];
     if (v === null || v === undefined || v === false) continue;
-    if (k === "text") { n.textContent = v; continue; }
+    /* SVG text cannot hold a <code> element, so a diagram label wearing the
+       contract's backticks would print them as characters. The label is a
+       symbol name either way; drop the markers and keep the name. */
+    if (k === "text") { n.textContent = String(v).replace(/`/g, ""); continue; }
     n.setAttribute(k, v);
   }
   add(n, kids);
@@ -768,10 +771,10 @@ function masthead() {
   return h("header", { class: "masthead", id: "top" },
     h("div", { class: "wrap" },
       eyebrow,
-      h("h1", { class: "headline", text: story.headline || src.title || "" }),
+      h("h1", { class: "headline" }, prose(story.headline || src.title || "")),
       (story.beats || []).length
         ? h("div", { class: "beats" }, story.beats.map(b => h("div", { class: "beat" },
-            h("div", { class: "bl", text: b.label }),
+            h("div", { class: "bl" }, prose(b.label)),
             h("div", { class: "bt" }, prose(b.text)))))
         : null,
       story.caveat ? h("p", { class: "caveat" }, prose(story.caveat)) : null,
@@ -1010,21 +1013,34 @@ function graphKey(graph) {
     h("span", { style: "color:var(--ink-faint)", text: "Click a box to open its code." }));
 }
 
+/* What this node's own hunks add and remove, as "  +7 −2", or "" for a node
+   the change did not touch. */
+function nodeCounts(node) {
+  let added = 0, removed = 0;
+  for (const id of node.hunk_ids || []) {
+    for (const line of (HUNKS[id] || {}).lines || []) {
+      if (line.t === "+") added++;
+      else if (line.t === "-") removed++;
+    }
+  }
+  const counts = [];
+  if (added) counts.push("+" + added);
+  if (removed) counts.push("−" + removed);
+  return counts.length ? "  " + counts.join(" ") : "";
+}
+
 function drawCallGraph(graph) {
   const drawn = drawFlow({ kind: "flow", nodes: graph.nodes, edges: graph.edges }, {
     nodeWidth: 208,
     /* `calls` is the default reading of an arrow, so labelling it adds noise.
        Everything else earns its word. */
     edgeLabel: e => e.label || (e.kind === "calls" ? null : REL_LABEL[e.kind] || e.kind),
+    /* Counts belong to the node, not to the file it happens to sit in. An
+       unchanged neighbour inside a changed file would otherwise wear that
+       file's "+9" and read as though it had changed, and a changed symbol
+       would claim every line its neighbours in the same file added. */
     sub: node => {
-      const file = node.path ? FILE_BY_PATH.get(node.path) : null;
-      if (file) {
-        const counts = [];
-        if (file.additions) counts.push("+" + file.additions);
-        if (file.deletions) counts.push("−" + file.deletions);
-        return basename(node.path) + (counts.length ? "  " + counts.join(" ") : "");
-      }
-      if (node.path) return basename(node.path);
+      if (node.path) return basename(node.path) + nodeCounts(node);
       return GRAPH_KIND_LABEL[node.kind] || null;
     },
     onNode: (node, box) => {
@@ -1066,7 +1082,7 @@ function showNodeTip(ev, node) {
   positionTip(ev,
     h("div", { class: "p", text: node.path || GRAPH_KIND_LABEL[node.kind] || "" }),
     h("div", { text: `${GRAPH_KIND_LABEL[node.kind] || node.kind} · ${EMPH_LABEL[node.emphasis] || node.emphasis}` }),
-    node.note ? h("div", { class: "m", text: node.note }) : null,
+    node.note ? h("div", { class: "m" }, prose(node.note)) : null,
     file ? h("div", { class: "m", text: `${KIND_LABEL[file.change_kind]} · ${SIG_LABEL[file.significance]}` }) : null);
 }
 
@@ -1152,7 +1168,7 @@ function groupList() {
     list.append(h("details", { class: "group", open: interesting },
       h("summary", {},
         h("span", { class: "role", text: ROLE_LABEL[g.role] || g.role }),
-        h("span", { class: "glabel", text: g.label }),
+        h("span", { class: "glabel" }, prose(g.label)),
         g.summary ? h("span", { class: "gsum" }, prose(g.summary)) : h("span", { class: "gsum" }),
         h("span", { class: "gnum", text: `${plural(g.files.length, "file")} · ${lines} lines` })),
       table));
@@ -1178,7 +1194,7 @@ function behaviorSection() {
     if (!d) continue;
     const body = h("div", { class: "dbody" });
     const card = h("div", { class: "dcard" },
-      h("h3", { text: d.title || (side === "before" ? "Before" : "After") }), body);
+      h("h3", {}, prose(d.title || (side === "before" ? "Before" : "After"))), body);
     cards.push({ side, d, body });
     grid.append(card);
   }
@@ -1623,7 +1639,7 @@ function reviewSection() {
     skips.map(g => h("details", { class: "skip" },
       h("summary", {},
         h("div", { class: "srow" },
-          h("span", { class: "slabel", text: g.label }),
+          h("span", { class: "slabel" }, prose(g.label)),
           h("span", { class: "smeta", text: `${plural(g.file_count, "file")} · +${g.additions} −${g.deletions}` }),
           g.confidence === "medium" ? h("span", { class: "chip dim", text: "medium confidence" }) : null),
         h("p", { class: "reason" }, prose(g.reason))),
@@ -1679,7 +1695,7 @@ function stepItem(step) {
     h("div", { class: "head" },
       tickButton("s" + step.n, article),
       h("div", { class: "htext" },
-        h("h3", {}, h("span", { class: "ord", text: String(step.n) }), step.title),
+        h("h3", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
         h("p", { class: "why" }, prose(step.why)),
         showPath ? h("div", { class: "path", text: step.path }) : null)),
     hunks);
@@ -1694,7 +1710,7 @@ function checkItem(check, n) {
       h("div", { class: "htext" },
         h("div", { style: "margin-bottom:7px" },
           h("span", { class: "tag", text: ATTN_LABEL[check.kind] || check.kind })),
-        h("h3", {}, h("span", { class: "ord", text: String(n) }), check.title),
+        h("h3", {}, h("span", { class: "ord", text: String(n) }), prose(check.title)),
         h("p", { class: "why" }, prose(check.why)),
         check.path ? h("div", { class: "path", text: check.path }) : null)),
     h("div", { class: "tail" },
@@ -1973,7 +1989,7 @@ function seamsSection() {
   return section("seams", "Seams", "This reads as more than one change",
     seams.note,
     h("div", { class: "seams" }, clusters.map(c => h("div", { class: "seam" },
-      h("h3", { text: c.label }),
+      h("h3", {}, prose(c.label)),
       h("p", {}, prose(c.summary)),
       h("div", { class: "meta",
         text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
