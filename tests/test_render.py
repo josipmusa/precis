@@ -268,6 +268,57 @@ def test_a_carriage_return_cannot_double_the_line_height(template_text):
     )
 
 
+def test_a_ticked_item_folds_its_body_away(template_text):
+    """A finished step should cost a line of the page, not forty. The head stays
+    so the reader can still see what they did."""
+    assert re.search(r"\.step\.folded\s*>\s*\.body\s*\{[^}]*display:\s*none",
+                     template_text), "no rule hides the body of a folded item"
+    assert 'classList.toggle("folded"' in template_text, (
+        "ticking an item no longer folds it")
+
+
+def test_the_fold_button_reopens_a_done_item_without_unticking_it(template_text):
+    """Re-reading something you have finished is not un-finishing it, and the
+    fold is a view state rather than part of the pass."""
+    match = re.search(r"function foldButton\(.*?\n\}", template_text, re.S)
+    assert match, "template has no foldButton"
+    body = match.group(0)
+    assert "TICKS" not in body, "the fold button reaches into the pass record"
+    assert "saveTicks" not in body, "the fold state is being persisted"
+
+
+def test_a_fold_is_wired_for_a_screen_reader(template_text):
+    """A control that hides content has to say so, and say what it hides."""
+    match = re.search(r"function foldButton\(.*?\n\}", template_text, re.S)
+    assert match
+    assert "aria-expanded" in match.group(0)
+    assert "aria-controls" in match.group(0)
+
+
+def test_the_done_state_no_longer_dims_the_card(template_text):
+    """The fold carries the finished signal now. Dimming on top of it is noise,
+    and a struck-through heading is unreadable at 55% opacity."""
+    assert not re.search(r"\.step\.done\s*\{[^}]*opacity", template_text)
+    assert not re.search(r"\.step\.done[^{]*\{[^}]*line-through", template_text)
+
+
+def test_following_a_link_into_a_folded_step_opens_it(template_text):
+    """A graph node sends the reader to the step that covers its code. Landing
+    them on a closed head shows them nothing."""
+    match = re.search(r"function openHunkAt\(.*?\n\}", template_text, re.S)
+    assert match, "template has no openHunkAt"
+    assert "setFolded(step, false)" in match.group(0)
+
+
+def test_paper_shows_every_body_whatever_the_ticks_say(template_text):
+    """A printed report that hides half the diff is worse than one that ignores
+    the ticks."""
+    print_block = template_text[template_text.index("@media print {"):]
+    print_block = print_block[:print_block.index("\n}\n")]
+    assert re.search(r"\.step\.folded\s*>\s*\.body\s*\{[^}]*display:\s*block",
+                     print_block), "print does not unfold the bodies"
+
+
 def test_the_treemap_is_gone(template_text):
     """It answered a question no reviewer was asking. It does not come back."""
     for ghost in ("drawTreemap", "squarify", ".treemap", "tmwrap", "tmnote", "filelabel"):

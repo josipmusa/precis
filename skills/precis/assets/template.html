@@ -451,10 +451,26 @@ table.files .note { color: var(--ink-soft); font-size: 12.5px; margin-top: 3px; 
 :root[data-theme="dark"] .step.done .tick { color: #10201c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .step.done .tick { color: #10201c; } }
 .step.done .tick .mark, .step.done:hover .tick .mark { opacity: 1; }
-.step.done { opacity: .55; }
-.step.done:hover, .step.done:focus-within { opacity: 1; }
-.step.done > .head h3 { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: var(--ink-faint); }
 .step.flash { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Ticking folds the body away, the way a viewed file collapses. The head stays,
+   so a finished pass still reads as a list of what was done rather than a
+   column of empty bars. The tick alone carries the finished signal: dimming a
+   card that is already closed says the same thing twice. */
+.step.folded > .body { display: none; }
+.step.folded > .head { padding-bottom: 16px; }
+.fold {
+  flex: none; align-self: flex-start; margin-top: 2px; padding: 4px 7px;
+  border: 0; border-radius: 6px; background: none; cursor: pointer;
+  color: var(--ink-faint); display: grid; place-items: center;
+  transition: color .14s ease, background .14s ease;
+}
+.fold:hover { color: var(--accent-ink); background: var(--accent-wash); }
+.fold .chev {
+  width: 0; height: 0; border: 5px solid transparent;
+  border-top-color: currentColor; margin-top: 3px;
+  transition: transform .15s ease;
+}
+.step.folded .fold .chev { transform: rotate(-90deg) translateY(2px); }
 .step .htext { min-width: 0; flex: 1; }
 .step h3 { font-size: 17px; }
 .step h3 .ord { font: 650 12.5px/1 var(--mono); color: var(--ink-faint); margin-right: 9px; vertical-align: 1px; }
@@ -588,11 +604,12 @@ footer .creed { margin-top: 22px; font-size: 13px; color: var(--ink-soft); max-w
 @media print {
   :root { --shadow: none; }
   body { background: #fff; color: #000; font-size: 11pt; }
-  .nav, .tip, .passbtns, .copyout { display: none !important; }
-  /* Paper shows the pass as it actually stands, ticks and all. Only the fading
-     goes: dimmed text on paper is just low contrast. */
+  .nav, .tip, .passbtns, .copyout, .fold { display: none !important; }
+  /* Paper shows the pass as it actually stands, ticks and all. The folds go:
+     a printed report that hides the code under half its steps is worse than one
+     that ignores the ticks, and on paper nothing can be unfolded. */
   .passbar { position: static; }
-  .step.done { opacity: 1; }
+  .step.folded > .body { display: block; }
   /* On paper a hunk chip is not a control, but `client.py:14` is still the
      reference a reader needs, so it stays as text. */
   .href { border-color: var(--line); color: var(--ink-soft); background: none; }
@@ -1090,6 +1107,9 @@ function openHunkAt(hunkId) {
   const n = STEP_OF_HUNK.get(hunkId);
   const step = n ? document.getElementById("step-" + n) : null;
   if (step) {
+    /* A reader who followed a link to this code came to see it, so a step they
+       have already ticked opens rather than scrolling them to a closed head. */
+    setFolded(step, false);
     step.scrollIntoView({ behavior: "smooth", block: "start" });
     step.classList.add("flash");
     setTimeout(() => step.classList.remove("flash"), 1600);
@@ -1676,12 +1696,41 @@ function reviewSection() {
   return node;
 }
 
+/* Folding is view state and not part of the pass: it is never written to
+   storage, so a reload shows exactly what the ticks say. */
+function setFolded(article, folded) {
+  article.classList.toggle("folded", folded);
+  if (article.syncFold) article.syncFold();
+}
+
+/* The chevron opens a finished item again without taking the tick back.
+   Re-reading something you have done is not un-doing it. */
+function foldButton(article, body, noun) {
+  const btn = h("button", { class: "fold", type: "button", "aria-controls": body.id },
+    h("i", { class: "chev" }));
+  const sync = () => {
+    const open = !article.classList.contains("folded");
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    const label = (open ? "Hide the " : "Show the ") + noun;
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+  };
+  article.syncFold = sync;
+  btn.addEventListener("click", () => {
+    article.classList.toggle("folded");
+    sync();
+  });
+  sync();
+  return btn;
+}
+
 function tickButton(key, article) {
   const btn = h("button", { class: "tick", type: "button" },
     h("span", { class: "mark", text: "✓" }));
   const apply = () => {
     const done = TICKS.has(key);
     article.classList.toggle("done", done);
+    setFolded(article, done);
     btn.setAttribute("aria-pressed", done ? "true" : "false");
     const label = done ? "Mark as not done" : "Mark as done";
     btn.title = label;
@@ -1713,19 +1762,27 @@ function stepItem(step) {
   const paths = new Set(step.hunk_ids.map(id => HUNKS[id] && HUNKS[id].path).filter(Boolean));
   const showPath = step.path && !(paths.size === 1 && paths.has(step.path));
   const article = h("article", { class: "step", id: "step-" + step.n });
+  const body = h("div", { class: "body", id: "step-" + step.n + "-body" }, hunks);
   article.append(
     h("div", { class: "head" },
       tickButton("s" + step.n, article),
       h("div", { class: "htext" },
         h("h3", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
         h("p", { class: "why" }, prose(step.why)),
-        showPath ? h("div", { class: "path", text: step.path }) : null)),
-    hunks);
+        showPath ? h("div", { class: "path", text: step.path }) : null),
+      foldButton(article, body, "code")),
+    body);
   return article;
 }
 
 function checkItem(check, n) {
   const article = h("article", { class: "step check", id: "check-" + n });
+  const body = h("div", { class: "body", id: "check-" + n + "-body" },
+    h("div", { class: "tail" },
+      h("div", { class: "q" },
+        h("span", { class: "mk", text: "?" }),
+        h("p", {}, prose(check.question))),
+      hunkRefs(check.hunk_ids)));
   article.append(
     h("div", { class: "head" },
       tickButton("c" + n, article),
@@ -1734,12 +1791,9 @@ function checkItem(check, n) {
           h("span", { class: "tag", text: ATTN_LABEL[check.kind] || check.kind })),
         h("h3", {}, h("span", { class: "ord", text: String(n) }), prose(check.title)),
         h("p", { class: "why" }, prose(check.why)),
-        check.path ? h("div", { class: "path", text: check.path }) : null)),
-    h("div", { class: "tail" },
-      h("div", { class: "q" },
-        h("span", { class: "mk", text: "?" }),
-        h("p", {}, prose(check.question))),
-      hunkRefs(check.hunk_ids)));
+        check.path ? h("div", { class: "path", text: check.path }) : null),
+      foldButton(article, body, "question")),
+    body);
   return article;
 }
 
