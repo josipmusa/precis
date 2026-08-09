@@ -1,0 +1,16 @@
+# The fixture diffs are byte-exact test input, and monster.diff contains CRLF on
+# purpose: a line-ending-only change is one of the largest fake diffs there is,
+# and the parser has to be able to see one. Git must not normalise these on any
+# platform, or the suite fails on a Windows clone for reasons nobody will enjoy
+# tracking down.
+skills/precis/assets/fixtures/*.diff -text
+
+# Rendered reports and the models behind them are build output, kept in the tree
+# so a reader can open one without running anything first. They are not the
+# source of this project and should not be counted as it, or read as a diff.
+examples/*.html linguist-generated=true
+examples/*.json linguist-generated=true
+skills/precis/assets/fixtures/*.json linguist-generated=true
+
+# Screenshots, so a pull request touching them does not print a wall of bytes.
+docs/img/*.png binary
