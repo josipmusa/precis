@@ -319,3 +319,10 @@ def test_a_graph_node_counts_its_own_hunks_not_its_file(template_text):
     """An unchanged neighbour must not wear the diff stats of the file it sits in."""
     assert "function nodeCounts(node)" in template_text
     assert "basename(node.path) + nodeCounts(node)" in template_text
+
+
+def test_the_bar_counts_lines_by_hunk_not_by_file(template_text):
+    """A core hunk in a supporting file must not be counted as supporting;
+    tests/test_fixtures.py holds the same arithmetic against the models."""
+    assert "function linesBySignificance()" in template_text
+    assert "const by = linesBySignificance();" in template_text

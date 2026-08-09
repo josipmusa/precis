@@ -49,16 +49,6 @@ def test_stats_match_the_hunks(fixture_model):
     assert deletions == model["stats"]["deletions"]
 
 
-def test_signal_ratio_matches_the_core_hunks(fixture_model):
-    name, model = fixture_model
-    core = 0
-    for hunk in model["hunks"].values():
-        if hunk["significance"] == "core":
-            core += sum(1 for row in hunk["lines"] if row["t"] in "+-")
-    total = model["stats"]["additions"] + model["stats"]["deletions"]
-    assert model["stats"]["signal_ratio"] == pytest.approx(core / total, abs=0.01)
-
-
 def test_coverage_counts_are_consistent(fixture_model):
     name, model = fixture_model
     coverage = model["coverage"]
@@ -264,3 +254,39 @@ def test_the_graph_stays_readable(fixture_model):
         assert evidence.get("hunk_ids") or re.match(r"^[^\s:]+:\d+$", evidence.get("ref", "")), (
             f"{name}: edge {edge['from']}->{edge['to']} has no evidence"
         )
+
+
+def lines_by_significance(model):
+    """The page's own arithmetic: per hunk where the hunks account for the
+    whole file, per file where a truncated or missing hunk would lose lines."""
+    hunks = model["hunks"]
+    by = {"core": 0, "supporting": 0, "mechanical": 0}
+    for group in model["change_map"]["groups"]:
+        for entry in group["files"]:
+            ids = entry.get("hunk_ids") or []
+            found = [hunks.get(i) for i in ids]
+            if not found or any(h is None or h["truncated"] for h in found):
+                by[entry["significance"]] += entry["additions"] + entry["deletions"]
+                continue
+            for hunk in found:
+                changed = sum(1 for line in hunk["lines"] if line["t"] != " ")
+                by[hunk.get("significance") or entry["significance"]] += changed
+    return by
+
+
+def test_the_stated_signal_ratio_matches_the_model_it_describes(fixture_model):
+    """The headline percentage and the bar beside it are the same number twice.
+
+    A report that says 14% next to a bar drawn from a different sum is a report
+    arguing with itself, and the reader has no way to tell which half is right.
+    """
+    name, model = fixture_model
+    by = lines_by_significance(model)
+    total = sum(by.values())
+    assert total, name
+    stated = model["stats"]["signal_ratio"]
+    derived = by["core"] / total
+    assert abs(stated - derived) <= 0.01, (
+        f"{name}: signal_ratio is {stated}, the model's own lines give "
+        f"{derived:.2f} ({by['core']} core of {total})"
+    )

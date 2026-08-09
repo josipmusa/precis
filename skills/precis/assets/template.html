@@ -785,9 +785,31 @@ function masthead() {
   );
 }
 
-function metricsBlock(stats) {
+/* Changed lines per significance. Counted by hunk wherever the hunks can
+   account for the whole file, because a core hunk inside an otherwise
+   supporting file is the case the two axes exist for, and summing file totals
+   would file its lines under the file's label instead. A file with a truncated
+   or absent hunk cannot be counted that way without losing lines, so it falls
+   back to its own totals and its own significance. */
+function linesBySignificance() {
   const by = { core: 0, supporting: 0, mechanical: 0 };
-  for (const f of FILES) by[f.significance] += (f.additions || 0) + (f.deletions || 0);
+  for (const f of FILES) {
+    const hunks = (f.hunk_ids || []).map(id => HUNKS[id]);
+    if (!hunks.length || hunks.some(hunk => !hunk || hunk.truncated)) {
+      by[f.significance] += (f.additions || 0) + (f.deletions || 0);
+      continue;
+    }
+    for (const hunk of hunks) {
+      let changed = 0;
+      for (const line of hunk.lines || []) if (line.t !== " ") changed++;
+      by[hunk.significance || f.significance] += changed;
+    }
+  }
+  return by;
+}
+
+function metricsBlock(stats) {
+  const by = linesBySignificance();
   const total = by.core + by.supporting + by.mechanical || 1;
   const pct = n => Math.round(n / total * 100);
   const ratio = typeof stats.signal_ratio === "number" ? Math.round(stats.signal_ratio * 100) : pct(by.core);
