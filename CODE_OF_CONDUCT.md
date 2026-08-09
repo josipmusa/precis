@@ -53,12 +53,14 @@ offline event.
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to
-the maintainer responsible for enforcement at **josip.musa42@gmail.com**. All complaints
-will be reviewed and investigated promptly and fairly.
+This project has no private contact address. Harassment or abuse by a GitHub account can
+be reported to GitHub through their
+[report abuse form](https://github.com/contact/report-abuse). Please do not open a public
+issue about a specific person.
 
-All community leaders are obligated to respect the privacy and security of the reporter
-of any incident.
+Maintainers are responsible for clarifying these standards and will take action they
+judge appropriate and fair, from a warning through to a permanent ban. Maintainers who
+do not act in good faith may face consequences decided by other maintainers.
 
 ## Enforcement Guidelines
 
