@@ -1,0 +1,2071 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fix HTTPDigestAuth uri field truncated by semicolons in URL path #7413</title>
+<style>
+/* ---------------------------------------------------------------- tokens */
+:root {
+  color-scheme: light dark;
+
+  --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  --serif: ui-serif, Charter, Georgia, "Times New Roman", serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+
+  --bg: #fbfaf8;
+  --bg-soft: #f3f1ec;
+  --panel: #ffffff;
+  --panel-soft: #f8f6f2;
+  --line: #e0dad0;
+  --line-soft: #ebe6dd;
+  --ink: #1d1c1a;
+  --ink-soft: #55504a;
+  --ink-faint: #8b857b;
+  --accent: #2c6f5d;
+  --accent-ink: #1f5748;
+  --accent-wash: #e6f0ec;
+
+  --k-new_logic: #2f8f5b;
+  --k-modified_logic: #bf7a1c;
+  --k-deleted: #c0424f;
+  --k-moved: #3070ad;
+  --k-rename: #7457bd;
+  --k-content: #8a7546;
+  --k-generated: #40858c;
+  --k-formatting: #8e9299;
+
+  --sig-core: #2c6f5d;
+  --sig-supporting: #7fa79a;
+  --sig-mechanical: #cfc9be;
+
+  --add-bg: #e8f5ec;
+  --add-ink: #1c6b3f;
+  --del-bg: #fbebec;
+  --del-ink: #9c2f39;
+  --add-gut: #bfe2cb;
+  --del-gut: #f0c3c7;
+
+  --tok-key: #8a4fa8;
+  --tok-str: #1f6b57;
+  --tok-com: #94908a;
+  --tok-num: #a35b1e;
+
+  --shadow: 0 1px 2px rgba(28, 26, 22, .05), 0 6px 18px -12px rgba(28, 26, 22, .28);
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131312;
+    --bg-soft: #191918;
+    --panel: #1a1a19;
+    --panel-soft: #201f1e;
+    --line: #33312e;
+    --line-soft: #292826;
+    --ink: #eae7e1;
+    --ink-soft: #aaa49b;
+    --ink-faint: #7d776e;
+    --accent: #6fbca4;
+    --accent-ink: #8ed3bc;
+    --accent-wash: #1b2b27;
+
+    --k-new_logic: #56c087;
+    --k-modified_logic: #d99f46;
+    --k-deleted: #e0737f;
+    --k-moved: #61a3e0;
+    --k-rename: #a78be6;
+    --k-content: #bda86f;
+    --k-generated: #5fb5bd;
+    --k-formatting: #8e9299;
+
+    --sig-core: #6fbca4;
+    --sig-supporting: #47756a;
+    --sig-mechanical: #3b3936;
+
+    --add-bg: #14291d;
+    --add-ink: #7ed3a1;
+    --del-bg: #2c1618;
+    --del-ink: #e88b95;
+    --add-gut: #2c5c3f;
+    --del-gut: #5f2b31;
+
+    --tok-key: #c48ae0;
+    --tok-str: #7fc9ae;
+    --tok-com: #797369;
+    --tok-num: #d9a06b;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 22px -14px rgba(0, 0, 0, .7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #131312;
+  --bg-soft: #191918;
+  --panel: #1a1a19;
+  --panel-soft: #201f1e;
+  --line: #33312e;
+  --line-soft: #292826;
+  --ink: #eae7e1;
+  --ink-soft: #aaa49b;
+  --ink-faint: #7d776e;
+  --accent: #6fbca4;
+  --accent-ink: #8ed3bc;
+  --accent-wash: #1b2b27;
+
+  --k-new_logic: #56c087;
+  --k-modified_logic: #d99f46;
+  --k-deleted: #e0737f;
+  --k-moved: #61a3e0;
+  --k-rename: #a78be6;
+  --k-content: #bda86f;
+  --k-generated: #5fb5bd;
+  --k-formatting: #8e9299;
+
+  --sig-core: #6fbca4;
+  --sig-supporting: #47756a;
+  --sig-mechanical: #3b3936;
+
+  --add-bg: #14291d;
+  --add-ink: #7ed3a1;
+  --del-bg: #2c1618;
+  --del-ink: #e88b95;
+  --add-gut: #2c5c3f;
+  --del-gut: #5f2b31;
+
+  --tok-key: #c48ae0;
+  --tok-str: #7fc9ae;
+  --tok-com: #797369;
+  --tok-num: #d9a06b;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 22px -14px rgba(0, 0, 0, .7);
+}
+
+/* ------------------------------------------------------------------ base */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.6 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 620; letter-spacing: -.011em; line-height: 1.25; }
+p { margin: 0; }
+a { color: var(--accent-ink); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
+/* `anywhere` rather than `break-word`: a long test name in prose has to be able
+   to shrink the paragraph, not widen the page. */
+code { font: .875em/1.5 var(--mono); background: var(--panel-soft); border: 1px solid var(--line-soft); border-radius: 4px; padding: .08em .32em; overflow-wrap: anywhere; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+.prose { max-width: 68ch; }
+
+/* ------------------------------------------------------------- masthead */
+.masthead { background: var(--bg-soft); border-bottom: 1px solid var(--line); padding: 34px 0 26px; }
+.eyebrow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--ink-faint); margin-bottom: 16px;
+}
+.eyebrow .sep { opacity: .5; }
+.eyebrow b { font-weight: 600; color: var(--ink-soft); }
+.brand {
+  font: 600 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 999px; padding: 4px 9px;
+}
+.headline { font-size: clamp(26px, 3.4vw, 38px); max-width: 27ch; text-wrap: balance; }
+/* The story is beats, not a paragraph: three clauses a person would say out
+   loud, in a shape the eye takes in before it starts reading. */
+.beats { margin-top: 24px; display: grid; gap: 11px; max-width: 70ch; }
+.beat { display: grid; grid-template-columns: minmax(52px, max-content) minmax(0, 1fr); gap: 0 16px; }
+.beat .bl {
+  font: 650 11px/2.1 var(--sans); letter-spacing: .09em; text-transform: uppercase;
+  color: var(--accent-ink); text-align: right; white-space: nowrap;
+}
+.beat .bt {
+  font: 16.5px/1.6 var(--serif); color: var(--ink);
+  border-left: 2px solid var(--line); padding-left: 16px;
+}
+.caveat {
+  margin-top: 14px; max-width: 66ch; font-size: 14px; color: var(--ink-soft);
+  border-left: 3px solid var(--k-modified_logic); padding: 2px 0 2px 12px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; align-items: center; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; line-height: 1; padding: 5px 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); white-space: nowrap;
+}
+.chip.lead { border-color: color-mix(in srgb, var(--accent) 32%, transparent); color: var(--accent-ink); background: var(--accent-wash); }
+.chip.dim { background: transparent; color: var(--ink-faint); }
+.chips .label { font-size: 11.5px; color: var(--ink-faint); margin-right: 2px; }
+
+/* -------------------------------------------------------------- metrics */
+.metrics {
+  margin-top: 26px; display: grid; gap: 22px;
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+  align-items: center;
+}
+.ratio { display: flex; align-items: baseline; gap: 10px; }
+.ratio .num { font-size: 46px; font-weight: 640; letter-spacing: -.03em; color: var(--accent-ink); line-height: 1; }
+.ratio .cap { font-size: 13px; color: var(--ink-soft); max-width: 17ch; line-height: 1.35; }
+.bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: var(--line-soft); }
+.bar span { display: block; min-width: 2px; }
+.bar .s-core { background: var(--sig-core); }
+.bar .s-supporting { background: var(--sig-supporting); }
+.bar .s-mechanical { background: var(--sig-mechanical); }
+.barkey { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 12.5px; color: var(--ink-soft); }
+.barkey i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; font-size: 13px; color: var(--ink-soft); }
+.facts b { font-weight: 600; color: var(--ink); }
+
+/* ------------------------------------------------------------------ nav */
+.nav {
+  position: sticky; top: 0; z-index: 30;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.nav .wrap { display: flex; align-items: center; gap: 4px; height: 46px; overflow-x: auto; scrollbar-width: none; }
+.nav .wrap::-webkit-scrollbar { display: none; }
+.nav a {
+  font-size: 13px; color: var(--ink-soft); text-decoration: none; white-space: nowrap;
+  padding: 6px 10px; border-radius: 7px;
+}
+.nav a:hover { background: var(--bg-soft); color: var(--ink); }
+.nav a.on { color: var(--accent-ink); background: var(--accent-wash); }
+.nav .spacer { flex: 1; }
+.iconbtn {
+  border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px;
+  font-size: 12px; color: var(--ink-soft); background: var(--panel); white-space: nowrap;
+}
+.iconbtn:hover { color: var(--ink); border-color: var(--ink-faint); }
+
+/* -------------------------------------------------------------- section */
+section { padding: 46px 0 8px; scroll-margin-top: 58px; }
+.shead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.shead h2 { font-size: 21px; }
+.shead .count { font-size: 12.5px; color: var(--ink-faint); }
+.slead { font-size: 14.5px; color: var(--ink-soft); max-width: 72ch; margin-bottom: 22px; }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.pad { padding: 18px 20px; }
+
+/* -------------------------------------------------------------- notices */
+.notice {
+  border: 1px solid var(--line); border-left: 3px solid var(--k-modified_logic);
+  background: var(--panel); border-radius: 8px; padding: 14px 16px; margin-bottom: 22px;
+}
+.notice h3 { font-size: 14px; margin-bottom: 4px; }
+.notice p, .notice li { font-size: 13.5px; color: var(--ink-soft); }
+.notice ul { margin: 8px 0 0; padding-left: 18px; }
+.notice li { margin-top: 3px; }
+
+details.disclose { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+details.disclose > summary {
+  cursor: pointer; list-style: none; padding: 10px 14px; font-size: 13px; color: var(--ink-soft);
+  display: flex; align-items: center; gap: 8px;
+}
+details.disclose > summary::-webkit-details-marker { display: none; }
+details.disclose > summary::before {
+  content: ""; width: 0; height: 0; border: 5px solid transparent;
+  border-left-color: var(--ink-faint); transition: transform .15s ease; flex: none;
+}
+details.disclose[open] > summary::before { transform: rotate(90deg) translateX(-1px); }
+details.disclose > .inner { padding: 0 14px 14px; }
+.rawdesc {
+  font: 13px/1.6 var(--mono); white-space: pre-wrap; color: var(--ink-soft);
+  border-left: 2px solid var(--line); padding-left: 12px; max-width: 84ch;
+}
+
+/* ----------------------------------------------------------- intent map */
+/* Intent used to be a section with a lead paragraph, for two lines of content.
+   It is a strip under the masthead now, and opens when there is something to
+   reconcile. */
+.intent { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 18px; }
+.intent > summary { cursor: pointer; list-style: none; }
+.intent > summary::-webkit-details-marker { display: none; }
+.intent .srow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.intent .lbl { font: 650 11px/1.9 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); flex: none; }
+.intent .says { font: 15px/1.6 var(--serif); color: var(--ink-soft); flex: 1 1 320px; min-width: 0; }
+.intent .counts { display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+.intent .counts::after {
+  content: ""; width: 0; height: 0; border: 5px solid transparent;
+  border-left-color: var(--ink-faint); transition: transform .15s ease;
+}
+.intent[open] .counts::after { transform: rotate(90deg) translateX(-1px); }
+.intent .pill {
+  font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft);
+}
+.intent .pill.on { border-color: color-mix(in srgb, var(--k-modified_logic) 45%, transparent); color: var(--k-modified_logic); }
+.deltas { display: grid; gap: 12px; margin-top: 18px; }
+.delta { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 14px 16px; }
+.delta .top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.delta p { font-size: 14.5px; color: var(--ink); }
+.delta .note { font-size: 13px; color: var(--ink-faint); margin-top: 6px; }
+.delta .where { font: 12px/1.5 var(--mono); color: var(--ink-faint); margin-top: 8px; word-break: break-all; }
+.tag {
+  font-size: 11px; letter-spacing: .03em; text-transform: uppercase; font-weight: 600;
+  padding: 3px 8px; border-radius: 5px; background: var(--bg-soft); color: var(--ink-soft);
+  border: 1px solid var(--line-soft); white-space: nowrap;
+}
+.tag.t-scope_creep { color: var(--k-moved); border-color: color-mix(in srgb, var(--k-moved) 35%, transparent); }
+.tag.t-drive_by { color: var(--k-content); border-color: color-mix(in srgb, var(--k-content) 35%, transparent); }
+.tag.t-incidental { color: var(--k-modified_logic); border-color: color-mix(in srgb, var(--k-modified_logic) 35%, transparent); }
+.tag.t-notdone { color: var(--ink-faint); }
+
+/* ----------------------------------------------------------- change map */
+.graphwrap {
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+  padding: 18px 12px; overflow-x: auto;
+}
+.graphwrap svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.gnode { cursor: pointer; }
+.gnode:hover .gbox { stroke-width: 2.8; }
+.g-sub { font-family: var(--mono); font-size: 9.5px; }
+.offgraph { margin-top: 14px; font-size: 13.5px; color: var(--ink-soft); max-width: 78ch; }
+.offgraph b { color: var(--ink); font-weight: 650; }
+.offgraph .og { font-size: 12.5px; color: var(--ink-faint); }
+.tip {
+  position: fixed; z-index: 60; pointer-events: none; max-width: 320px;
+  background: var(--ink); color: var(--bg); border-radius: 7px; padding: 8px 10px;
+  font-size: 12px; line-height: 1.45; box-shadow: 0 8px 24px -8px rgba(0,0,0,.5);
+}
+.tip .p { font-family: var(--mono); font-size: 11.5px; word-break: break-all; opacity: .85; }
+.tip .m { margin-top: 4px; opacity: .7; }
+
+.ledger { margin-top: 22px; }
+.ledger > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--ink-soft); }
+.ledger > summary::-webkit-details-marker { display: none; }
+.ledger > summary::before {
+  content: ""; width: 0; height: 0; border: 5px solid transparent;
+  border-left-color: var(--ink-faint); transition: transform .15s ease; flex: none;
+}
+.ledger[open] > summary::before { transform: rotate(90deg) translateX(-1px); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 16px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+.grouplist { margin-top: 14px; display: grid; gap: 10px; }
+.group { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
+.group > summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; flex-wrap: wrap;
+}
+.group > summary::-webkit-details-marker { display: none; }
+.group > summary::before {
+  content: ""; width: 0; height: 0; border: 5px solid transparent;
+  border-left-color: var(--ink-faint); transition: transform .15s ease; flex: none;
+}
+.group[open] > summary::before { transform: rotate(90deg) translateX(-1px); }
+.group .glabel { font-weight: 600; font-size: 14.5px; }
+.group .gsum { font-size: 13px; color: var(--ink-faint); flex: 1 1 220px; }
+.group .gnum { font: 12px/1 var(--mono); color: var(--ink-faint); }
+.role {
+  font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; font-weight: 650;
+  color: var(--ink-faint); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px;
+}
+table.files { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.files td { padding: 7px 14px; border-top: 1px solid var(--line-soft); vertical-align: top; }
+table.files tr.flash td { background: var(--accent-wash); }
+table.files .fp { font: 12.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+table.files .fp .dir { color: var(--ink-faint); }
+table.files .moved { display: block; font-size: 11.5px; color: var(--ink-faint); }
+table.files .num { text-align: right; white-space: nowrap; font: 12px/1.5 var(--mono); }
+table.files .plus { color: var(--add-ink); }
+table.files .minus { color: var(--del-ink); }
+table.files .note { color: var(--ink-soft); font-size: 12.5px; margin-top: 3px; max-width: 62ch; }
+.kindchip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.kindchip i { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.sigdot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; flex: none; }
+
+/* ------------------------------------------------------------- behavior */
+.diagrams { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.diagrams.stacked { grid-template-columns: minmax(0, 1fr); }
+.dcard { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
+.dcard h3 {
+  font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-faint);
+  padding: 10px 14px; border-bottom: 1px solid var(--line-soft); font-weight: 650;
+}
+.dcard .dbody { padding: 12px; overflow-x: auto; }
+.dcard svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.dg-label { font-family: var(--sans); font-size: 11.5px; }
+.dg-lane { font-family: var(--sans); font-size: 12px; font-weight: 600; }
+.dkey { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; font-size: 12.5px; color: var(--ink-soft); }
+.dkey i { width: 16px; height: 0; border-top-width: 2px; border-top-style: solid; display: inline-block; margin-right: 6px; vertical-align: 4px; }
+.bdeltas { margin-top: 20px; display: grid; gap: 10px; }
+.bdelta { display: flex; gap: 12px; align-items: flex-start; font-size: 14.5px; }
+.bdelta .mk { color: var(--accent); flex: none; line-height: 1.6; }
+
+/* ---------------------------------------------------------- review pass */
+.passbar {
+  position: sticky; top: 46px; z-index: 20; margin-bottom: 26px;
+  display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap;
+  /* Solid, not blurred: the nav above it already composites a blur layer, and
+     a second one costs more than it is worth. */
+  background: var(--bg-soft);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px;
+}
+.pbar { flex: 1 1 180px; min-width: 110px; height: 8px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
+.pbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .22s ease; }
+.pcount { font-size: 13px; color: var(--ink-soft); white-space: nowrap; }
+.pcount b { color: var(--ink); font-weight: 650; }
+.pdone { color: var(--accent-ink); font-weight: 650; }
+.passbtns { display: flex; gap: 8px; }
+.copyout {
+  width: 100%; min-height: 180px; margin-top: 12px; padding: 10px 12px;
+  font: 12px/1.6 var(--mono); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 8px; resize: vertical;
+}
+.passgroup { margin-bottom: 36px; }
+.gh { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.gh h3 { font: 650 11.5px/1.6 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); }
+.gh .sub { font-size: 13px; color: var(--ink-faint); }
+
+.steps { display: grid; gap: 14px; }
+/* Grid items refuse to shrink below their content by default, and one long
+   token in a hunk is enough to push the whole page sideways on a phone. */
+.step { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+.step > .head { display: flex; gap: 14px; padding: 18px 20px 0; }
+/* A number inside a box reads as a badge, not as something you click. So the
+   box carries nothing but a tick: ghosted at rest so the affordance is legible,
+   solid once it is ticked. The ordinal moves into the heading, where it is
+   wayfinding rather than a control. */
+.tick {
+  flex: none; width: 26px; height: 26px; margin-top: 1px; border-radius: 7px;
+  cursor: pointer; padding: 0; display: grid; place-items: center;
+  border: 1.5px solid var(--ink-faint); background: var(--panel-soft); color: var(--ink-faint);
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.tick .mark { font-size: 16px; line-height: 1; opacity: .3; transition: opacity .14s ease; }
+.tick:hover { border-color: var(--accent); color: var(--accent-ink); }
+.step:hover .tick .mark, .tick:hover .mark { opacity: .6; }
+.step.done .tick { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .step.done .tick { color: #10201c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .step.done .tick { color: #10201c; } }
+.step.done .tick .mark, .step.done:hover .tick .mark { opacity: 1; }
+.step.done { opacity: .55; }
+.step.done:hover, .step.done:focus-within { opacity: 1; }
+.step.done > .head h3 { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: var(--ink-faint); }
+.step.flash { outline: 2px solid var(--accent); outline-offset: 2px; }
+.step .htext { min-width: 0; flex: 1; }
+.step h3 { font-size: 17px; }
+.step h3 .ord { font: 650 12.5px/1 var(--mono); color: var(--ink-faint); margin-right: 9px; vertical-align: 1px; }
+.step .why { font: 15px/1.65 var(--serif); color: var(--ink-soft); margin-top: 7px; max-width: 64ch; }
+.step .path { font: 12px/1.5 var(--mono); color: var(--ink-faint); margin-top: 8px; word-break: break-all; }
+.step .hunks { padding: 16px 20px 20px; display: grid; gap: 12px; }
+.step .tail { padding: 14px 20px 18px 60px; }
+/* The one place in the report that asks the reader for something. */
+.q { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-wash); border-radius: 9px; padding: 12px 14px; }
+.q .mk { color: var(--accent-ink); font-weight: 700; flex: none; line-height: 1.5; }
+.q p { font: 15px/1.55 var(--sans); color: var(--accent-ink); max-width: 64ch; }
+
+.skipwrap { margin-top: 30px; }
+.skipwrap .lead { font-size: 14px; color: var(--ink-soft); max-width: 72ch; margin-bottom: 14px; }
+.skip { border: 1px solid var(--line); border-radius: 8px; background: var(--panel-soft); margin-bottom: 10px; }
+.skip > summary { cursor: pointer; list-style: none; padding: 13px 16px; }
+.skip > summary::-webkit-details-marker { display: none; }
+.skip .srow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.skip .srow::before {
+  content: ""; width: 0; height: 0; border: 5px solid transparent;
+  border-left-color: var(--ink-faint); transition: transform .15s ease; flex: none;
+}
+.skip[open] .srow::before { transform: rotate(90deg) translateX(-1px); }
+.skip .slabel { font-weight: 600; font-size: 14.5px; }
+.skip .smeta { font: 12px/1 var(--mono); color: var(--ink-faint); }
+.skip .reason { font-size: 13.5px; color: var(--ink-soft); margin: 8px 0 0 20px; max-width: 76ch; }
+.skip .inner { padding: 4px 16px 16px 36px; }
+.skip .filelist { font: 12px/1.85 var(--mono); color: var(--ink-soft); columns: 2; column-gap: 26px; }
+.skip .filelist div { break-inside: avoid; word-break: break-all; }
+
+/* --------------------------------------------------------------- seams */
+.seams { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.seam { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 15px 17px; }
+.seam h3 { font-size: 15px; margin-bottom: 6px; }
+.seam p { font-size: 13.5px; color: var(--ink-soft); }
+.seam .meta { font: 12px/1.6 var(--mono); color: var(--ink-faint); margin-top: 10px; }
+
+/* --------------------------------------------------------------- hunks */
+.hunkrefs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
+.hunkrefs .label { font-size: 11.5px; color: var(--ink-faint); }
+.href {
+  font: 11.5px/1 var(--mono); border: 1px solid var(--line); border-radius: 5px;
+  padding: 5px 8px; color: var(--ink-soft); background: var(--panel-soft);
+}
+.href:hover { border-color: var(--accent); color: var(--accent-ink); }
+.href[aria-expanded="true"] { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-wash); }
+.slot:not(:empty) { margin-top: 10px; display: grid; gap: 10px; }
+
+.hunk { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.hunk .hhead {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 12px; background: var(--panel-soft); border-bottom: 1px solid var(--line-soft);
+}
+.hunk .hpath { font: 12px/1.4 var(--mono); font-weight: 600; word-break: break-all; }
+.hunk .hmeta { font: 11.5px/1.4 var(--mono); color: var(--ink-faint); }
+.hunk .hsec { font: 11.5px/1.4 var(--mono); color: var(--ink-faint); flex: 1 1 auto; text-align: right; word-break: break-all; }
+/* Code soft-wraps, so this only engages for a single token wider than the
+   viewport. When it does, the hunk scrolls, never the page. */
+.hbody { font: 12.5px/1.6 var(--mono); tab-size: 4; overflow-x: auto; }
+.hline { display: flex; align-items: flex-start; }
+.hline .gut {
+  flex: none; display: flex; user-select: none; color: var(--ink-faint); font-size: 11px;
+  padding-top: 1px;
+}
+.hline .gut span { display: inline-block; width: 3.3em; text-align: right; padding-right: .7em; }
+.hline .sign { flex: none; width: 1.2em; text-align: center; color: var(--ink-faint); }
+.hline .code { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; overflow-wrap: break-word; padding: 0 12px 0 0; text-indent: -2.4ch; padding-left: 2.4ch; }
+.hline.add { background: var(--add-bg); }
+.hline.add .sign { color: var(--add-ink); }
+.hline.add .gut { background: var(--add-gut); color: color-mix(in srgb, var(--add-ink) 85%, transparent); }
+.hline.del { background: var(--del-bg); }
+.hline.del .sign { color: var(--del-ink); }
+.hline.del .gut { background: var(--del-gut); color: color-mix(in srgb, var(--del-ink) 85%, transparent); }
+.hline.ctx .gut { background: var(--panel-soft); }
+/* An annotation must not read as one more added line: it is precis talking,
+   not the diff. Panel background against the tinted rows does that. */
+.hnote {
+  display: flex; gap: 9px; align-items: flex-start;
+  background: var(--panel); border-left: 3px solid var(--accent);
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  padding: 10px 16px 10px 11px; font: 13.5px/1.55 var(--sans); color: var(--ink);
+}
+.hnote .mk { color: var(--accent); font-weight: 700; flex: none; }
+.hnote .txt { max-width: 70ch; }
+.trunc {
+  padding: 7px 12px; font: 11.5px/1.5 var(--mono); color: var(--ink-faint);
+  background: repeating-linear-gradient(-45deg, transparent, transparent 6px, var(--line-soft) 6px, var(--line-soft) 7px);
+  border-top: 1px solid var(--line-soft);
+}
+.tk { color: inherit; }
+.tk-key { color: var(--tok-key); }
+.tk-str { color: var(--tok-str); }
+.tk-com { color: var(--tok-com); font-style: italic; }
+.tk-num { color: var(--tok-num); }
+
+/* -------------------------------------------------------------- footer */
+footer { margin-top: 56px; border-top: 1px solid var(--line); background: var(--bg-soft); padding: 26px 0 40px; }
+footer .cols { display: flex; flex-wrap: wrap; gap: 26px 44px; font-size: 12.5px; color: var(--ink-faint); }
+footer dt { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 3px; }
+footer dd { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-soft); word-break: break-all; }
+footer .creed { margin-top: 22px; font-size: 13px; color: var(--ink-soft); max-width: 62ch; }
+
+/* ------------------------------------------------------------ responsive */
+@media (max-width: 860px) {
+  .wrap { padding: 0 18px; }
+  .metrics { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .diagrams { grid-template-columns: minmax(0, 1fr); }
+  .skip .filelist { columns: 1; }
+  .step > .head { padding: 16px 16px 0; gap: 11px; }
+  .step .hunks { padding: 14px 16px 16px; }
+  .step .tail { padding: 12px 16px 16px 53px; }
+  .headline { max-width: none; }
+  .beat { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .beat .bl { text-align: left; line-height: 1.5; }
+  .beat .bt { border-left: 0; padding-left: 0; }
+}
+@media (max-width: 720px) {
+  /* A four-column file table cannot survive a phone; stack each row instead. */
+  table.files, table.files tbody, table.files tr, table.files td { display: block; }
+  table.files tr { border-top: 1px solid var(--line-soft); padding: 9px 0; }
+  table.files td { border: 0; padding: 1px 14px; }
+  table.files td.meta { display: inline-block; padding-right: 14px; }
+  table.files .num { text-align: left; }
+  .group > summary { gap: 8px; }
+  .group .gsum { flex-basis: 100%; }
+  .skip .inner { padding-left: 16px; }
+  .skip .reason { margin-left: 0; }
+}
+
+/* ---------------------------------------------------------------- print */
+@media print {
+  :root { --shadow: none; }
+  body { background: #fff; color: #000; font-size: 11pt; }
+  .nav, .tip, .passbtns, .copyout { display: none !important; }
+  /* Paper shows the pass as it actually stands, ticks and all. Only the fading
+     goes: dimmed text on paper is just low contrast. */
+  .passbar { position: static; }
+  .step.done { opacity: 1; }
+  /* On paper a hunk chip is not a control, but `client.py:14` is still the
+     reference a reader needs, so it stays as text. */
+  .href { border-color: var(--line); color: var(--ink-soft); background: none; }
+  .masthead { background: #fff; }
+  section { padding: 22px 0 0; break-inside: auto; }
+  .card, .hunk, .delta, .seam, .dcard, .group, .skip { break-inside: avoid; box-shadow: none; }
+  /* A step is routinely taller than a page. Keeping the whole card together
+     buys one orphaned header and a page of white space, so only the header is
+     held, and held to what follows it. */
+  .step { box-shadow: none; }
+  .step .hunks { break-inside: auto; }
+  .step > .head { break-inside: avoid; break-after: avoid; }
+  .step .tail { break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script id="precis-model" type="application/json">{"schema_version":"1.0","source":{"kind":"github_pr","title":"Fix HTTPDigestAuth uri field truncated by semicolons in URL path","identifier":"#7413","url":"https://github.com/psf/requests/pull/7413","repo":"psf/requests","author":"zons-zhaozhy","base":{"ref":"main","sha":"04d750509b90da728e53aee8d7516426e5a1a293"},"head":{"ref":"fix/digest-auth-uri-semicolon-params","sha":"418c76b8aa7be2255ecd2d045f761e6411ba0acb"},"commits":[{"sha":"418c76b","subject":"Fix digest auth uri field ignoring path parameters after semicolons"}],"linked_issues":[{"id":"#6990","title":"`uri` field of digest authentication incorrectly filled when the URL contains semicolons in path","url":"https://github.com/psf/requests/issues/6990"}],"description":"When a URL contains path parameters delimited by semicolons (e.g. `https://musicbrainz.org/ws/2/artist;name=Nirvana`), `urllib.parse.urlparse` splits the path into `.path` and `.params` attributes. `HTTPDigestAuth.build_digest_header()` was only using `.path` and `.query`, so the `uri` field in the `Authorization` header was truncated, causing authentication to fail on servers that validate the full request URI.\n\nThis was reported in #6990 with a concrete MusicBrainz API example.\n\nFix: include `p_parsed.params` when reconstructing the path in `build_digest_header()`.\n\nAdded a unit test that verifies the `uri` field includes semicolon-delimited path parameters.","generated_by":"precis 0.1.0","generated_at":"2026-08-09T10:00:00Z"},"coverage":{"tier":"full","hunks_read":2,"files_read":2,"note":"Two hunks, both read in full, and the callers resolved against the checkout at the PR head.","limitations":["How a server builds the URI it compares against cannot be observed from the diff or the checkout."],"hunks_total":2,"files_total":2},"stats":{"signal_ratio":0.06,"changed_lines_by_kind":{"new_logic":33,"modified_logic":2},"files_changed":2,"additions":35,"deletions":0,"hunks":2,"changed_lines_by_role":{"domain":2,"tests":33}},"story":{"headline":"A `;` segment in the last part of a path now survives into the digest `uri` and its hash.","beats":[{"label":"Before","text":"`build_digest_header` rebuilt the request-URI from `.path` and `.query` only."},{"label":"Why","text":"`urlparse` moves the last segment's `;name=x` into `.params`, which nothing read."},{"label":"Now","text":"`.params` is appended before the query, so `uri=` and `A2` both carry it."}],"confidence":"high","evidence":["pr_description","linked_issue","commit_messages","code"],"caveat":null,"intent_delta":{"stated":"Fix: include `p_parsed.params` when reconstructing the path in `build_digest_header()`.","also_does":[],"not_done":[]}},"change_map":{"summary":"Two lines in one function, and a test that states the three cases it distinguishes.","graph":{"nodes":[{"id":"n1","label":"HTTPDigestAuth.__call__","kind":"entrypoint","emphasis":"unchanged","path":"src/requests/auth.py","hunk_ids":[],"note":"Sends the header up front when a nonce from an earlier response is held."},{"id":"n2","label":"handle_401()","kind":"function","emphasis":"unchanged","path":"src/requests/auth.py","hunk_ids":[],"note":"The 401 retry path, where most digest exchanges actually build a header."},{"id":"n3","label":"build_digest_header()","kind":"function","emphasis":"changed","path":"src/requests/auth.py","hunk_ids":["h1"],"note":"Builds `path` once and uses it for both the `uri=` field and `A2`."},{"id":"n4","label":"urlparse()","kind":"external","emphasis":"unchanged","hunk_ids":[],"note":"Standard library. Splits `;params` off the final path segment."},{"id":"n5","label":"PreparedRequest.url","kind":"store","emphasis":"unchanged","hunk_ids":[],"note":"What both call sites pass in."},{"id":"n6","label":"prepare_url()","kind":"function","emphasis":"unchanged","hunk_ids":[],"note":"Builds that URL with urllib3's parser, which leaves `;` inside the path."}],"edges":[{"from":"n1","to":"n3","kind":"calls","emphasis":"unchanged","evidence":{"ref":"src/requests/auth.py:328"}},{"from":"n2","to":"n3","kind":"calls","emphasis":"unchanged","evidence":{"ref":"src/requests/auth.py:309"}},{"from":"n6","to":"n5","kind":"writes","emphasis":"unchanged","label":"keeps `;`","evidence":{"ref":"src/requests/models.py:560"}},{"from":"n3","to":"n5","kind":"reads","emphasis":"unchanged","label":"url","evidence":{"ref":"src/requests/auth.py:215"}},{"from":"n3","to":"n4","kind":"calls","emphasis":"changed","label":"now reads .params","evidence":{"hunk_ids":["h1"]}}]},"groups":[{"id":"g-auth","role":"domain","label":"Digest header construction","summary":"The whole change: two lines between the path and the query.","files":[{"path":"src/requests/auth.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":2,"deletions":0,"hunk_ids":["h1"],"note":"`path` is built once at line 217 and read twice: `uri=` at 254 and `A2` at 224."}]},{"id":"g-tests","role":"tests","label":"Regression test","summary":"One test, three URLs: params, params with a query, and neither.","files":[{"path":"tests/test_lowlevel.py","status":"modified","change_kind":"new_logic","significance":"supporting","additions":33,"deletions":0,"hunk_ids":["h2"],"note":"Calls `build_digest_header` directly with a hand-built challenge, not through a server."}]}]},"behavior":{"changed":true,"note":null,"summary":"For a URL whose last path segment carries `;name=x`, both the `uri=` field and the hashed `A2` string grow that segment. A URL without one is byte-identical.","before":{"kind":"flow","title":"Before","nodes":[{"id":"b1","label":"GET http://host/ws/2/artist;name=test","kind":"start","emphasis":"unchanged"},{"id":"b2","label":"urlparse()","kind":"external","emphasis":"unchanged"},{"id":"b3","label":"path = .path, then + \"?\" + .query","kind":"process","emphasis":"unchanged"},{"id":"b4","label":".params = \"name=test\", read by nothing","kind":"note","emphasis":"removed"},{"id":"b5","label":"uri=\"/ws/2/artist\"","kind":"end","emphasis":"removed"},{"id":"b6","label":"A2 = \"GET:/ws/2/artist\"","kind":"end","emphasis":"removed"}],"edges":[{"from":"b1","to":"b2","kind":"data","emphasis":"unchanged","label":"url"},{"from":"b2","to":"b3","kind":"data","emphasis":"unchanged","label":".path, .query"},{"from":"b2","to":"b4","kind":"data","emphasis":"removed","label":".params"},{"from":"b3","to":"b5","kind":"data","emphasis":"unchanged"},{"from":"b3","to":"b6","kind":"data","emphasis":"unchanged"}]},"after":{"kind":"flow","title":"After","nodes":[{"id":"a1","label":"GET http://host/ws/2/artist;name=test","kind":"start","emphasis":"unchanged"},{"id":"a2","label":"urlparse()","kind":"external","emphasis":"unchanged"},{"id":"a3","label":"path = .path + \";\" + .params + \"?\" + .query","kind":"process","emphasis":"changed"},{"id":"a4","label":"uri=\"/ws/2/artist;name=test\"","kind":"end","emphasis":"added"},{"id":"a5","label":"A2 = \"GET:/ws/2/artist;name=test\"","kind":"end","emphasis":"added"}],"edges":[{"from":"a1","to":"a2","kind":"data","emphasis":"unchanged","label":"url"},{"from":"a2","to":"a3","kind":"data","emphasis":"changed","label":".path, .params, .query","hunk_ids":["h1"]},{"from":"a3","to":"a4","kind":"data","emphasis":"unchanged"},{"from":"a3","to":"a5","kind":"data","emphasis":"unchanged"}]},"deltas":[{"summary":"The `uri=` field gains the `;` segment.","hunk_ids":["h1"]},{"summary":"`A2` is hashed over the longer path, so `response` changes too.","hunk_ids":["h1"]}]},"review_pass":{"estimated_minutes":3,"steps":[{"n":1,"title":"The two lines","why":"This is the entire change. Everything else in the diff asserts on it.","path":"src/requests/auth.py","hunk_ids":["h1"],"annotations":[{"hunk_id":"h1","new_line":218,"text":"`urlparse` moves everything after the last `;` of the final path segment into `.params`, so `.path` alone stopped at `artist`."},{"hunk_id":"h1","new_line":219,"text":"Placed before the query so the order is path, params, query. `path` is then read twice: `A2` at line 224 and `uri=` at line 254."}]},{"n":2,"title":"The three cases the test names","why":"The test is the clearest statement of which URLs change and which do not.","path":"tests/test_lowlevel.py","hunk_ids":["h2"],"annotations":[{"hunk_id":"h2","new_line":441,"text":"The challenge is set by hand, so no server is involved. `qop` is `auth`, the branch that hashes `A2` into `response`."},{"hunk_id":"h2","new_line":448,"text":"A raw URL, not a prepared one. A real request arrives here as `prep.url`, which keeps the `;`: urllib3's parser leaves it in the path."},{"hunk_id":"h2","new_line":461,"text":"The third case pins the unchanged path: no `;`, no difference."}]}],"checks":[{"kind":"external_contract","title":"The `response` hash moves, not just the `uri` field","why":"`A2` is built from the same `path` at auth.py:224, so for these URLs the digest this client sends differs from the one it sent before.","question":"Do the servers you authenticate against compute `A2` over the full request-URI, including the `;` segment?","path":"src/requests/auth.py","hunk_ids":["h1"]},{"kind":"public_api","title":"`build_digest_header` is a public method","why":"It is called from `handle_401` at auth.py:309 and `__call__` at auth.py:328, and it is reachable from outside requests. Its return value changes for these URLs.","question":"Does anything you own call `build_digest_header` directly and compare, cache, or record the header it returns?","path":"src/requests/auth.py","hunk_ids":["h1"]},{"kind":"behavioral","title":"Only a `;` in the final path segment is affected","why":"`urlparse` splits params off the last segment only: `/a;b/c` keeps `;b` in `.path` and never lost it, while `/a/c;d` did.","question":"Do any of the URLs you send carry a `;` in a segment other than the last?","path":"src/requests/auth.py","hunk_ids":["h1"]}],"skippable":[]},"seams":{"detected":false,"note":null},"hunks":{"h1":{"id":"h1","path":"src/requests/auth.py","old_path":null,"language":"python","header":"@@ -215,6 +215,8 @@","old_start":215,"old_lines":6,"new_start":215,"new_lines":8,"section":"def KD(s: str, d: str) -> str:","lines":[{"t":" ","c":"        p_parsed = urlparse(url)","old":215,"new":215},{"t":" ","c":"        #: path is request-uri defined in RFC 2616 which should not be empty","old":216,"new":216},{"t":" ","c":"        path = p_parsed.path or \"/\"","old":217,"new":217},{"t":"+","c":"        if p_parsed.params:","old":null,"new":218},{"t":"+","c":"            path += f\";{p_parsed.params}\"","old":null,"new":219},{"t":" ","c":"        if p_parsed.query:","old":218,"new":220},{"t":" ","c":"            path += f\"?{p_parsed.query}\"","old":219,"new":221},{"t":" ","c":"","old":220,"new":222}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h2":{"id":"h2","path":"tests/test_lowlevel.py","old_path":null,"language":"python","header":"@@ -426,3 +426,36 @@","old_start":426,"old_lines":3,"new_start":426,"new_lines":36,"section":"def response_handler(sock):","lines":[{"t":" ","c":"    assert isinstance(excinfo.value, requests.exceptions.RequestException)","old":426,"new":426},{"t":" ","c":"    assert isinstance(excinfo.value, JSONDecodeError)","old":427,"new":427},{"t":" ","c":"    assert r.text not in str(excinfo.value)","old":428,"new":428},{"t":"+","c":"","old":null,"new":429},{"t":"+","c":"def test_digestauth_uri_includes_path_parameters():","old":null,"new":430},{"t":"+","c":"    \"\"\"Ensure the uri field in Digest auth header includes path parameters","old":null,"new":431},{"t":"+","c":"    (semicolon-delimited) as per RFC 7616.","old":null,"new":432},{"t":"+","c":"","old":null,"new":433},{"t":"+","c":"    Python's urlparse splits \"path;params\" into .path and .params.","old":null,"new":434},{"t":"+","c":"    The digest auth uri field must reconstruct the full path including params.","old":null,"new":435},{"t":"+","c":"","old":null,"new":436},{"t":"+","c":"    See https://github.com/psf/requests/issues/6990.","old":null,"new":437},{"t":"+","c":"    \"\"\"","old":null,"new":438},{"t":"+","c":"    auth = requests.auth.HTTPDigestAuth(\"user\", \"pass\")","old":null,"new":439},{"t":"+","c":"    auth.init_per_thread_state()","old":null,"new":440},{"t":"+","c":"    auth._thread_local.chal = {","old":null,"new":441},{"t":"+","c":"        \"nonce\": \"abc123\",","old":null,"new":442},{"t":"+","c":"        \"realm\": \"test\",","old":null,"new":443},{"t":"+","c":"        \"qop\": \"auth\",","old":null,"new":444},{"t":"+","c":"    }","old":null,"new":445},{"t":"+","c":"","old":null,"new":446},{"t":"+","c":"    # URL with semicolon path parameter (e.g. MusicBrainz API)","old":null,"new":447},{"t":"+","c":"    header = auth.build_digest_header(\"GET\", \"http://example.com/ws/2/artist;name=test\")","old":null,"new":448},{"t":"+","c":"    assert header is not None","old":null,"new":449},{"t":"+","c":"    # The uri field must include the full path with params","old":null,"new":450},{"t":"+","c":"    assert 'uri=\"/ws/2/artist;name=test\"' in header","old":null,"new":451},{"t":"+","c":"","old":null,"new":452},{"t":"+","c":"    # URL with both params and query","old":null,"new":453},{"t":"+","c":"    header2 = auth.build_digest_header(\"GET\", \"http://example.com/path;foo=bar?q=1\")","old":null,"new":454},{"t":"+","c":"    assert header2 is not None","old":null,"new":455},{"t":"+","c":"    assert 'uri=\"/path;foo=bar?q=1\"' in header2","old":null,"new":456},{"t":"+","c":"","old":null,"new":457},{"t":"+","c":"    # URL without semicolons should work as before","old":null,"new":458},{"t":"+","c":"    header3 = auth.build_digest_header(\"GET\", \"http://example.com/normal/path?q=1\")","old":null,"new":459},{"t":"+","c":"    assert header3 is not None","old":null,"new":460},{"t":"+","c":"    assert 'uri=\"/normal/path?q=1\"' in header3","old":null,"new":461}],"truncated":false,"change_kind":"new_logic","significance":"supporting"}}}</script>
+<script>
+"use strict";
+/* =========================================================================
+   precis report renderer
+
+   Everything below reads the JSON blob above and nothing else. There are no
+   network calls, no external assets, and no code paths that invent content
+   the model did not supply.
+   ========================================================================= */
+
+const M = JSON.parse(document.getElementById("precis-model").textContent);
+
+/* ------------------------------------------------------------- vocabulary */
+const ROLE_LABEL = {
+  api: "API", domain: "Domain", persistence: "Persistence", tests: "Tests",
+  config: "Config", generated: "Generated", docs: "Docs", build: "Build",
+  infra: "Infra", ui: "UI", other: "Other"
+};
+const KIND_LABEL = {
+  new_logic: "New logic", modified_logic: "Modified logic", moved: "Moved code",
+  rename: "Mechanical rename", formatting: "Formatting only", generated: "Generated",
+  content: "Values and content", deleted: "Deleted"
+};
+const KIND_ORDER = ["new_logic", "modified_logic", "deleted", "moved", "rename",
+                    "content", "generated", "formatting"];
+const SIG_LABEL = { core: "The change", supporting: "Supporting", mechanical: "Mechanical" };
+const ATTN_LABEL = {
+  behavioral: "Behaviour", security_surface: "Security surface",
+  irreversible_migration: "Irreversible migration", public_api: "Public API",
+  concurrency: "Concurrency", data_loss: "Data loss",
+  external_contract: "External contract", dependency_surface: "Dependency surface",
+  config_surface: "Config surface", feature_flag: "Feature flag"
+};
+const DELTA_LABEL = {
+  scope_creep: "Separate concern", drive_by: "Drive-by change", incidental: "Incidental effect"
+};
+const GRAPH_KIND_LABEL = {
+  entrypoint: "Entry point", function: "Function", type: "Type", store: "Store",
+  config: "Configuration", external: "External", error: "Error"
+};
+const REL_LABEL = {
+  calls: "calls", returns: "returns", reads: "reads", writes: "writes",
+  raises: "raises", imports: "imports", renders: "renders"
+};
+const EMPH_LABEL = {
+  added: "Added", changed: "Changed", removed: "Removed", unchanged: "Unchanged"
+};
+const EVIDENCE_LABEL = {
+  pr_description: "description", linked_issue: "linked issue",
+  commit_messages: "commit messages", branch_name: "branch name", code: "the code"
+};
+const STATUS_LABEL = {
+  added: "added", modified: "modified", deleted: "deleted", renamed: "renamed",
+  copied: "copied", mode_changed: "mode changed", binary: "binary"
+};
+const SOURCE_KIND_LABEL = {
+  github_pr: "GitHub pull request", gitlab_mr: "GitLab merge request",
+  git_range: "git range", patch_file: "patch file"
+};
+const kindColor = k => `var(--k-${KIND_LABEL[k] ? k : "formatting"})`;
+
+/* ----------------------------------------------------------------- utils */
+function h(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    const v = attrs[k];
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") n.className = v;
+    else if (k === "html") n.innerHTML = v;
+    else if (k === "text") n.textContent = v;
+    else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  add(n, kids);
+  return n;
+}
+function add(parent, kids) {
+  for (const kid of kids) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    if (Array.isArray(kid)) { add(parent, kid); continue; }
+    parent.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+}
+const NS = "http://www.w3.org/2000/svg";
+function s(tag, attrs, ...kids) {
+  const n = document.createElementNS(NS, tag);
+  if (attrs) for (const k in attrs) {
+    const v = attrs[k];
+    if (v === null || v === undefined || v === false) continue;
+    /* SVG text cannot hold a <code> element, so a diagram label wearing the
+       contract's backticks would print them as characters. The label is a
+       symbol name either way; drop the markers and keep the name. */
+    if (k === "text") { n.textContent = String(v).replace(/`/g, ""); continue; }
+    n.setAttribute(k, v);
+  }
+  add(n, kids);
+  return n;
+}
+function esc(str) {
+  return String(str).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+/* Prose is plain text. A backtick span is the only markup the contract allows. */
+function prose(text) {
+  return h("span", { html: esc(text == null ? "" : text).replace(/`([^`]+)`/g, "<code>$1</code>") });
+}
+const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + "s")}`;
+const basename = p => String(p).split("/").pop();
+function splitPath(p) {
+  const i = String(p).lastIndexOf("/");
+  return i < 0 ? ["", p] : [p.slice(0, i + 1), p.slice(i + 1)];
+}
+function textWidth(str, size) { return String(str).length * size * 0.56; }
+
+/* ------------------------------------------------------- derived indexes */
+const HUNKS = M.hunks || {};
+const FILES = [];
+for (const g of (M.change_map && M.change_map.groups) || []) {
+  for (const f of g.files) FILES.push(Object.assign({ group: g }, f));
+}
+const FILE_BY_PATH = new Map(FILES.map(f => [f.path, f]));
+const PASS = M.review_pass || {};
+const STEPS = PASS.steps || [];
+const CHECKS = PASS.checks || [];
+const STEP_OF_HUNK = new Map();
+for (const step of STEPS) {
+  for (const id of step.hunk_ids) if (!STEP_OF_HUNK.has(id)) STEP_OF_HUNK.set(id, step.n);
+}
+
+/* ============================================================== masthead */
+function masthead() {
+  const src = M.source || {};
+  const stats = M.stats || {};
+
+  const dot = () => h("span", { class: "sep", text: "·" });
+  const eyebrow = h("div", { class: "eyebrow" },
+    h("span", { class: "brand", text: "precis" }),
+    src.repo && [dot(), h("b", { text: src.repo })],
+    src.identifier && [dot(),
+      src.url ? h("a", { href: src.url, rel: "noreferrer", text: src.identifier })
+              : h("span", { text: src.identifier })],
+    src.author && [dot(), h("span", { text: "by " + src.author })],
+    dot(),
+    h("span", { text: SOURCE_KIND_LABEL[src.kind] || src.kind })
+  );
+
+  const story = M.story || {};
+  const conf = story.confidence;
+  const evidence = (story.evidence || []).map(e => EVIDENCE_LABEL[e] || e);
+  const chips = h("div", { class: "chips" },
+    h("span", { class: "chip lead", text: conf === "high" ? "High confidence" : conf === "medium" ? "Medium confidence" : "Low confidence" }),
+    evidence.length ? h("span", { class: "label", text: "read from" }) : null,
+    evidence.map(e => h("span", { class: "chip dim", text: e }))
+  );
+
+  return h("header", { class: "masthead", id: "top" },
+    h("div", { class: "wrap" },
+      eyebrow,
+      h("h1", { class: "headline" }, prose(story.headline || src.title || "")),
+      (story.beats || []).length
+        ? h("div", { class: "beats" }, story.beats.map(b => h("div", { class: "beat" },
+            h("div", { class: "bl" }, prose(b.label)),
+            h("div", { class: "bt" }, prose(b.text)))))
+        : null,
+      story.caveat ? h("p", { class: "caveat" }, prose(story.caveat)) : null,
+      chips,
+      metricsBlock(stats),
+      intentStrip()
+    )
+  );
+}
+
+/* Changed lines per significance. Counted by hunk wherever the hunks can
+   account for the whole file, because a core hunk inside an otherwise
+   supporting file is the case the two axes exist for, and summing file totals
+   would file its lines under the file's label instead. A file with a truncated
+   or absent hunk cannot be counted that way without losing lines, so it falls
+   back to its own totals and its own significance. */
+function linesBySignificance() {
+  const by = { core: 0, supporting: 0, mechanical: 0 };
+  for (const f of FILES) {
+    const hunks = (f.hunk_ids || []).map(id => HUNKS[id]);
+    if (!hunks.length || hunks.some(hunk => !hunk || hunk.truncated)) {
+      by[f.significance] += (f.additions || 0) + (f.deletions || 0);
+      continue;
+    }
+    for (const hunk of hunks) {
+      let changed = 0;
+      for (const line of hunk.lines || []) if (line.t !== " ") changed++;
+      by[hunk.significance || f.significance] += changed;
+    }
+  }
+  return by;
+}
+
+function metricsBlock(stats) {
+  const by = linesBySignificance();
+  const total = by.core + by.supporting + by.mechanical || 1;
+  const pct = n => Math.round(n / total * 100);
+  const ratio = typeof stats.signal_ratio === "number" ? Math.round(stats.signal_ratio * 100) : pct(by.core);
+
+  const bar = h("div", { class: "bar", role: "img",
+    "aria-label": `${pct(by.core)}% core, ${pct(by.supporting)}% supporting, ${pct(by.mechanical)}% mechanical` });
+  for (const k of ["core", "supporting", "mechanical"]) {
+    if (by[k] > 0) bar.append(h("span", { class: "s-" + k, style: `flex:${by[k]} 0 0` }));
+  }
+  const key = h("div", { class: "barkey" },
+    ["core", "supporting", "mechanical"].map(k => by[k] > 0 ? h("span", {},
+      h("i", { style: `background:var(--sig-${k})` }),
+      `${SIG_LABEL[k]} · ${by[k].toLocaleString()} lines`) : null)
+  );
+
+  const steps = STEPS.length;
+  const minutes = PASS.estimated_minutes;
+  const facts = h("div", { class: "facts" },
+    h("span", {}, h("b", { text: (stats.files_changed || 0).toLocaleString() }),
+      (stats.files_changed === 1 ? " file" : " files")),
+    h("span", {}, h("b", { text: "+" + (stats.additions || 0).toLocaleString() }), " ",
+      h("b", { text: "\u2212" + (stats.deletions || 0).toLocaleString() })),
+    h("span", {}, h("b", { text: (stats.hunks || 0).toLocaleString() }),
+      (stats.hunks === 1 ? " hunk" : " hunks")),
+    h("span", {}, h("b", { text: String(steps) }), ` guided ${steps === 1 ? "step" : "steps"}`,
+      minutes ? `, about ${minutes} min` : "")
+  );
+
+  return h("div", { class: "metrics" },
+    h("div", { class: "ratio" },
+      h("div", { class: "num", text: ratio + "%" }),
+      h("div", { class: "cap", text: "of the changed lines are the change itself" })
+    ),
+    h("div", {}, bar, key, facts)
+  );
+}
+
+/* =================================================================== nav */
+const SECTIONS = [];
+function navbar() {
+  const links = SECTIONS.map(sec => h("a", { href: "#" + sec.id, "data-sec": sec.id, text: sec.nav }));
+  const nav = h("nav", { class: "nav" },
+    h("div", { class: "wrap" },
+      links,
+      h("div", { class: "spacer" }),
+      h("button", { class: "iconbtn", id: "themebtn", type: "button",
+        onclick: toggleTheme, text: "Theme" })
+    )
+  );
+  requestAnimationFrame(() => {
+    const seen = new Map();
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) seen.set(e.target.id, e.intersectionRatio);
+      let best = null, bestV = 0;
+      for (const [id, v] of seen) if (v > bestV) { best = id; bestV = v; }
+      for (const a of links) a.classList.toggle("on", a.dataset.sec === best);
+    }, { rootMargin: "-52px 0px -55% 0px", threshold: [0, .25, .5, 1] });
+    for (const sec of SECTIONS) {
+      const node = document.getElementById(sec.id);
+      if (node) io.observe(node);
+    }
+  });
+  return nav;
+}
+function toggleTheme() {
+  const root = document.documentElement;
+  const now = root.getAttribute("data-theme");
+  const dark = now ? now === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.setAttribute("data-theme", dark ? "light" : "dark");
+  try { localStorage.setItem("precis-theme", dark ? "light" : "dark"); } catch (e) { /* file:// */ }
+  window.dispatchEvent(new Event("resize"));
+}
+try {
+  const saved = localStorage.getItem("precis-theme");
+  if (saved) document.documentElement.setAttribute("data-theme", saved);
+} catch (e) { /* file:// storage may be denied; the media query still applies */ }
+
+/* =============================================================== sections */
+function section(id, nav, title, lead, ...body) {
+  SECTIONS.push({ id, nav });
+  return h("section", { id },
+    h("div", { class: "shead" }, h("h2", { text: title })),
+    lead ? h("p", { class: "slead" }, typeof lead === "string" ? prose(lead) : lead) : null,
+    body
+  );
+}
+
+/* ------------------------------------------------------------- coverage */
+function coverageNotice() {
+  const c = M.coverage || {};
+  const limits = c.limitations || [];
+  if (c.tier === "full" && !limits.length) return null;
+  const tierText = {
+    full: "Every hunk was read.",
+    core: "Core and supporting hunks were read in full; mechanical groups were summarised.",
+    summary: "This change was read at file level only."
+  }[c.tier] || "";
+  return h("div", { class: "notice" },
+    h("h3", { text: "What precis read" }),
+    h("p", {}, prose(c.note || tierText)),
+    h("p", { style: "margin-top:6px", text:
+      `${c.hunks_read} of ${c.hunks_total} hunks, ${c.files_read} of ${c.files_total} files.` }),
+    limits.length ? h("ul", {}, limits.map(l => h("li", {}, prose(l)))) : null
+  );
+}
+
+/* --------------------------------------------------------------- intent */
+/* A strip under the masthead rather than a section of its own: the content is
+   two lines on most changes, and it belongs beside the story it qualifies. */
+function intentStrip() {
+  const story = M.story || {};
+  const d = story.intent_delta || {};
+  const also = d.also_does || [];
+  const not = d.not_done || [];
+  const src = M.source || {};
+
+  const summary = h("summary", {},
+    h("div", { class: "srow" },
+      h("span", { class: "lbl", text: "Says it does" }),
+      h("span", { class: "says" }, d.stated
+        ? prose(d.stated)
+        : h("em", { text: "no description to compare against" })),
+      h("div", { class: "counts" },
+        also.length ? h("span", { class: "pill on", text: `also does ${also.length}` }) : null,
+        not.length ? h("span", { class: "pill on", text: `not in the diff ${not.length}` }) : null,
+        (!also.length && !not.length) ? h("span", { class: "pill", text: "nothing left over" }) : null)));
+
+  const deltas = h("div", { class: "deltas" });
+  for (const a of also) {
+    deltas.append(h("div", { class: "delta" },
+      h("div", { class: "top" },
+        h("span", { class: "tag t-" + (a.kind || "incidental"), text: DELTA_LABEL[a.kind] || a.kind || "Also" }),
+        h("span", { class: "tag", text: "also in this diff" })),
+      h("p", {}, prose(a.summary)),
+      (a.where || []).length ? h("div", { class: "where", text: a.where.join("  ·  ") }) : null,
+      hunkRefs(a.hunk_ids)
+    ));
+  }
+  for (const n of not) {
+    deltas.append(h("div", { class: "delta" },
+      h("div", { class: "top" }, h("span", { class: "tag t-notdone", text: "Not in this diff" })),
+      h("p", {}, prose(n.summary)),
+      n.note ? h("p", { class: "note" }, prose(n.note)) : null
+    ));
+  }
+  if (!also.length && !not.length) {
+    deltas.append(h("div", { class: "delta" },
+      h("p", { text: d.stated
+        ? "The diff and the description account for each other."
+        : "Nothing to reconcile. The graph below is the full account of what this diff does." })));
+  }
+
+  const body = [deltas];
+  if (src.description) {
+    body.push(h("details", { class: "disclose", style: "margin-top:14px" },
+      h("summary", { text: "The author's description, verbatim" }),
+      h("div", { class: "inner" }, h("div", { class: "rawdesc", text: src.description }))));
+  }
+  if ((src.linked_issues || []).length) {
+    body.push(h("div", { class: "chips", style: "margin-top:12px" },
+      h("span", { class: "label", text: "linked" }),
+      src.linked_issues.map(i => i.url
+        ? h("a", { class: "chip", href: i.url, rel: "noreferrer", text: `${i.id} ${i.title}` })
+        : h("span", { class: "chip", text: `${i.id} ${i.title}` }))));
+  }
+
+  return h("details", { class: "intent" }, summary, body);
+}
+
+/* ------------------------------------------------------------ change map */
+/* This used to be a treemap. A treemap answers "how many lines per area", which
+   is not a question any reviewer is stuck on. The one they are stuck on is
+   which function in which file matters and what else calls it, so that is what
+   gets drawn. */
+function mapSection() {
+  const cm = M.change_map || {};
+  const graph = cm.graph;
+  const body = [];
+
+  if (graph && (graph.nodes || []).length) {
+    const wrap = h("div", { class: "graphwrap" });
+    wrap.append(drawCallGraph(graph).node);
+    body.push(wrap, graphKey(graph), offGraphNote(graph));
+  } else {
+    body.push(h("div", { class: "card pad" },
+      h("p", { style: "color:var(--ink-soft)", text:
+        "No call relationship in this change is worth drawing. The file list below is the whole account." })));
+  }
+  body.push(ledger());
+
+  return section("map", "Calls", "What calls what", cm.summary || null, ...body);
+}
+
+/* Files the graph does not reach get named and counted here rather than in the
+   model, so the number cannot drift out of step with the nodes drawn. */
+function offGraphNote(graph) {
+  const on = new Set((graph.nodes || []).map(n => n.path).filter(Boolean));
+  const by = new Map();
+  for (const f of FILES) {
+    if (on.has(f.path)) continue;
+    by.set(f.group.label, (by.get(f.group.label) || 0) + 1);
+  }
+  const total = Array.from(by.values()).reduce((a, b) => a + b, 0);
+  if (!total) return null;
+  const parts = Array.from(by.entries()).sort((a, b) => b[1] - a[1])
+    .map(([label, n]) => `${label} ${n}`);
+  return h("p", { class: "offgraph" },
+    h("b", { text: plural(total, "file") }),
+    total === 1 ? " ripples from this and appears on no path: "
+                : " ripple from this and appear on no path: ",
+    h("span", { class: "og", text: parts.join("  ·  ") }));
+}
+
+function graphKey(graph) {
+  const order = ["added", "changed", "removed", "unchanged"];
+  const seen = [];
+  for (const n of graph.nodes || []) if (!seen.includes(n.emphasis)) seen.push(n.emphasis);
+  seen.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  return h("div", { class: "dkey" },
+    seen.map(e => h("span", {},
+      h("i", { style: `border-top-color:${emphColor(e)};border-top-style:${e === "removed" ? "dashed" : "solid"}` }),
+      EMPH_LABEL[e] || e)),
+    h("span", { style: "color:var(--ink-faint)", text: "Click a box to open its code." }));
+}
+
+/* What this node's own hunks add and remove, as "  +7 −2", or "" for a node
+   the change did not touch. */
+function nodeCounts(node) {
+  let added = 0, removed = 0;
+  for (const id of node.hunk_ids || []) {
+    for (const line of (HUNKS[id] || {}).lines || []) {
+      if (line.t === "+") added++;
+      else if (line.t === "-") removed++;
+    }
+  }
+  const counts = [];
+  if (added) counts.push("+" + added);
+  if (removed) counts.push("−" + removed);
+  return counts.length ? "  " + counts.join(" ") : "";
+}
+
+function drawCallGraph(graph) {
+  const drawn = drawFlow({ kind: "flow", nodes: graph.nodes, edges: graph.edges }, {
+    nodeWidth: 208,
+    /* `calls` is the default reading of an arrow, so labelling it adds noise.
+       Everything else earns its word. */
+    edgeLabel: e => e.label || (e.kind === "calls" ? null : REL_LABEL[e.kind] || e.kind),
+    /* Counts belong to the node, not to the file it happens to sit in. An
+       unchanged neighbour inside a changed file would otherwise wear that
+       file's "+9" and read as though it had changed, and a changed symbol
+       would claim every line its neighbours in the same file added. */
+    sub: node => {
+      if (node.path) return basename(node.path) + nodeCounts(node);
+      return GRAPH_KIND_LABEL[node.kind] || null;
+    },
+    onNode: (node, box) => {
+      box.setAttribute("class", "gnode");
+      box.addEventListener("mouseenter", ev => showNodeTip(ev, node));
+      box.addEventListener("mousemove", ev => showNodeTip(ev, node));
+      box.addEventListener("mouseleave", hideTip);
+      box.addEventListener("click", () => {
+        hideTip();
+        if ((node.hunk_ids || []).length) openHunkAt(node.hunk_ids[0]);
+        else if (node.path && FILE_BY_PATH.has(node.path)) revealFile(node.path);
+      });
+    }
+  });
+  /* Past about four fifths scale the symbol names stop being readable, and an
+     unreadable graph is worse than one you have to push sideways. */
+  drawn.node.style.minWidth = Math.round(drawn.naturalWidth * 0.8) + "px";
+  return drawn;
+}
+
+/* A node opens the reading step that covers its code when there is one: sending
+   a reader to a hunk they will meet again in the pass is worse than sending
+   them to the pass. */
+function openHunkAt(hunkId) {
+  const n = STEP_OF_HUNK.get(hunkId);
+  const step = n ? document.getElementById("step-" + n) : null;
+  if (step) {
+    step.scrollIntoView({ behavior: "smooth", block: "start" });
+    step.classList.add("flash");
+    setTimeout(() => step.classList.remove("flash"), 1600);
+    return;
+  }
+  const hunk = HUNKS[hunkId];
+  if (hunk) revealFile(hunk.path);
+}
+
+function showNodeTip(ev, node) {
+  const file = node.path ? FILE_BY_PATH.get(node.path) : null;
+  positionTip(ev,
+    h("div", { class: "p", text: node.path || GRAPH_KIND_LABEL[node.kind] || "" }),
+    h("div", { text: `${GRAPH_KIND_LABEL[node.kind] || node.kind} · ${EMPH_LABEL[node.emphasis] || node.emphasis}` }),
+    node.note ? h("div", { class: "m" }, prose(node.note)) : null,
+    file ? h("div", { class: "m", text: `${KIND_LABEL[file.change_kind]} · ${SIG_LABEL[file.significance]}` }) : null);
+}
+
+function debounce(fn, ms) {
+  let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); };
+}
+
+/* Truncate to a pixel width, saying so when something was lost. */
+function clip(str, px, size) {
+  const s = String(str);
+  const max = Math.floor(px / (size * 0.56));
+  if (s.length <= max) return s;
+  return max <= 1 ? "" : s.slice(0, max - 1) + "…";
+}
+
+let TIP = null;
+function positionTip(ev, ...kids) {
+  if (!TIP) { TIP = h("div", { class: "tip" }); document.body.append(TIP); }
+  TIP.replaceChildren();
+  add(TIP, kids);
+  TIP.style.display = "block";
+  const pad = 14;
+  const r = TIP.getBoundingClientRect();
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+  TIP.style.left = Math.max(8, x) + "px";
+  TIP.style.top = Math.max(8, y) + "px";
+}
+function hideTip() { if (TIP) TIP.style.display = "none"; }
+
+function revealFile(path) {
+  const row = document.querySelector(`tr[data-path="${cssEscape(path)}"]`);
+  if (!row) return;
+  const details = row.closest("details");
+  if (details) details.open = true;
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  row.classList.add("flash");
+  setTimeout(() => row.classList.remove("flash"), 1600);
+}
+function cssEscape(v) { return String(v).replace(/["\\]/g, "\\$&"); }
+
+/* The complete account, folded away. The graph is the answer; this is the
+   receipt, and every file in the diff appears in it exactly once. */
+function ledger() {
+  const kinds = KIND_ORDER.filter(k => FILES.some(f => f.change_kind === k));
+  return h("details", { class: "ledger" },
+    h("summary", {}, h("span", {}, h("b", { text: String(FILES.length) }),
+      FILES.length === 1 ? " file in this change, grouped by role"
+                         : " files in this change, grouped by role")),
+    h("div", { class: "legend" },
+      kinds.map(k => h("span", {}, h("i", { style: `background:${kindColor(k)}` }), KIND_LABEL[k]))),
+    groupList());
+}
+
+function groupList() {
+  const groups = (M.change_map || {}).groups || [];
+  const list = h("div", { class: "grouplist" });
+  for (const g of groups) {
+    const lines = g.files.reduce((a, f) => a + (f.additions || 0) + (f.deletions || 0), 0);
+    const interesting = g.files.some(f => f.significance !== "mechanical");
+    const table = h("table", { class: "files" }, h("tbody", {},
+      g.files.map(f => {
+        const [dir, base] = splitPath(f.path);
+        return h("tr", { "data-path": f.path },
+          h("td", {},
+            h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
+            f.moved_from ? h("span", { class: "moved", text: "\u2190 " + f.moved_from }) : null,
+            f.note ? h("div", { class: "note" }, prose(f.note)) : null),
+          h("td", { class: "meta", style: "white-space:nowrap" },
+            h("span", { class: "kindchip", title: KIND_LABEL[f.change_kind] },
+              h("i", { style: `background:${kindColor(f.change_kind)}` }), KIND_LABEL[f.change_kind])),
+          h("td", { class: "meta", style: "white-space:nowrap" },
+            h("span", { class: "kindchip", title: SIG_LABEL[f.significance] },
+              h("i", { class: "sigdot", style: `background:var(--sig-${f.significance})` }),
+              SIG_LABEL[f.significance])),
+          h("td", { class: "meta num" },
+            f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
+            f.deletions ? h("span", { class: "minus", text: "\u2212" + f.deletions }) : null,
+            (!f.additions && !f.deletions) ? h("span", { style: "color:var(--ink-faint)", text: STATUS_LABEL[f.status] }) : null)
+        );
+      })));
+    list.append(h("details", { class: "group", open: interesting },
+      h("summary", {},
+        h("span", { class: "role", text: ROLE_LABEL[g.role] || g.role }),
+        h("span", { class: "glabel" }, prose(g.label)),
+        g.summary ? h("span", { class: "gsum" }, prose(g.summary)) : h("span", { class: "gsum" }),
+        h("span", { class: "gnum", text: `${plural(g.files.length, "file")} · ${lines} lines` })),
+      table));
+  }
+  return list;
+}
+
+/* ------------------------------------------------------------- behaviour */
+function behaviorSection() {
+  const b = M.behavior || {};
+  if (!b.changed) {
+    return section("behavior", "Behaviour", "Behaviour: before and after", null,
+      h("div", { class: "card pad" },
+        h("p", { class: "story", style: "max-width:64ch" }, prose(b.note || "")),
+        h("p", { style: "margin-top:10px;font-size:13px;color:var(--ink-faint)",
+          text: "There is no before/after diagram because there is no behavioural difference to draw." })));
+  }
+
+  const grid = h("div", { class: "diagrams" });
+  const cards = [];
+  for (const side of ["before", "after"]) {
+    const d = b[side];
+    if (!d) continue;
+    const body = h("div", { class: "dbody" });
+    const card = h("div", { class: "dcard" },
+      h("h3", {}, prose(d.title || (side === "before" ? "Before" : "After"))), body);
+    cards.push({ side, d, body });
+    grid.append(card);
+  }
+  const drawAll = () => {
+    const wide = grid.clientWidth || 900;
+    let natural = 0;
+    const built = cards.map(c => {
+      const svg = c.d.kind === "sequence" ? drawSequence(c.d) : drawFlow(c.d);
+      natural = Math.max(natural, svg.naturalWidth);
+      return { c, svg };
+    });
+    const perColumn = (wide - 18) / 2 - 26;
+    grid.classList.toggle("stacked", natural > perColumn * 1.45 || wide < 760);
+    /* Both sides render at one scale: a before/after pair read at different
+       zoom levels is a comparison the eye has to undo. */
+    for (const { c, svg } of built) {
+      svg.node.removeAttribute("width");
+      svg.node.removeAttribute("height");
+      svg.node.style.width = (svg.naturalWidth / natural * 100) + "%";
+      svg.node.style.maxWidth = svg.naturalWidth + "px";
+      c.body.replaceChildren(svg.node);
+    }
+  };
+  requestAnimationFrame(drawAll);
+  window.addEventListener("resize", debounce(drawAll, 150));
+
+  const key = h("div", { class: "dkey" },
+    [["added", "added by this change"], ["removed", "removed"], ["changed", "changed"], ["unchanged", "unchanged"]]
+      .map(([k, label]) => h("span", {}, h("i", { style: `border-top-color:${emphColor(k)};${k === "removed" ? "border-top-style:dashed" : ""}` }), label)));
+
+  const deltas = (b.deltas || []).length ? h("div", { class: "bdeltas" },
+    b.deltas.map(d => h("div", { class: "bdelta" },
+      h("span", { class: "mk", text: "\u25B8" }),
+      h("div", {}, prose(d.summary), hunkRefs(d.hunk_ids))))) : null;
+
+  return section("behavior", "Behaviour", "Behaviour: before and after",
+    b.summary, grid, key, deltas);
+}
+
+function emphColor(e) {
+  return { added: "var(--k-new_logic)", removed: "var(--k-deleted)",
+           changed: "var(--k-modified_logic)", unchanged: "var(--ink-faint)" }[e] || "var(--ink-faint)";
+}
+function emphWidth(e) { return e === "unchanged" ? 1.4 : 2; }
+/* Dashes mean removed, and only removed. An async hop is dotted, which reads as
+   a different statement rather than a competing one. */
+function edgeDash(edge) {
+  if (edge.emphasis === "removed") return "5 4";
+  if (edge.kind === "async") return "1.5 3.5";
+  return null;
+}
+
+/* ------------------------------------------------------ sequence diagram */
+function drawSequence(d) {
+  const lanes = d.lanes || [];
+  const edges = (d.edges || []).filter(e =>
+    lanes.some(l => l.id === e.from) && lanes.some(l => l.id === e.to));
+  const notes = (d.nodes || []).filter(n => n.lane);
+
+  const LW = Math.max(150, ...lanes.map(l => textWidth(l.label, 12) + 34));
+  const PAD = 14, HEAD_H = 34, TOP = 10, ROW = 44;
+  const W = Math.round(PAD * 2 + LW * lanes.length);
+  const bodyTop = TOP + HEAD_H + 26;
+  const H = Math.round(bodyTop + edges.length * ROW + notes.length * 34 + 18);
+  const cx = i => PAD + LW * i + LW / 2;
+  const idx = new Map(lanes.map((l, i) => [l.id, i]));
+
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H,
+    role: "img", "aria-label": (d.title || "sequence") + " diagram" });
+
+  lanes.forEach((l, i) => {
+    const x = cx(i);
+    svg.append(s("line", { x1: x, y1: TOP + HEAD_H, x2: x, y2: H - 12,
+      stroke: "var(--line)", "stroke-width": 1, "stroke-dasharray": "3 4" }));
+    svg.append(s("rect", { x: x - LW / 2 + 8, y: TOP, width: LW - 16, height: HEAD_H, rx: 7,
+      fill: "var(--panel-soft)", stroke: "var(--line)" }));
+    svg.append(s("text", { x, y: TOP + HEAD_H / 2 + 4.5, class: "dg-lane", "text-anchor": "middle",
+      fill: "var(--ink)", text: clip(l.label, LW - 22, 12) }));
+  });
+
+  edges.forEach((e, i) => {
+    const y = bodyTop + i * ROW;
+    const a = idx.get(e.from), b = idx.get(e.to);
+    const col = emphColor(e.emphasis);
+    const dash = edgeDash(e);
+    const hollow = e.kind === "return";
+    const grp = s("g", {});
+    if (a === b) {
+      const x = cx(a);
+      grp.append(s("path", { d: `M ${x} ${y} h 26 v 16 h -26`, fill: "none",
+        stroke: col, "stroke-width": emphWidth(e.emphasis), "stroke-dasharray": dash }));
+      grp.append(arrowHead(x + 1, y + 16, "left", col, hollow));
+      if (e.label) grp.append(s("text", { x: x + 34, y: y + 12, class: "dg-label",
+        fill: "var(--ink-soft)", text: clip(e.label, LW - 40, 11.5) }));
+    } else {
+      const x1 = cx(a), x2 = cx(b);
+      const dir = x2 > x1 ? 1 : -1;
+      grp.append(s("line", { x1, y1: y, x2: x2 - dir * 6, y2: y, stroke: col,
+        "stroke-width": emphWidth(e.emphasis), "stroke-dasharray": dash }));
+      grp.append(arrowHead(x2 - dir * 6, y, dir > 0 ? "right" : "left", col, hollow));
+      if (e.label) {
+        grp.append(s("text", {
+          x: (x1 + x2) / 2, y: y - 7, class: "dg-label", "text-anchor": "middle",
+          fill: e.emphasis === "unchanged" ? "var(--ink-soft)" : col,
+          "font-weight": e.emphasis === "unchanged" ? 400 : 600,
+          text: clip(e.label, Math.abs(x2 - x1) + LW * 0.6, 11.5)
+        }));
+      }
+    }
+    svg.append(grp);
+  });
+
+  notes.forEach((n, i) => {
+    const y = bodyTop + edges.length * ROW + i * 34;
+    const x = cx(idx.get(n.lane) || 0);
+    const w = Math.min(LW + 40, textWidth(n.label, 11.5) + 20);
+    svg.append(s("rect", { x: x - w / 2, y: y - 12, width: w, height: 24, rx: 4,
+      fill: "var(--panel-soft)", stroke: emphColor(n.emphasis), "stroke-dasharray": "3 3" }));
+    svg.append(s("text", { x, y: y + 4, class: "dg-label", "text-anchor": "middle",
+      fill: "var(--ink-soft)", text: clip(n.label, w - 12, 11.5) }));
+  });
+
+  return { node: svg, naturalWidth: W };
+}
+
+/* A returned value gets a hollow head; a call gets a solid one. */
+function arrowHead(x, y, dir, color, hollow) {
+  const p = { right: `${x},${y} ${x - 7},${y - 4} ${x - 7},${y + 4}`,
+              left: `${x},${y} ${x + 7},${y - 4} ${x + 7},${y + 4}`,
+              down: `${x},${y} ${x - 4},${y - 7} ${x + 4},${y - 7}`,
+              up: `${x},${y} ${x - 4},${y + 7} ${x + 4},${y + 7}` }[dir];
+  return hollow
+    ? s("polygon", { points: p, fill: "var(--panel)", stroke: color, "stroke-width": 1.3 })
+    : s("polygon", { points: p, fill: color });
+}
+
+/* ---------------------------------------------------------- flow diagram */
+/* Shared by the behaviour diagrams and the call graph. `opts` is how the call
+   graph asks for what it needs (a file name under each symbol, clickable boxes)
+   without the behaviour diagrams growing a vocabulary they never use. */
+function drawFlow(d, opts) {
+  opts = opts || {};
+  const NW = opts.nodeWidth || 190, GAPX = 26, GAPY = 46, PAD = 16;
+  const nodes = (d.nodes || []).map((n, i) => Object.assign({}, n, { i }));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const edges = (d.edges || []).filter(e => byId.has(e.from) && byId.has(e.to));
+
+  /* Break cycles so ranking terminates; a retry loop is a back edge, not a layer. */
+  const adj = new Map(nodes.map(n => [n.id, []]));
+  edges.forEach((e, i) => adj.get(e.from).push({ to: e.to, i }));
+  const state = new Map(), back = new Set();
+  const walk = id => {
+    state.set(id, 1);
+    for (const { to, i } of adj.get(id)) {
+      const st = state.get(to) || 0;
+      if (st === 1) back.add(i);
+      else if (st === 0) walk(to);
+    }
+    state.set(id, 2);
+  };
+  for (const n of nodes) if (!state.get(n.id)) walk(n.id);
+  const fwd = edges.map((e, i) => ({ e, i })).filter(x => !back.has(x.i)).map(x => x.e);
+
+  const rank = new Map(nodes.map(n => [n.id, 0]));
+  const indeg = new Map(nodes.map(n => [n.id, 0]));
+  const outs = new Map(nodes.map(n => [n.id, []]));
+  for (const e of fwd) { indeg.set(e.to, indeg.get(e.to) + 1); outs.get(e.from).push(e.to); }
+  const queue = nodes.filter(n => indeg.get(n.id) === 0).map(n => n.id);
+  while (queue.length) {
+    const id = queue.shift();
+    for (const to of outs.get(id)) {
+      if (rank.get(to) < rank.get(id) + 1) rank.set(to, rank.get(id) + 1);
+      indeg.set(to, indeg.get(to) - 1);
+      if (indeg.get(to) === 0) queue.push(to);
+    }
+  }
+  const maxRank = Math.max(0, ...nodes.map(n => rank.get(n.id)));
+  const rows = [];
+  for (let r = 0; r <= maxRank; r++) rows.push(nodes.filter(n => rank.get(n.id) === r));
+
+  /* Two barycentre sweeps: enough to untangle diagrams this small. */
+  const pos = new Map();
+  rows.forEach(row => row.forEach((n, i) => pos.set(n.id, i)));
+  const preds = new Map(nodes.map(n => [n.id, []]));
+  const succs = new Map(nodes.map(n => [n.id, []]));
+  for (const e of fwd) { preds.get(e.to).push(e.from); succs.get(e.from).push(e.to); }
+  const sweep = (dir) => {
+    const order = dir > 0 ? rows.slice(1) : rows.slice(0, -1).reverse();
+    for (const row of order) {
+      const rel = dir > 0 ? preds : succs;
+      row.sort((a, b) => bary(a, rel) - bary(b, rel));
+      row.forEach((n, i) => pos.set(n.id, i));
+    }
+  };
+  const bary = (n, rel) => {
+    const ns = rel.get(n.id);
+    if (!ns.length) return pos.get(n.id);
+    return ns.reduce((a, id) => a + (pos.get(id) || 0), 0) / ns.length;
+  };
+  sweep(1); sweep(-1); sweep(1);
+
+  /* Geometry. */
+  const subOf = opts.sub || (() => null);
+  const subs = new Map(nodes.map(n => [n.id, subOf(n)]));
+  const wrapped = new Map(nodes.map(n =>
+    [n.id, wrapText(n.label, NW - 22, 11.5, subs.get(n.id) ? 2 : 3)]));
+  const nodeH = n => 30 + (wrapped.get(n.id).length - 1) * 14 + (subs.get(n.id) ? 14 : 0);
+  const rowW = row => row.length * NW + (row.length - 1) * GAPX;
+  const widest = Math.max(...rows.map(rowW));
+  const hasBack = back.size > 0;
+  const RIGHT = hasBack ? 34 : 0;
+  const W = Math.round(PAD * 2 + widest + RIGHT);
+
+  let y = PAD;
+  const geom = new Map();
+  for (const row of rows) {
+    const rh = Math.max(...row.map(nodeH));
+    let x = PAD + (widest - rowW(row)) / 2;
+    for (const n of row) {
+      geom.set(n.id, { x, y, w: NW, h: nodeH(n), cx: x + NW / 2, cy: y + nodeH(n) / 2 });
+      x += NW + GAPX;
+    }
+    y += rh + GAPY;
+  }
+  const H = Math.round(y - GAPY + PAD);
+
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H,
+    role: "img", "aria-label": (d.title || "flow") + " diagram" });
+
+  const labelOf = opts.edgeLabel || (e => e.label);
+  edges.forEach((edge, i) => {
+    const e = Object.assign({}, edge, { label: labelOf(edge) });
+    const a = geom.get(e.from), b = geom.get(e.to);
+    const col = emphColor(e.emphasis);
+    const dash = edgeDash(e);
+    const hollow = e.kind === "return" || e.kind === "returns";
+    const width = emphWidth(e.emphasis);
+    const g = s("g", {});
+    if (back.has(i)) {
+      const rx = PAD + widest + 16;
+      const sx = a.x + a.w, sy = a.cy, tx = b.x + b.w, ty = b.cy;
+      g.append(s("path", { d: `M ${sx} ${sy} C ${rx + 14} ${sy}, ${rx + 14} ${ty}, ${tx + 8} ${ty}`,
+        fill: "none", stroke: col, "stroke-width": width, "stroke-dasharray": dash }));
+      g.append(arrowHead(tx + 1, ty, "left", col, hollow));
+      if (e.label) g.append(s("text", { x: rx + 8, y: (sy + ty) / 2, class: "dg-label",
+        "text-anchor": "middle", transform: `rotate(-90 ${rx + 8} ${(sy + ty) / 2})`,
+        fill: col, "font-weight": 600, text: clip(e.label, Math.abs(sy - ty) - 10, 11) }));
+    } else {
+      const x1 = a.cx, y1 = a.y + a.h, x2 = b.cx, y2 = b.y - 7;
+      const mid = (y2 - y1) / 2;
+      g.append(s("path", { d: `M ${x1} ${y1} C ${x1} ${y1 + mid}, ${x2} ${y2 - mid}, ${x2} ${y2}`,
+        fill: "none", stroke: col, "stroke-width": width, "stroke-dasharray": dash }));
+      g.append(arrowHead(x2, y2 + 6, "down", col, hollow));
+      if (e.label) {
+        const lx = (x1 + x2) / 2 + (x2 === x1 ? 8 : 0);
+        const ly = y1 + (y2 - y1) / 2 + 4;
+        const tw = textWidth(e.label, 11) + 8;
+        g.append(s("rect", { x: lx - tw / 2, y: ly - 11, width: tw, height: 15, rx: 3,
+          fill: "var(--panel)", "fill-opacity": .92 }));
+        g.append(s("text", { x: lx, y: ly, class: "dg-label", "text-anchor": "middle",
+          fill: e.emphasis === "unchanged" ? "var(--ink-soft)" : col,
+          "font-weight": e.emphasis === "unchanged" ? 400 : 600, text: e.label }));
+      }
+    }
+    svg.append(g);
+  });
+
+  for (const n of nodes) {
+    const g = geom.get(n.id);
+    const col = emphColor(n.emphasis);
+    const fill = n.emphasis === "unchanged" ? "var(--panel-soft)"
+      : `color-mix(in srgb, ${col} 12%, var(--panel))`;
+    const box = s("g", {});
+    box.append(nodeShape(n.kind, g, fill, col, n.emphasis));
+    const lines = wrapped.get(n.id);
+    const sub = subs.get(n.id);
+    const block = lines.length * 14 + (sub ? 13 : 0);
+    let ty = g.y + g.h / 2 - block / 2 + 11;
+    for (const line of lines) {
+      box.append(s("text", { x: g.cx, y: ty, class: "dg-label", "text-anchor": "middle",
+        fill: "var(--ink)", "font-weight": n.emphasis === "unchanged" ? 400 : 550, text: line }));
+      ty += 14;
+    }
+    if (sub) {
+      box.append(s("text", { x: g.cx, y: ty, class: "g-sub", "text-anchor": "middle",
+        fill: "var(--ink-faint)", text: clip(sub, g.w - 16, 9.5) }));
+    }
+    if (opts.onNode) opts.onNode(n, box);
+    svg.append(box);
+  }
+
+  return { node: svg, naturalWidth: W };
+}
+
+/* Shape carries the node's kind. Dashes carry `emphasis: removed` and nothing
+   else, so a dashed outline always means "this went away". */
+function nodeShape(kind, g, fill, stroke, emphasis) {
+  const dash = emphasis === "removed" ? "5 4" : null;
+  const common = { fill, stroke, "stroke-width": emphasis === "unchanged" ? 1.2 : 1.8, "stroke-dasharray": dash };
+  const { x, y, w, h } = g;
+  const shape = s("g", { class: "gbox" });
+
+  if (kind === "error") {
+    /* Clipped corners: the shape a reader already reads as a warning label,
+       without borrowing red, which belongs to `removed`. */
+    const c = 9;
+    shape.append(s("path", Object.assign({
+      d: `M ${x + c} ${y} H ${x + w - c} L ${x + w} ${y + c} V ${y + h - c} L ${x + w - c} ${y + h} `
+       + `H ${x + c} L ${x} ${y + h - c} V ${y + c} Z`
+    }, common)));
+    return shape;
+  }
+  if (kind === "type") {
+    shape.append(s("rect", Object.assign({ x, y, width: w, height: h, rx: 6 }, common)));
+    shape.append(s("path", Object.assign({}, common, {
+      d: `M ${x} ${y + 11} H ${x + w}`, fill: "none", "stroke-width": 1
+    })));
+    return shape;
+  }
+  if (kind === "decision") {
+    const c = 13;
+    shape.append(s("path", Object.assign({
+      d: `M ${x + c} ${y} H ${x + w - c} L ${x + w} ${y + h / 2} L ${x + w - c} ${y + h} H ${x + c} L ${x} ${y + h / 2} Z`
+    }, common)));
+    return shape;
+  }
+  if (kind === "store" || kind === "queue") {
+    const ry = 6;
+    shape.append(s("path", Object.assign({
+      d: `M ${x} ${y + ry} a ${w / 2} ${ry} 0 0 1 ${w} 0 v ${h - ry * 2} a ${w / 2} ${ry} 0 0 1 ${-w} 0 Z`
+    }, common)));
+    shape.append(s("path", Object.assign({}, common, {
+      d: `M ${x} ${y + ry} a ${w / 2} ${ry} 0 0 0 ${w} 0`, fill: "none"
+    })));
+    return shape;
+  }
+  if (kind === "actor" || kind === "start" || kind === "end" || kind === "entrypoint") {
+    shape.append(s("rect", Object.assign({ x, y, width: w, height: h, rx: h / 2 }, common)));
+    return shape;
+  }
+  if (kind === "note" || kind === "config") {
+    const f = 11;
+    shape.append(s("path", Object.assign({
+      d: `M ${x} ${y} H ${x + w - f} L ${x + w} ${y + f} V ${y + h} H ${x} Z`
+    }, common)));
+    shape.append(s("path", Object.assign({}, common, {
+      d: `M ${x + w - f} ${y} V ${y + f} H ${x + w}`, fill: "none"
+    })));
+    return shape;
+  }
+  shape.append(s("rect", Object.assign({ x, y, width: w, height: h, rx: 6 }, common)));
+  if (kind === "external" || kind === "service") {
+    shape.append(s("path", Object.assign({}, common, {
+      d: `M ${x + 5} ${y + 5} V ${y + h - 5}`, fill: "none", "stroke-width": 3, "stroke-linecap": "round"
+    })));
+  }
+  return shape;
+}
+
+function wrapText(text, maxPx, size, maxLines) {
+  const per = size * 0.56;
+  const max = Math.max(6, Math.floor(maxPx / per));
+  /* A word two characters over the line is better left to overhang than cut in
+     half: `session.request(timeout)` must not become `timeou` / `t)`. */
+  const hard = max + 4;
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let cur = "";
+  for (let word of words) {
+    while (word.length > hard) {
+      if (cur) { lines.push(cur); cur = ""; }
+      lines.push(word.slice(0, max - 1) + "\u00AD");
+      word = word.slice(max - 1);
+    }
+    if (!cur) cur = word;
+    else if (cur.length + 1 + word.length <= max) cur += " " + word;
+    else { lines.push(cur); cur = word; }
+  }
+  if (cur) lines.push(cur);
+  return lines.slice(0, maxLines || 3);
+}
+
+/* ----------------------------------------------------------- review pass */
+/* Reading order and attention used to be two sections a reviewer read. They are
+   one pass a reviewer finishes: read these, then decide these. Ticks live in
+   localStorage under the head SHA, so a reload resumes and a new head starts
+   clean. */
+const PASS_KEY = "precis-pass:" + (
+  (M.source && M.source.head && M.source.head.sha) ||
+  (M.source && M.source.identifier) || "unkeyed");
+
+function loadTicks() {
+  /* file:// denies storage in some browsers; the pass still works, it just
+     forgets. */
+  try { return new Set(JSON.parse(localStorage.getItem(PASS_KEY) || "[]")); }
+  catch (e) { return new Set(); }
+}
+function saveTicks(set) {
+  try { localStorage.setItem(PASS_KEY, JSON.stringify(Array.from(set))); } catch (e) { /* as above */ }
+}
+
+let TICKS = loadTicks();
+const PASS_ITEMS = [];
+
+function reviewSection() {
+  const skips = PASS.skippable || [];
+  const total = STEPS.length + CHECKS.length;
+
+  const bar = h("div", { class: "passbar" },
+    h("div", { class: "pbar" }, h("i", { id: "pfill" })),
+    h("div", { class: "pcount", id: "pcount" }),
+    h("div", { class: "passbtns" },
+      h("button", { class: "iconbtn", type: "button", id: "copybtn",
+        onclick: copySummary, text: "Copy summary" }),
+      h("button", { class: "iconbtn", type: "button", onclick: resetPass, text: "Reset" })),
+    h("textarea", { class: "copyout", id: "copyout", readonly: "readonly",
+      style: "display:none", "aria-label": "Review summary, ready to copy" }));
+
+  const readGroup = h("div", { class: "passgroup" },
+    h("div", { class: "gh" },
+      h("h3", { text: "Read these, in this order" }),
+      PASS.estimated_minutes
+        ? h("span", { class: "sub", text: `about ${PASS.estimated_minutes} min` }) : null),
+    h("div", { class: "steps" }, STEPS.map(stepItem)));
+
+  const checkGroup = CHECKS.length ? h("div", { class: "passgroup" },
+    h("div", { class: "gh" },
+      h("h3", { text: "Then decide these" }),
+      h("span", { class: "sub", text: "yours to judge; precis has no opinion on any of them" })),
+    h("div", { class: "steps" }, CHECKS.map((c, i) => checkItem(c, STEPS.length + i + 1))))
+    : null;
+
+  const skipFiles = skips.reduce((a, g) => a + (g.file_count || 0), 0);
+  const skipLines = skips.reduce((a, g) => a + (g.additions || 0) + (g.deletions || 0), 0);
+  const skipBlock = skips.length ? h("div", { class: "skipwrap" },
+    h("div", { class: "gh" },
+      h("h3", { text: "Skim or skip" }),
+      h("span", { class: "sub",
+        text: `${plural(skipFiles, "file")}, ${skipLines.toLocaleString()} changed lines` })),
+    h("p", { class: "lead", text:
+      "Each group says why it can be skipped and lists every file it covers, so nothing is hidden." }),
+    skips.map(g => h("details", { class: "skip" },
+      h("summary", {},
+        h("div", { class: "srow" },
+          h("span", { class: "slabel" }, prose(g.label)),
+          h("span", { class: "smeta", text: `${plural(g.file_count, "file")} · +${g.additions} −${g.deletions}` }),
+          g.confidence === "medium" ? h("span", { class: "chip dim", text: "medium confidence" }) : null),
+        h("p", { class: "reason" }, prose(g.reason))),
+      h("div", { class: "inner" },
+        h("div", { class: "filelist" }, (g.files || []).map(p => h("div", { text: p })))))))
+    : null;
+
+  const node = section("review", "Review", "Your review pass",
+    `${plural(total, "thing")} to do. Tick them off; the page remembers.`,
+    bar, readGroup, checkGroup, skipBlock);
+  requestAnimationFrame(refreshProgress);
+  return node;
+}
+
+function tickButton(key, article) {
+  const btn = h("button", { class: "tick", type: "button" },
+    h("span", { class: "mark", text: "✓" }));
+  const apply = () => {
+    const done = TICKS.has(key);
+    article.classList.toggle("done", done);
+    btn.setAttribute("aria-pressed", done ? "true" : "false");
+    const label = done ? "Mark as not done" : "Mark as done";
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+  };
+  btn.addEventListener("click", () => {
+    if (TICKS.has(key)) TICKS.delete(key); else TICKS.add(key);
+    saveTicks(TICKS);
+    apply();
+    refreshProgress();
+  });
+  PASS_ITEMS.push(apply);
+  apply();
+  return btn;
+}
+
+function stepItem(step) {
+  const hunks = h("div", { class: "hunks" });
+  for (const id of step.hunk_ids) {
+    const hunk = HUNKS[id];
+    if (hunk) hunks.append(hunkNode(hunk, (step.annotations || []).filter(a => a.hunk_id === id)));
+  }
+  for (const a of (step.annotations || []).filter(a => !step.hunk_ids.includes(a.hunk_id))) {
+    hunks.append(h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
+      h("div", { class: "txt" }, prose(a.text))));
+  }
+  /* The hunk headers already name the file. Repeat the step path only when the
+     step spans more than the one file. */
+  const paths = new Set(step.hunk_ids.map(id => HUNKS[id] && HUNKS[id].path).filter(Boolean));
+  const showPath = step.path && !(paths.size === 1 && paths.has(step.path));
+  const article = h("article", { class: "step", id: "step-" + step.n });
+  article.append(
+    h("div", { class: "head" },
+      tickButton("s" + step.n, article),
+      h("div", { class: "htext" },
+        h("h3", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
+        h("p", { class: "why" }, prose(step.why)),
+        showPath ? h("div", { class: "path", text: step.path }) : null)),
+    hunks);
+  return article;
+}
+
+function checkItem(check, n) {
+  const article = h("article", { class: "step check", id: "check-" + n });
+  article.append(
+    h("div", { class: "head" },
+      tickButton("c" + n, article),
+      h("div", { class: "htext" },
+        h("div", { style: "margin-bottom:7px" },
+          h("span", { class: "tag", text: ATTN_LABEL[check.kind] || check.kind })),
+        h("h3", {}, h("span", { class: "ord", text: String(n) }), prose(check.title)),
+        h("p", { class: "why" }, prose(check.why)),
+        check.path ? h("div", { class: "path", text: check.path }) : null)),
+    h("div", { class: "tail" },
+      h("div", { class: "q" },
+        h("span", { class: "mk", text: "?" }),
+        h("p", {}, prose(check.question))),
+      hunkRefs(check.hunk_ids)));
+  return article;
+}
+
+function refreshProgress() {
+  const total = STEPS.length + CHECKS.length;
+  const done = TICKS.size;
+  const fill = document.getElementById("pfill");
+  const count = document.getElementById("pcount");
+  if (fill) fill.style.width = (total ? done / total * 100 : 0) + "%";
+  if (!count) return;
+  count.replaceChildren();
+  if (total && done >= total) {
+    add(count, [h("span", { class: "pdone", text: "Pass complete." }),
+                " Copy the summary into the pull request."]);
+  } else {
+    add(count, [h("b", { text: `${done} of ${total}` }), " done"]);
+  }
+}
+
+function resetPass() {
+  TICKS = new Set();
+  saveTicks(TICKS);
+  for (const apply of PASS_ITEMS) apply();
+  refreshProgress();
+  const out = document.getElementById("copyout");
+  if (out) out.style.display = "none";
+}
+
+/* The pass has to land somewhere. This is an attendance record, not a verdict:
+   what was read, what was decided, what was skipped and why. */
+function passSummary() {
+  const src = M.source || {};
+  const who = [src.identifier, src.title].filter(Boolean).join(" ");
+  const sha = (src.head && src.head.sha) ? src.head.sha.slice(0, 12) : "no recorded sha";
+  const read = STEPS.filter(s => TICKS.has("s" + s.n)).length;
+  const lines = [`Review pass on ${who || "this change"} (${sha})`, ""];
+
+  lines.push(`Read ${read} of ${STEPS.length}:`);
+  for (const s of STEPS) {
+    lines.push(`- [${TICKS.has("s" + s.n) ? "x" : " "}] ${s.title}${s.path ? ` (${s.path})` : ""}`);
+  }
+  if (CHECKS.length) {
+    const done = CHECKS.filter((c, i) => TICKS.has("c" + (STEPS.length + i + 1))).length;
+    lines.push("", `Checked ${done} of ${CHECKS.length}:`);
+    CHECKS.forEach((c, i) => {
+      lines.push(`- [${TICKS.has("c" + (STEPS.length + i + 1)) ? "x" : " "}] ${c.title}`);
+      lines.push(`      ${c.question}`);
+    });
+  }
+  const skips = PASS.skippable || [];
+  if (skips.length) {
+    lines.push("", "Skipped:");
+    for (const g of skips) lines.push(`- ${g.label} (${plural(g.file_count, "file")}): ${g.reason}`);
+  }
+  lines.push("", `Report generated by ${src.generated_by || "precis"}.`);
+  return lines.join("\n");
+}
+
+function copySummary() {
+  const text = passSummary();
+  const out = document.getElementById("copyout");
+  const btn = document.getElementById("copybtn");
+  const done = () => {
+    if (!btn) return;
+    btn.textContent = "Copied";
+    setTimeout(() => { btn.textContent = "Copy summary"; }, 1800);
+  };
+  /* Clipboard access is denied on file:// in most browsers, so the textarea is
+     not a fallback for failure; it is the other half of the feature. */
+  try {
+    navigator.clipboard.writeText(text).then(done, () => revealCopy(out, text));
+  } catch (e) {
+    revealCopy(out, text);
+  }
+}
+
+function revealCopy(out, text) {
+  if (!out) return;
+  out.value = text;
+  out.style.display = "block";
+  out.focus();
+  out.select();
+}
+
+/* --------------------------------------------------------------- hunks */
+function hunkNode(hunk, annotations) {
+  const body = h("div", { class: "hbody" });
+  const lines = hunk.lines || [];
+  /* A file that is entirely new has no old-side numbers; do not spend a column
+     on an empty gutter, especially on a phone. */
+  const hasOld = lines.some(l => l.old != null);
+  const hasNew = lines.some(l => l.new != null);
+  const tintNew = makeTinter(hunk.language);
+  const tintOld = makeTinter(hunk.language);
+  const byLine = new Map();
+  for (const a of annotations || []) {
+    const key = a.new_line != null ? "n" + a.new_line : a.old_line != null ? "o" + a.old_line : null;
+    if (key === null) continue;
+    if (!byLine.has(key)) byLine.set(key, []);
+    byLine.get(key).push(a);
+  }
+  const unanchored = (annotations || []).filter(a => a.new_line == null && a.old_line == null);
+
+  for (const a of unanchored) {
+    body.append(h("div", { class: "hnote" }, h("span", { class: "mk", text: "\u203A" }),
+      h("div", { class: "txt" }, prose(a.text))));
+  }
+  for (const line of lines) {
+    const cls = line.t === "+" ? "add" : line.t === "-" ? "del" : "ctx";
+    /* A CRLF file keeps its carriage returns in the model so the analysis can
+       see a line-ending change. Under `white-space: pre-wrap` a lone CR is a
+       line break, so it would print every such line with a blank one under it. */
+    const text = line.c.endsWith("\r") ? line.c.slice(0, -1) : line.c;
+    /* Two tinters: the old side and the new side each carry their own open
+       docstring, so a deletion cannot leak string state into an addition. */
+    const code = line.t === "-" ? tintOld(text)
+      : line.t === "+" ? tintNew(text)
+      : (tintOld(text), tintNew(text));
+    body.append(h("div", { class: "hline " + cls },
+      h("span", { class: "gut" },
+        hasOld ? h("span", { text: line.old == null ? "" : line.old }) : null,
+        hasNew ? h("span", { text: line.new == null ? "" : line.new }) : null),
+      h("span", { class: "sign", text: line.t === " " ? "" : line.t }),
+      h("span", { class: "code", html: code })));
+    const notes = (line.new != null ? byLine.get("n" + line.new) || [] : [])
+      .concat(line.old != null ? byLine.get("o" + line.old) || [] : []);
+    for (const a of notes) {
+      body.append(h("div", { class: "hnote" }, h("span", { class: "mk", text: "\u203A" }),
+        h("div", { class: "txt" }, prose(a.text))));
+    }
+  }
+  if (hunk.truncated) {
+    body.append(h("div", { class: "trunc",
+      text: `Truncated: showing the first ${plural(lines.length, "line")} of this hunk.` }));
+  }
+
+  const [dir, base] = splitPath(hunk.path);
+  return h("div", { class: "hunk", id: "hunk-" + hunk.id },
+    h("div", { class: "hhead" },
+      h("span", { class: "hpath" }, h("span", { style: "color:var(--ink-faint);font-weight:400", text: dir }), base),
+      hunk.old_path ? h("span", { class: "hmeta", text: "\u2190 " + hunk.old_path }) : null,
+      h("span", { class: "hmeta", text: hunk.header || `@@ -${hunk.old_start},${hunk.old_lines} +${hunk.new_start},${hunk.new_lines} @@` }),
+      hunk.section ? h("span", { class: "hsec", text: hunk.section }) : null),
+    body);
+}
+
+/* Hunk references: a chip that opens the code where it is mentioned. */
+function hunkRefs(ids) {
+  const list = (ids || []).filter(id => HUNKS[id]);
+  if (!list.length) return null;
+  const slot = h("div", { class: "slot" });
+  const row = h("div", { class: "hunkrefs" }, h("span", { class: "label", text: "code" }));
+  for (const id of list) {
+    const hunk = HUNKS[id];
+    const step = STEP_OF_HUNK.get(id);
+    const label = `${basename(hunk.path)}:${hunk.new_start || hunk.old_start}`;
+    const btn = h("button", { class: "href", type: "button", "aria-expanded": "false",
+      title: step ? `Also read in step ${step}` : hunk.path, text: label });
+    btn.addEventListener("click", () => {
+      const open = btn.getAttribute("aria-expanded") === "true";
+      btn.setAttribute("aria-expanded", open ? "false" : "true");
+      const existing = slot.querySelector(`[data-for="${id}"]`);
+      if (existing) existing.remove();
+      if (!open) {
+        const node = hunkNode(hunk, []);
+        node.removeAttribute("id");
+        node.setAttribute("data-for", id);
+        slot.append(node);
+      }
+    });
+    row.append(btn);
+  }
+  return h("div", {}, row, slot);
+}
+
+/* --------------------------------------------------------- syntax tinting */
+const LANGS = {
+  python: { line: ["#"], quotes: ['"""', "'''", '"', "'"], spans: ['"""', "'''"], kw: "and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield None True False self" },
+  typescript: { line: ["//"], block: [["/*", "*/"]], quotes: ['"', "'", "`"], spans: ["`"], kw: "abstract any as async await boolean break case catch class const continue declare default delete do else enum export extends false finally for from function if implements import in instanceof interface let new null number of private protected public readonly return static string super switch this throw true try type typeof undefined var void while yield" },
+  javascript: { line: ["//"], block: [["/*", "*/"]], quotes: ['"', "'", "`"], spans: ["`"], kw: "async await break case catch class const continue default delete do else export extends false finally for from function if import in instanceof let new null return static super switch this throw true try typeof undefined var void while yield" },
+  sql: { line: ["--"], block: [["/*", "*/"]], quotes: ["'", '"'], ci: true, kw: "add all alter and as asc begin between by cascade case check column commit conflict constraint create default delete desc distinct do drop else end exists foreign from group having if in index inner insert into is join key left limit not null nothing offset on or order outer primary references rename returning right rollback select set share table then to unique update using values when where with" },
+  yaml: { line: ["#"], quotes: ['"', "'"], kw: "true false null yes no on off" },
+  ini: { line: ["#", ";"], quotes: ['"', "'"], kw: "true false yes no on off" },
+  toml: { line: ["#"], quotes: ['"""', '"', "'"], spans: ['"""'], kw: "true false" },
+  json: { quotes: ['"'], kw: "true false null" },
+  markdown: {},
+  text: {},
+  diff: {}
+};
+
+/* A tinter is stateful across the lines of one hunk: a docstring that opens on
+   line 26 stays a docstring on line 28. Line-at-a-time tinting gets that wrong
+   in exactly the places where a reader is looking hardest. */
+function makeTinter(lang) {
+  const cfg = LANGS[lang];
+  const inert = !cfg || (!cfg.line && !cfg.quotes && !cfg.kw);
+  const kw = !inert && cfg.kw ? new Set(cfg.kw.split(" ")) : null;
+  let open = null;   // { close, cls } while a multi-line span is unterminated
+
+  return function tintLine(code) {
+    if (inert) return esc(code);
+    let out = "", i = 0;
+    const push = (cls, text) => { out += cls ? `<span class="tk-${cls}">${esc(text)}</span>` : esc(text); };
+
+    if (open) {
+      const end = code.indexOf(open.close);
+      if (end < 0) { push(open.cls, code); return out; }
+      const stop = end + open.close.length;
+      push(open.cls, code.slice(0, stop));
+      i = stop;
+      open = null;
+    }
+
+    while (i < code.length) {
+      const rest = code.slice(i);
+
+      let isComment = false;
+      for (const marker of cfg.line || []) if (rest.startsWith(marker)) { isComment = true; break; }
+      if (isComment) { push("com", rest); break; }
+
+      let handled = false;
+      for (const [start, close] of cfg.block || []) {
+        if (!rest.startsWith(start)) continue;
+        const end = code.indexOf(close, i + start.length);
+        if (end < 0) { push("com", rest); open = { close, cls: "com" }; return out; }
+        push("com", code.slice(i, end + close.length));
+        i = end + close.length; handled = true; break;
+      }
+      if (handled) continue;
+
+      for (const q of cfg.quotes || []) {
+        if (!rest.startsWith(q)) continue;
+        let j = i + q.length, closed = false;
+        while (j < code.length) {
+          if (code[j] === "\\") { j += 2; continue; }
+          if (code.startsWith(q, j)) { j += q.length; closed = true; break; }
+          j++;
+        }
+        if (!closed && (cfg.spans || []).includes(q)) {
+          push("str", rest); open = { close: q, cls: "str" }; return out;
+        }
+        push("str", code.slice(i, Math.min(j, code.length)));
+        i = Math.min(j, code.length); handled = true; break;
+      }
+      if (handled) continue;
+
+      const num = /^\d[\d_.]*(e[+-]?\d+)?/i.exec(rest);
+      if (num && !/[\w.]/.test(code[i - 1] || "")) { push("num", num[0]); i += num[0].length; continue; }
+
+      const word = /^[A-Za-z_][\w]*/.exec(rest);
+      if (word) {
+        const probe = cfg.ci ? word[0].toLowerCase() : word[0];
+        push(kw && kw.has(probe) ? "key" : null, word[0]);
+        i += word[0].length; continue;
+      }
+
+      push(null, code[i]); i++;
+    }
+    return out;
+  };
+}
+
+/* ----------------------------------------------------------------- seams */
+function seamsSection() {
+  const seams = M.seams || {};
+  if (!seams.detected) return null;
+  const clusters = seams.clusters || [];
+  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
+  return section("seams", "Seams", "This reads as more than one change",
+    seams.note,
+    h("div", { class: "seams" }, clusters.map(c => h("div", { class: "seam" },
+      h("h3", {}, prose(c.label)),
+      h("p", {}, prose(c.summary)),
+      h("div", { class: "meta",
+        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
+      (c.independent_of || []).length ? h("div", { class: "meta", style: "font-family:var(--sans)",
+        text: "Shares nothing with: " + c.independent_of.map(id => nameOf.get(id) || id).join("; ") }) : null))));
+}
+
+/* ---------------------------------------------------------------- footer */
+function footerNode() {
+  const src = M.source || {};
+  const dl = (term, value) => value ? h("div", {}, h("dt", { text: term }), h("dd", { text: value })) : null;
+  return h("footer", {},
+    h("div", { class: "wrap" },
+      h("div", { class: "cols" },
+        dl("Base", src.base && (src.base.sha || src.base.ref) ?
+          `${src.base.ref || "?"} @ ${(src.base.sha || "unknown").slice(0, 12)}` : "not recorded"),
+        dl("Head", src.head && (src.head.sha || src.head.ref) ?
+          `${src.head.ref || "?"} @ ${(src.head.sha || "unknown").slice(0, 12)}` : "not recorded"),
+        dl("Generated by", src.generated_by),
+        dl("Generated at", src.generated_at),
+        dl("Schema", M.schema_version)
+      ),
+      h("p", { class: "creed",
+        text: "precis is not a code review tool. It is a tool that helps humans review code. Nothing in this report is a verdict on the change; the reading is still yours to do." })
+    ));
+}
+
+/* ------------------------------------------------------------------ boot */
+function boot() {
+  const app = document.getElementById("app");
+  const main = h("main", { class: "wrap" });
+  const notice = coverageNotice();
+  if (notice) main.append(h("div", { style: "padding-top:26px" }, notice));
+  main.append(mapSection());
+  main.append(behaviorSection());
+  main.append(reviewSection());
+  const seams = seamsSection();
+  if (seams) main.append(seams);
+
+  app.append(masthead());
+  app.append(navbar());
+  app.append(main);
+  app.append(footerNode());
+
+  /* Printing must not silently drop the parts that happen to be collapsed. */
+  let reopened = [];
+  addEventListener("beforeprint", () => {
+    reopened = Array.from(document.querySelectorAll("details:not([open])"));
+    for (const d of reopened) d.open = true;
+  });
+  addEventListener("afterprint", () => { for (const d of reopened) d.open = false; });
+}
+
+boot();
+</script>
+</body>
+</html>

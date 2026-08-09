@@ -1,0 +1,47 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor is what the README promises; the ceiling is what people run.
+        python-version: ["3.9", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pytest
+        # precis itself has no runtime dependencies. This is for the tests only,
+        # and the suite asserts that the skill imports nothing outside stdlib.
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Run the suite
+        run: python -m pytest tests/ -q
+
+      - name: Render every fixture through the documented pipeline
+        run: |
+          for name in small medium monster; do
+            python skills/precis/scripts/render_report.py \
+              "skills/precis/assets/fixtures/$name.json" -o "/tmp/$name.html"
+          done
+
+      - name: Re-render the shipped examples from their models
+        # An example whose model no longer renders is an example that lies.
+        run: |
+          for model in examples/*.json; do
+            python skills/precis/scripts/render_report.py "$model" -o /tmp/example.html
+          done

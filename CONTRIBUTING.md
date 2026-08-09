@@ -21,6 +21,30 @@ precis uses the Python standard library and `pytest` for tests. No runtime depen
 python3 -m pytest tests/ -q
 ```
 
+## Where things live
+
+```
+skills/precis/
+├── SKILL.md                  the instructions the model actually reads
+├── references/
+│   ├── schema.md             the contract: both models, field by field
+│   ├── ingestion.md          getting a diff out of GitHub, GitLab, or git
+│   └── analysis.md           turning facts into an analysis without reviewing
+├── scripts/
+│   ├── parse_diff.py         unified diff to facts
+│   ├── classify.py           signal, noise, and the content budget
+│   ├── build_model.py        analysis plus the parser's hunks to one report model
+│   ├── validate_model.py     the contract, executable
+│   └── render_report.py      model plus template to one HTML file
+└── assets/
+    ├── template.html         the only thing that draws
+    └── fixtures/             three worked examples: 3, 13, and 40 files
+```
+
+The rule that keeps the layers apart: **the analysis writes judgement, and nothing else
+does; the scripts write facts, and nothing else does.** A diff line is never typed by
+hand, at any stage, by anyone. `build_model.py` copies it.
+
 ## Rendering a fixture
 
 Every change to `assets/template.html` or `scripts/render_report.py` should be checked
@@ -28,9 +52,15 @@ against all three fixtures, at desktop and narrow widths, in light and dark mode
 
 ```bash
 python3 skills/precis/scripts/render_report.py \
-  skills/precis/assets/fixtures/medium.json \
-  --out /tmp/medium.html
+  skills/precis/assets/fixtures/medium.json -o /tmp/medium.html
 open /tmp/medium.html
+```
+
+The three shipped examples are real pull requests and exercise shapes the fixtures do
+not, so they are worth a look too:
+
+```bash
+python3 skills/precis/scripts/render_report.py examples/httpx-3768.json -o /tmp/httpx.html
 ```
 
 ## Adding a fixture
@@ -42,8 +72,10 @@ Fixtures live in `skills/precis/assets/fixtures/` as a pair: a source diff
    package names, no employer, client, or infrastructure detail. The fixture domain is a
    fictional SaaS orders/billing service called Meridian; stay in it if you can.
 2. Run the diff through `parse_diff.py` and `classify.py` to get the pre-model.
-3. Write the report model by hand, the way the analysis phase would.
-4. Validate it: `python3 -m pytest tests/test_fixtures.py -q`.
+3. Write the analysis: a report model whose `hunks` entries carry only `change_kind` and
+   `significance`. Do not paste diff text into it.
+4. `build_model.py analysis.json --pre pre.json -o fixtures/<name>.json`.
+5. Validate: `python3 -m pytest tests/test_fixtures.py -q`.
 
 Fixtures are the schema's test suite. If a fixture cannot express something real, that
 is a schema gap worth reporting.
@@ -58,7 +90,10 @@ is a schema gap worth reporting.
 - No new runtime dependencies without a justification in the README. "Python stdlib only"
   is a feature, not an accident: the skill has to run inside someone else's agent
   sandbox without a package install step.
-- No network calls beyond `gh`, `glab`, and `git`. No telemetry, ever.
+- Python 3.9 syntax. CI runs the suite on 3.9, 3.12 and 3.13.
+- No network calls beyond `gh`, `glab`, and `git`. No telemetry, ever. The rendered page
+  makes no requests at all, and a test enforces that.
+- Plain hyphens, not em dashes. There is a test for that too.
 
 ## Reporting a comprehension failure
 

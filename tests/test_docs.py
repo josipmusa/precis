@@ -107,3 +107,50 @@ def test_only_git_gh_and_glab_reach_the_network():
                     assert not first or first[0].startswith("$") or first[0] in allowed, (
                         f"{doc.name}: {first[0]!r} is not one of {sorted(allowed)}"
                     )
+
+
+def test_the_scripts_parse_at_the_python_version_the_readme_promises():
+    """A skill that runs in someone else's sandbox cannot pick the interpreter.
+
+    This is a syntax check, not a runtime one: `ast` will not catch a stdlib API
+    that arrived later. It does catch the common drift, which is new syntax.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    stated = re.search(r"Python (\d+)\.(\d+) or newer", readme)
+    assert stated, "README no longer states a minimum Python version"
+    floor = (int(stated.group(1)), int(stated.group(2)))
+
+    import ast
+    for script in sorted((SKILL / "scripts").glob("*.py")):
+        source = script.read_text(encoding="utf-8")
+        try:
+            ast.parse(source, filename=str(script), feature_version=floor)
+        except SyntaxError as exc:
+            raise AssertionError(
+                "%s does not parse on Python %d.%d: %s (line %s)"
+                % (script.name, floor[0], floor[1], exc.msg, exc.lineno)) from None
+
+
+def test_the_readme_shows_screenshots_that_exist():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    missing = [src for src in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", readme)
+               if not (ROOT / src).exists()]
+    assert missing == [], f"README points at missing images: {missing}"
+
+
+def test_every_shipped_example_is_a_valid_report_model():
+    """An example that no longer validates is an example that lies."""
+    import json
+
+    from validate_model import validate
+    models = sorted((ROOT / "examples").glob("*.json"))
+    assert models, "examples/ has no report models"
+    for path in models:
+        problems = validate(json.loads(path.read_text(encoding="utf-8")), path.name)
+        assert problems == [], "\n".join(problems)
+
+
+def test_every_shipped_example_has_its_rendered_page():
+    for model in sorted((ROOT / "examples").glob("*.json")):
+        assert model.with_suffix(".html").exists(), (
+            f"{model.name} has no rendered .html beside it; an example is a pair")
