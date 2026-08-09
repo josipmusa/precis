@@ -34,13 +34,15 @@ the rule is repeated in `references/analysis.md` where the prose gets written.
 Four phases, and each one only gets to do its own job.
 
 ```
-diff -> parse_diff.py -> classify.py ->   you    -> build_model.py -> render_report.py -> report.html
-        (facts)          (signal/noise)  (judgement)  (copies the diff)  (template only)
+diff -> parse_diff.py -> classify.py -> find_rules.py ->    you     -> build_model.py -> render_report.py -> report.html
+        (facts)          (signal/noise)  (the rules)     (judgement)   (copies the diff)  (template only)
 ```
 
 1. **Ingest.** Get the diff and its metadata. `references/ingestion.md`.
-2. **Parse and classify.** Two deterministic scripts. Never do this by eye.
-3. **Analyse.** Write the analysis, which is JSON. `references/analysis.md`.
+2. **Parse, classify, find the rules.** Three deterministic scripts. Never do
+   any of it by eye.
+3. **Analyse.** Write the analysis, which is JSON. `references/analysis.md`,
+   and `references/rules.md` for the pass over the project's own documents.
 4. **Build and render.** Two commands. You never copy diff text, and you never
    write HTML.
 
@@ -54,17 +56,23 @@ gh pr diff 1184 > /tmp/precis.diff        # or glab mr diff, or git diff
 
 Read-only commands only. Never comment, push, or modify anything.
 
-### 2. Parse and classify
+### 2. Parse, classify, find the rules
 
 ```bash
 python3 skills/precis/scripts/parse_diff.py /tmp/precis.diff \
   | python3 skills/precis/scripts/classify.py - -o /tmp/precis.pre.json
+python3 skills/precis/scripts/find_rules.py /tmp/precis.pre.json --root . \
+  -o /tmp/precis.rules.json
 ```
 
 Read the result. It is the authority on what changed: every file, every hunk,
 every line number, the counts, and a classification with reasons. Do not
 re-derive any of it from the raw diff - a second parse by eye is how a report
 ends up quoting the wrong line.
+
+`find_rules.py` names the documents that state this project's rules and govern
+the code the change touches. Read the ones it found, and read what it `skipped`:
+a document it could not fit is a document whose rules went unchecked.
 
 ### 3. Analyse
 
@@ -84,6 +92,10 @@ The parts that need the most care:
   then checks to decide, then what can be skipped and why.
 - **A check is a question only the reviewer's context can answer.** If precis
   can answer it by reading the file, it is not a check.
+- **The project's own rules** get their own pass, in `references/rules.md`.
+  Quote the rule, point at the changed line, and ask whether it is an agreed
+  exception. Rules are read as of head, so a change that rewrites a rule is
+  following the new one and departs from nothing.
 
 ### 4. Build and render
 
@@ -106,8 +118,10 @@ hand-edit the HTML, never write HTML yourself.
 | `references/schema.md` | The contract. Both models, field by field, with the invariants. |
 | `references/ingestion.md` | How to get a diff from GitHub, GitLab, git, or a patch file. |
 | `references/analysis.md` | How to turn the facts into the report model without reviewing. |
+| `references/rules.md` | How to set the project's own rule documents beside the diff. |
 | `scripts/parse_diff.py` | Unified diff to facts. Deterministic. |
 | `scripts/classify.py` | Signal, noise, and the content budget. Deterministic. |
+| `scripts/find_rules.py` | The rule documents governing what changed. Deterministic. |
 | `scripts/build_model.py` | Your analysis plus the pre-model's hunks to one report model. |
 | `scripts/validate_model.py` | The contract, executable. Exits 1 on a violation. |
 | `scripts/render_report.py` | Model plus template to one HTML file. |
@@ -141,6 +155,7 @@ size to the change in front of you - `small.json`, `medium.json`, or
 | `gh`/`glab` missing or unauthenticated | Fall back to `git diff` against the merge base, and record the limitation. Omit `intent_delta` when there is no description to compare against. |
 | The diff is enormous | `classify.py` elides to fit and sets `budget.tier`. Report the tier honestly in `coverage`; do not describe hunks you were not given. |
 | Binary files, or a merge diff | They land in `warnings`. Carry them into `coverage.limitations` in words a reader understands. |
+| No checkout, or `find_rules.py` finds nothing | No rule checks. Leave `coverage.rules_read` off and say in `limitations` that the project's rules were not read. Never guess at a rule from memory. |
 | Validation fails | Read the message; it names the field. Fix the model. Never work around the validator. |
 | You cannot answer what the change does | Say so in the story beats and let the review pass carry the reader. An honest "this rewrites X, and the intent behind Y is not stated anywhere" is a useful report. A confident guess is not. |
 

@@ -48,11 +48,12 @@ check" survives that. "The retry loop should run after the check" does not.
 2. Read the core and supporting hunks properly. Not skimmed.
 3. Resolve the call graph against the checkout (below). This is the step that
    needs the repository and not just the diff.
-4. Write `story`, then `behavior`, then `review_pass`, then `seams`.
-5. Fill `change_map.groups` from the classification, adjusting where you
+4. Read the rule documents `find_rules.py` found. `references/rules.md`.
+5. Write `story`, then `behavior`, then `review_pass`, then `seams`.
+6. Fill `change_map.groups` from the classification, adjusting where you
    disagree with the hint, and `stats.signal_ratio` from your final calls.
-6. Write `coverage` last, from `budget` and `warnings`.
-7. Validate. Fix. Validate again.
+7. Write `coverage` last, from `budget`, `warnings`, and the documents you read.
+8. Validate. Fix. Validate again.
 
 ---
 
@@ -156,6 +157,14 @@ is absolute:
 "Is a two-minute row lock on `orders` acceptable during your deploy window?" is
 a check: precis cannot know the deploy window. Every question ends in `?` and
 the validator enforces it.
+
+Two check kinds quote a document rather than describing a surface:
+`documented_rule`, where the change departs from a rule the project has written
+down, and `rule_change`, where the change rewrites the rule. Both carry a `rule`
+object and both have their own procedure, which is `references/rules.md`. The
+short version: rules are read as of head, the quote is verbatim with the line it
+is written on, and a departure you cannot point at a changed line for is a
+departure you do not report.
 
 **`skippable` - what can be left.** Groups of files with a reason. This is where
 the 40-file refactor gets its 32 files back. The reason has to be a fact

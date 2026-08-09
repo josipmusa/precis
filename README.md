@@ -63,6 +63,12 @@ needs context that lives in your head and not in the repository.
 
 ![Three checks, each ending in a question](docs/img/checks.png)
 
+**Your project's own rules, quoted.** precis reads the documents that state them,
+`CLAUDE.md`, `CONTRIBUTING.md`, a style guide, an ADR, and where the change departs from
+one it quotes the rule verbatim with the line it is written on, then asks whether this is
+an agreed exception. It reads the rules as they stand *after* the change, so a pull
+request that rewrites a rule is following the new one and departs from nothing.
+
 **And an honest account of what it skipped**, with the reason, and the file list, so
 nothing is quietly hidden.
 

@@ -150,7 +150,24 @@ provenance strip, and expands it into a visible banner whenever `tier != "full"`
 | `hunks_total`, `hunks_read` | required | Integers. `hunks_read` counts hunks whose content the analysis phase actually saw. |
 | `files_total`, `files_read` | required | Integers. |
 | `note` | optional | ≤ 160 chars explaining the tier in plain language. |
+| `rules_read` | optional | Array of paths, each ≤ 120. The rule documents the analysis phase read. See below. |
 | `limitations` | required | Array of strings, may be empty, each ≤ 120. Each is a specific thing precis could not do. Never a hedge, always a fact. |
+
+### `rules_read`
+
+Three states, three different answers, and the template renders each one
+differently:
+
+| Value | Means |
+|---|---|
+| A list of paths | These documents were read, and their rules were checked against the diff. |
+| `[]` | precis looked and the code this change touches has no rule document above it. |
+| absent | precis did not look. `limitations` says why. |
+
+A report where this phase ran is worth more than one where it did not, and a
+reader can only tell the two apart here. Never list a document that was not
+opened. Discovery is `scripts/find_rules.py`; the procedure is
+`references/rules.md`.
 
 ---
 
@@ -614,7 +631,8 @@ question that is theirs to answer.
 | `why` | required | ≤ 180 chars. The mechanism and its blast radius. |
 | `question` | required | ≤ 140 chars, **ends in a question mark**. See the rule below. |
 | `path` | optional | Primary location. |
-| `hunk_ids` | optional | Links into the code. |
+| `hunk_ids` | optional | Links into the code. **Required and non-empty** for the two rule kinds. |
+| `rule` | optional | **Required for `documented_rule` and `rule_change`, forbidden on every other kind.** See below. |
 
 **The question rule.** *A check is a question only the reviewer's context can answer.*
 precis genuinely does not know the answer, and could not find it in the diff.
@@ -671,6 +689,51 @@ promote it into `steps` instead), `group_ids` (optional, references `change_map`
 | `dependency_surface` | New or upgraded dependency that reaches runtime. |
 | `config_surface` | A default, limit, or timeout that changes production behaviour without code changing. |
 | `feature_flag` | Behaviour gated behind a flag, including what happens when the flag flips. |
+| `documented_rule` | The diff does something a rule the project has written down forbids, or omits something it requires. |
+| `rule_change` | The diff changes the rule text itself. |
+
+### `rule` - the project's own words
+
+The two rule kinds set a document beside the diff, so they have to produce the
+document. `rule` is where the project speaks in its own voice.
+
+```json
+{
+  "kind": "documented_rule",
+  "title": "CONTRIBUTING.md puts the policy check before the money moves",
+  "rule": {
+    "source": "CONTRIBUTING.md:52",
+    "quote": "Money moves only after every policy check has passed.",
+    "was": null
+  },
+  "why": "The refund reaches Stripe in `create_refund` before `policy.check` runs inside `record_refund`.",
+  "question": "Is this ordering an agreed exception here, or does the rule still hold?",
+  "path": "src/meridian/api/refunds.py",
+  "hunk_ids": ["h7"]
+}
+```
+
+| Field | Req | Notes |
+|---|---|---|
+| `source` | required | `path:line`, the same shape a graph edge's `ref` uses. Where the rule is written. |
+| `quote` | required | ≤ 200. The operative sentence, **verbatim**. Never a paraphrase and never a summary of a document. |
+| `was` | optional | ≤ 200. The wording this change replaces. **Required when `kind` is `rule_change`.** |
+
+`quote` and `was` are **exempt from the verdict scan**, like `source.title` and
+`story.intent_delta.stated`. Rules say "should" and "problem"; precis quotes
+them as they are written. The check's own `title`, `why` and `question` are
+precis's voice and are scanned as usual.
+
+**Rules are read as of head.** A change that rewrites a rule is following the
+new one, so it departs from nothing, and reporting otherwise would tell an
+author their change breaks the rule it is replacing. This is why `rule_change`
+exists: the edit is worth surfacing without being a departure.
+
+**Every departure points at a changed line.** `hunk_ids` is required and
+non-empty for both kinds, which is the graph-edge rule applied here. A rule that
+states nothing a changed line can be held against, "keep functions small" and
+its relatives, produces no check at all. The procedure is
+`references/rules.md`.
 
 **There is no `severity` field, and there will not be one.** Severity is a review verdict.
 Array order carries emphasis; the report never scores.
@@ -694,10 +757,11 @@ This is blunt on purpose. The model running the skill drifts toward reviewing, c
 and a validator that exits 1 is the only thing that has ever stopped it. When the scan
 fires, the fix is always to say what the code does instead of what you think of it.
 
-**Quoted text is exempt**, because it is the author's voice and not precis's:
+**Quoted text is exempt**, because it is someone else's voice and not precis's:
 `source.title`, `source.description`, `source.linked_issues[].title`,
-`story.intent_delta.stated`, and every line of code in `hunks`. A PR titled "Fix double
-refund bug" keeps its title.
+`story.intent_delta.stated`, `review_pass.checks[].rule`, and every line of code in
+`hunks`. A PR titled "Fix double refund bug" keeps its title, and a house rule that says
+"never land a change that should have a test" is quoted as written.
 
 ---
 
@@ -1119,5 +1183,10 @@ producing a report that lies:
     `unchanged`; every edge endpoint resolves to a node id; every edge carries `evidence`
     with either `hunk_ids` or a `path:line` `ref`; every node `path` appears in
     `change_map.groups`.
+16. A `documented_rule` or `rule_change` check carries a `rule` with a `path:line`
+    `source` and a `quote`; a `rule_change` also carries `was`; no other check kind
+    carries a `rule` at all.
+17. A `documented_rule` or `rule_change` check names at least one hunk.
+18. `coverage.rules_read`, when present, is an array of strings.
 
 A validation failure is a bug in the analysis phase, not something to render around.
