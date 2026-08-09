@@ -478,6 +478,17 @@ table.files .note { color: var(--ink-soft); font-size: 12.5px; margin-top: 3px; 
 .step .path { font: 12px/1.5 var(--mono); color: var(--ink-faint); margin-top: 8px; word-break: break-all; }
 .step .hunks { padding: 16px 20px 20px; display: grid; gap: 12px; }
 .step .tail { padding: 14px 20px 18px 60px; }
+/* The project's own words, set apart from precis's. A reader can go to the
+   line and read the rule rather than taking this report's word for it. */
+.rule { border-left: 2px solid var(--line); padding-left: 14px; margin-bottom: 14px; }
+.rule .said { font: 15px/1.6 var(--serif); color: var(--ink); max-width: 64ch; }
+.rule .said + .said { margin-top: 8px; }
+.rule .lbl {
+  font: 650 10.5px/1 var(--mono); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-faint); margin-right: 9px; vertical-align: 1.5px;
+}
+.rule .src { font: 11.5px/1.5 var(--mono); color: var(--ink-faint); margin-top: 9px; }
+
 /* The one place in the report that asks the reader for something. */
 .q { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-wash); border-radius: 9px; padding: 12px 14px; }
 .q .mk { color: var(--accent-ink); font-weight: 700; flex: none; line-height: 1.5; }
@@ -919,7 +930,12 @@ function section(id, nav, title, lead, ...body) {
 function coverageNotice() {
   const c = M.coverage || {};
   const limits = c.limitations || [];
-  if (c.tier === "full" && !limits.length) return null;
+  /* Absent means precis never looked at the project's rules, and `limitations`
+     owes the reader a reason. An empty list means it looked and this change
+     touches nothing that states any. Those are different answers, so a clean
+     full reading still shows the notice when there is one to give. */
+  const rules = Array.isArray(c.rules_read) ? c.rules_read : null;
+  if (c.tier === "full" && !limits.length && rules === null) return null;
   const tierText = {
     full: "Every hunk was read.",
     core: "Core and supporting hunks were read in full; mechanical groups were summarised.",
@@ -930,6 +946,9 @@ function coverageNotice() {
     h("p", {}, prose(c.note || tierText)),
     h("p", { style: "margin-top:6px", text:
       `${c.hunks_read} of ${c.hunks_total} hunks, ${c.files_read} of ${c.files_total} files.` }),
+    rules === null ? null : h("p", { style: "margin-top:6px", text: rules.length
+      ? `Rules read: ${rules.join(", ")}.`
+      : "Rules read: no rules document sits above the code this change touches." }),
     limits.length ? h("ul", {}, limits.map(l => h("li", {}, prose(l)))) : null
   );
 }
@@ -1776,10 +1795,27 @@ function stepItem(step) {
   return article;
 }
 
+/* A rule is quoted, never paraphrased and never re-rendered: `text` rather than
+   `prose`, because the backticks in someone else's document are their
+   characters and not this report's markup. The attribution is the point of the
+   block, so it is never optional. */
+function ruleQuote(rule) {
+  if (!rule) return null;
+  const said = (label, value) => value
+    ? h("div", { class: "said" }, label ? h("span", { class: "lbl", text: label }) : null,
+        h("span", { text: value }))
+    : null;
+  return h("div", { class: "rule" },
+    said(rule.was ? "Was" : null, rule.was),
+    said(rule.was ? "Now" : null, rule.quote),
+    h("div", { class: "src", text: rule.source }));
+}
+
 function checkItem(check, n) {
   const article = h("article", { class: "step check", id: "check-" + n });
   const body = h("div", { class: "body", id: "check-" + n + "-body" },
     h("div", { class: "tail" },
+      ruleQuote(check.rule),
       h("div", { class: "q" },
         h("span", { class: "mk", text: "?" }),
         h("p", {}, prose(check.question))),

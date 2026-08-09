@@ -319,6 +319,52 @@ def test_paper_shows_every_body_whatever_the_ticks_say(template_text):
                      print_block), "print does not unfold the bodies"
 
 
+# -------------------------------------------------- a check that quotes a rule
+
+def rule_quote_body(template_text):
+    match = re.search(r"function ruleQuote\(.*?\n\}", template_text, re.S)
+    assert match, "template has no ruleQuote"
+    return match.group(0)
+
+
+def test_a_rule_is_quoted_verbatim_and_never_reinterpreted(template_text):
+    """The wording is the project's, not precis's. Sending it through prose()
+    would let the report reinterpret the document it is quoting."""
+    body = rule_quote_body(template_text)
+    assert "rule.quote" in body
+    assert "prose(" not in body, "the quoted rule is being rendered as precis's prose"
+
+
+def test_a_quoted_rule_is_attributed_to_the_line_it_is_written_on(template_text):
+    """Without the anchor a reader has to take the report's word for the rule."""
+    assert "rule.source" in rule_quote_body(template_text)
+
+
+def test_a_rule_change_shows_the_wording_it_replaces(template_text):
+    assert "rule.was" in rule_quote_body(template_text)
+
+
+def test_the_quoted_rule_sits_with_the_question_it_informs(template_text):
+    """It is what a reviewer reads to answer the check, so it folds away with
+    the question rather than staying in the head after the tick."""
+    body = re.search(r"function checkItem\(.*?\n\}", template_text, re.S).group(0)
+    assert body.index("ruleQuote") > body.index('class: "body"')
+
+
+def test_the_coverage_notice_names_the_rule_documents_that_were_read(template_text):
+    body = re.search(r"function coverageNotice\(.*?\n\}", template_text, re.S).group(0)
+    assert "rules_read" in body and "Rules read" in body
+
+
+def test_a_clean_reading_still_reports_that_the_rules_were_read(template_text):
+    """"precis looked and found nothing" is a different answer from "precis
+    never looked", and the notice is the only place that can tell them apart."""
+    body = re.search(r"function coverageNotice\(.*?\n\}", template_text, re.S).group(0)
+    early = re.search(r"if \([^)]*\) return null;", body)
+    assert early and "rules" in early.group(0), (
+        "a full reading with rules read still suppresses the notice")
+
+
 def test_the_treemap_is_gone(template_text):
     """It answered a question no reviewer was asking. It does not come back."""
     for ghost in ("drawTreemap", "squarify", ".treemap", "tmwrap", "tmnote", "filelabel"):

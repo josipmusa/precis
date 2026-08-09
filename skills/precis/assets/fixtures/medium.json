@@ -59,6 +59,10 @@
     "files_total": 13,
     "files_read": 13,
     "note": "Every hunk was read, including the regenerated client.",
+    "rules_read": [
+      "CONTRIBUTING.md",
+      "docs/api/refunds.md"
+    ],
     "limitations": []
   },
   "stats": {
@@ -1065,6 +1069,21 @@
         ]
       },
       {
+        "kind": "documented_rule",
+        "title": "CONTRIBUTING.md puts the policy check before the money moves",
+        "rule": {
+          "source": "CONTRIBUTING.md:52",
+          "quote": "Money moves only after every policy check has passed.",
+          "was": null
+        },
+        "why": "The refund reaches Stripe in `create_refund` before `policy.check` runs inside `record_refund`.",
+        "question": "Is this ordering an agreed exception here, or does the rule still hold?",
+        "path": "src/meridian/api/refunds.py",
+        "hunk_ids": [
+          "h7"
+        ]
+      },
+      {
         "kind": "public_api",
         "title": "OrderResponse drops fully_refunded and adds refunded_cents",
         "why": "Every consumer of `GET /orders/{id}` that reads `fully_refunded` stops receiving it. The regenerated TypeScript client follows; other clients do not.",
@@ -1073,6 +1092,21 @@
         "hunk_ids": [
           "h9",
           "h2"
+        ]
+      },
+      {
+        "kind": "rule_change",
+        "title": "docs/api/refunds.md replaces the once-only refund rule",
+        "rule": {
+          "source": "docs/api/refunds.md:21",
+          "quote": "An order may be refunded more than once.",
+          "was": "An order can be refunded once. A second attempt raises `RefundError`."
+        },
+        "why": "The documented rule every caller of the refund path was written against is replaced in this change.",
+        "question": "Which callers still expect a second refund to raise `RefundError`?",
+        "path": "docs/api/refunds.md",
+        "hunk_ids": [
+          "h5"
         ]
       },
       {
