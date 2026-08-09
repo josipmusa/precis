@@ -250,6 +250,92 @@ def test_a_check_that_asserts_instead_of_asking_is_refused(model):
     assert problems_matching(model, "must end in a question mark")
 
 
+# --------------------------------------------- checks against a stated rule
+
+def rule_check(**over):
+    check = {
+        "kind": "documented_rule",
+        "title": "CONTRIBUTING.md asks for a test beside each behaviour change",
+        "rule": {
+            "source": "CONTRIBUTING.md:40",
+            "quote": "Every behaviour change ships with the test that pins it.",
+            "was": None,
+        },
+        "why": "The refund policy change arrives with no test alongside it.",
+        "question": "Is this covered by a test that lives outside this repository?",
+        "path": "src/meridian/refunds/policy.py",
+        "hunk_ids": ["h1"],
+    }
+    check.update(over)
+    return check
+
+
+def test_a_well_formed_rule_check_validates(model):
+    model["review_pass"]["checks"].append(rule_check())
+    assert validate(model) == []
+
+
+def test_a_rule_check_without_its_rule_is_refused(model):
+    """The quote and its `path:line` are the evidence. Without them the check is
+    precis asserting a rule rather than pointing at one."""
+    model["review_pass"]["checks"].append(rule_check(rule=None))
+    assert problems_matching(model, "rule is required")
+
+
+def test_a_rule_on_any_other_kind_is_refused(model):
+    model["review_pass"]["checks"][0]["rule"] = rule_check()["rule"]
+    assert problems_matching(model, "rule belongs only to")
+
+
+def test_a_rule_must_be_anchored_to_a_line(model):
+    model["review_pass"]["checks"].append(
+        rule_check(rule={"source": "CONTRIBUTING.md", "quote": "Ship a test."}))
+    assert problems_matching(model, "CONTRIBUTING.md:40")
+
+
+def test_a_rule_change_must_quote_the_wording_it_replaces(model):
+    model["review_pass"]["checks"].append(rule_check(
+        kind="rule_change",
+        title="CONTRIBUTING.md changes what it asks of a behaviour change",
+        question="Which existing files are expected to follow the new wording?"))
+    assert problems_matching(model, "was is required")
+
+
+def test_a_departure_must_point_at_a_changed_line(model):
+    """The graph-edge rule, applied here: a departure you cannot point at a line
+    for is a departure you do not report."""
+    model["review_pass"]["checks"].append(rule_check(hunk_ids=[]))
+    assert problems_matching(model, "must name the hunks")
+
+
+def test_a_quoted_rule_may_say_should(model):
+    """Rules routinely say "should". Precis quotes them as they are written."""
+    model["review_pass"]["checks"].append(rule_check(rule={
+        "source": "CONTRIBUTING.md:40",
+        "quote": "You should never land a behaviour change without a test.",
+        "was": "Consider adding a test; a missing one is a problem in review.",
+    }, kind="rule_change",
+        question="Which existing files are expected to follow the new wording?"))
+    assert not problems_matching(model, "reads as a verdict")
+
+
+def test_precis_own_words_beside_a_quoted_rule_are_still_scanned(model):
+    model["review_pass"]["checks"].append(
+        rule_check(why="The rule is wrong about where tests belong."))
+    hits = problems_matching(model, "reads as a verdict")
+    assert hits and ".why" in hits[0]
+
+
+def test_rules_read_records_what_was_read(model):
+    model["coverage"]["rules_read"] = ["CONTRIBUTING.md", "docs/adr/0004-errors.md"]
+    assert validate(model) == []
+
+
+def test_rules_read_must_be_an_array_not_a_string(model):
+    model["coverage"]["rules_read"] = "CONTRIBUTING.md"
+    assert problems_matching(model, "rules_read must be an array")
+
+
 def test_a_graph_edge_without_evidence_is_refused(model):
     del model["change_map"]["graph"]["edges"][0]["evidence"]
     assert problems_matching(model, "evidence is required")

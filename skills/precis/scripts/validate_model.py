@@ -41,7 +41,11 @@ EVIDENCE = {"pr_description", "linked_issue", "commit_messages", "branch_name", 
 DELTA_KINDS = {"scope_creep", "drive_by", "incidental"}
 ATTENTION_KINDS = {"behavioral", "security_surface", "irreversible_migration",
                    "public_api", "concurrency", "data_loss", "external_contract",
-                   "dependency_surface", "config_surface", "feature_flag"}
+                   "dependency_surface", "config_surface", "feature_flag",
+                   "documented_rule", "rule_change"}
+# The two kinds that set a document beside the diff. Both carry a `rule`, and
+# nothing else may: precis quotes a rule or it does not mention one.
+RULE_KINDS = {"documented_rule", "rule_change"}
 DIAGRAM_KINDS = {"sequence", "flow"}
 NODE_KINDS = {"actor", "service", "process", "decision", "store", "external",
               "queue", "note", "start", "end"}
@@ -68,9 +72,15 @@ PROSE_KEYS = {"headline", "text", "why", "summary", "note", "reason", "label",
 PROSE_ARRAYS = {"coverage.limitations"}
 
 # Prose precis is quoting rather than writing. A PR titled "Fix double refund
-# bug" keeps its title; the author's words are evidence, not precis's voice.
+# bug" keeps its title; the author's words are evidence, not precis's voice, and
+# a house rule that says "never ship a change that should have a test" is the
+# document's voice. Matched against a path with its array indices removed, so
+# one entry covers every element of a list.
 QUOTED = ("source.title", "source.description", "source.linked_issues",
-          "source.commits", "story.intent_delta.stated")
+          "source.commits", "story.intent_delta.stated",
+          "review_pass.checks[].rule")
+
+INDEX_RE = re.compile(r"\[\d+\]")
 
 REF_RE = re.compile(r"^[^\s:]+:\d+$")
 
@@ -173,6 +183,43 @@ def _validate_diagram(rep, diagram, where):
             if edge.get(end) not in endpoints:
                 rep.fail(ewhere, "%s %r is not a declared %s id"
                          % (end, edge.get(end), what))
+
+
+def _validate_rule(rep, check, where):
+    """A check that sets a document beside the diff has to produce the document.
+
+    The quote is the project's own wording and the `path:line` is where it says
+    it, so a reader can go and read the rule rather than taking precis's word
+    for what it says. Without both, the check is precis asserting a rule.
+    """
+    kind = check.get("kind")
+    rule = check.get("rule")
+
+    if kind not in RULE_KINDS:
+        if rule is not None:
+            rep.fail(where, "rule belongs only to a %s check, not to %r"
+                     % (" or ".join(sorted(RULE_KINDS)), kind))
+        return
+
+    if not isinstance(rule, dict):
+        rep.fail(where, "rule is required for a %r check: quote the wording and "
+                        "name the file and line it is written on" % kind)
+        return
+
+    rwhere = where + ".rule"
+    _text(rep, rule, "quote", rwhere, 200)
+    _text(rep, rule, "was", rwhere, 200, required=kind == "rule_change")
+    source = rule.get("source")
+    if not isinstance(source, str) or not REF_RE.match(source):
+        rep.fail(rwhere, "source must anchor the rule to a line, as "
+                         "CONTRIBUTING.md:40, got %r" % source)
+
+    # The graph-edge rule, applied here: an edge you cannot point at a line for
+    # is an edge you do not draw.
+    if not check.get("hunk_ids"):
+        rep.fail(where, "a %r check must name the hunks it points at; a "
+                        "departure with no changed line to show is not one "
+                        "precis reports" % kind)
 
 
 def _validate_graph(rep, graph, mapped_files):
@@ -329,14 +376,17 @@ def _authored_prose(model):
     """
     found = []
 
+    def quoted(path):
+        return INDEX_RE.sub("[]", path).startswith(QUOTED)
+
     def walk(node, path):
-        if path.startswith(QUOTED):
+        if quoted(path):
             return
         if isinstance(node, dict):
             for key, value in node.items():
                 here = "%s.%s" % (path, key)
                 if isinstance(value, str):
-                    if key in PROSE_KEYS and not here.startswith(QUOTED):
+                    if key in PROSE_KEYS and not quoted(here):
                         found.append((here, value))
                 elif isinstance(value, list) and here in PROSE_ARRAYS:
                     for i, item in enumerate(value):
@@ -415,6 +465,21 @@ def validate(model, label="report") -> list[str]:
             elif len(item) > 120:
                 rep.fail("coverage.limitations[%d]" % i,
                          "is %d characters, the cap is 120" % len(item))
+    # Absent means precis never looked, and owes `limitations` a reason. Present
+    # and empty means it looked and this project states no rules. The two are
+    # different answers and the report shows them differently.
+    rules_read = coverage.get("rules_read")
+    if rules_read is not None:
+        if not isinstance(rules_read, list):
+            rep.fail("coverage", "rules_read must be an array of paths, even "
+                                 "when empty")
+        else:
+            for i, item in enumerate(rules_read):
+                if not isinstance(item, str):
+                    rep.fail("coverage.rules_read[%d]" % i, "must be a string")
+                elif len(item) > 120:
+                    rep.fail("coverage.rules_read[%d]" % i,
+                             "is %d characters, the cap is 120" % len(item))
 
     # ---- stats
     stats = model.get("stats") or {}
@@ -606,6 +671,7 @@ def validate(model, label="report") -> list[str]:
         if "severity" in item:
             rep.fail(where, "severity is not part of the contract; precis does "
                             "not score findings")
+        _validate_rule(rep, item, where)
 
     if not isinstance(skippable, list):
         rep.fail("review_pass", "skippable must be an array, even when empty")
