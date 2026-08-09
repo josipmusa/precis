@@ -451,10 +451,26 @@ table.files .note { color: var(--ink-soft); font-size: 12.5px; margin-top: 3px; 
 :root[data-theme="dark"] .step.done .tick { color: #10201c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .step.done .tick { color: #10201c; } }
 .step.done .tick .mark, .step.done:hover .tick .mark { opacity: 1; }
-.step.done { opacity: .55; }
-.step.done:hover, .step.done:focus-within { opacity: 1; }
-.step.done > .head h3 { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: var(--ink-faint); }
 .step.flash { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Ticking folds the body away, the way a viewed file collapses. The head stays,
+   so a finished pass still reads as a list of what was done rather than a
+   column of empty bars. The tick alone carries the finished signal: dimming a
+   card that is already closed says the same thing twice. */
+.step.folded > .body { display: none; }
+.step.folded > .head { padding-bottom: 16px; }
+.fold {
+  flex: none; align-self: flex-start; margin-top: 2px; padding: 4px 7px;
+  border: 0; border-radius: 6px; background: none; cursor: pointer;
+  color: var(--ink-faint); display: grid; place-items: center;
+  transition: color .14s ease, background .14s ease;
+}
+.fold:hover { color: var(--accent-ink); background: var(--accent-wash); }
+.fold .chev {
+  width: 0; height: 0; border: 5px solid transparent;
+  border-top-color: currentColor; margin-top: 3px;
+  transition: transform .15s ease;
+}
+.step.folded .fold .chev { transform: rotate(-90deg) translateY(2px); }
 .step .htext { min-width: 0; flex: 1; }
 .step h3 { font-size: 17px; }
 .step h3 .ord { font: 650 12.5px/1 var(--mono); color: var(--ink-faint); margin-right: 9px; vertical-align: 1px; }
@@ -462,6 +478,17 @@ table.files .note { color: var(--ink-soft); font-size: 12.5px; margin-top: 3px; 
 .step .path { font: 12px/1.5 var(--mono); color: var(--ink-faint); margin-top: 8px; word-break: break-all; }
 .step .hunks { padding: 16px 20px 20px; display: grid; gap: 12px; }
 .step .tail { padding: 14px 20px 18px 60px; }
+/* The project's own words, set apart from precis's. A reader can go to the
+   line and read the rule rather than taking this report's word for it. */
+.rule { border-left: 2px solid var(--line); padding-left: 14px; margin-bottom: 14px; }
+.rule .said { font: 15px/1.6 var(--serif); color: var(--ink); max-width: 64ch; }
+.rule .said + .said { margin-top: 8px; }
+.rule .lbl {
+  font: 650 10.5px/1 var(--mono); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-faint); margin-right: 9px; vertical-align: 1.5px;
+}
+.rule .src { font: 11.5px/1.5 var(--mono); color: var(--ink-faint); margin-top: 9px; }
+
 /* The one place in the report that asks the reader for something. */
 .q { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-wash); border-radius: 9px; padding: 12px 14px; }
 .q .mk { color: var(--accent-ink); font-weight: 700; flex: none; line-height: 1.5; }
@@ -588,11 +615,12 @@ footer .creed { margin-top: 22px; font-size: 13px; color: var(--ink-soft); max-w
 @media print {
   :root { --shadow: none; }
   body { background: #fff; color: #000; font-size: 11pt; }
-  .nav, .tip, .passbtns, .copyout { display: none !important; }
-  /* Paper shows the pass as it actually stands, ticks and all. Only the fading
-     goes: dimmed text on paper is just low contrast. */
+  .nav, .tip, .passbtns, .copyout, .fold { display: none !important; }
+  /* Paper shows the pass as it actually stands, ticks and all. The folds go:
+     a printed report that hides the code under half its steps is worse than one
+     that ignores the ticks, and on paper nothing can be unfolded. */
   .passbar { position: static; }
-  .step.done { opacity: 1; }
+  .step.folded > .body { display: block; }
   /* On paper a hunk chip is not a control, but `client.py:14` is still the
      reference a reader needs, so it stays as text. */
   .href { border-color: var(--line); color: var(--ink-soft); background: none; }
@@ -645,7 +673,8 @@ const ATTN_LABEL = {
   irreversible_migration: "Irreversible migration", public_api: "Public API",
   concurrency: "Concurrency", data_loss: "Data loss",
   external_contract: "External contract", dependency_surface: "Dependency surface",
-  config_surface: "Config surface", feature_flag: "Feature flag"
+  config_surface: "Config surface", feature_flag: "Feature flag",
+  documented_rule: "Documented rule", rule_change: "Rule change"
 };
 const DELTA_LABEL = {
   scope_creep: "Separate concern", drive_by: "Drive-by change", incidental: "Incidental effect"
@@ -901,7 +930,12 @@ function section(id, nav, title, lead, ...body) {
 function coverageNotice() {
   const c = M.coverage || {};
   const limits = c.limitations || [];
-  if (c.tier === "full" && !limits.length) return null;
+  /* Absent means precis never looked at the project's rules, and `limitations`
+     owes the reader a reason. An empty list means it looked and this change
+     touches nothing that states any. Those are different answers, so a clean
+     full reading still shows the notice when there is one to give. */
+  const rules = Array.isArray(c.rules_read) ? c.rules_read : null;
+  if (c.tier === "full" && !limits.length && rules === null) return null;
   const tierText = {
     full: "Every hunk was read.",
     core: "Core and supporting hunks were read in full; mechanical groups were summarised.",
@@ -912,6 +946,9 @@ function coverageNotice() {
     h("p", {}, prose(c.note || tierText)),
     h("p", { style: "margin-top:6px", text:
       `${c.hunks_read} of ${c.hunks_total} hunks, ${c.files_read} of ${c.files_total} files.` }),
+    rules === null ? null : h("p", { style: "margin-top:6px", text: rules.length
+      ? `Rules read: ${rules.join(", ")}.`
+      : "Rules read: no rules document sits above the code this change touches." }),
     limits.length ? h("ul", {}, limits.map(l => h("li", {}, prose(l)))) : null
   );
 }
@@ -1090,6 +1127,9 @@ function openHunkAt(hunkId) {
   const n = STEP_OF_HUNK.get(hunkId);
   const step = n ? document.getElementById("step-" + n) : null;
   if (step) {
+    /* A reader who followed a link to this code came to see it, so a step they
+       have already ticked opens rather than scrolling them to a closed head. */
+    setFolded(step, false);
     step.scrollIntoView({ behavior: "smooth", block: "start" });
     step.classList.add("flash");
     setTimeout(() => step.classList.remove("flash"), 1600);
@@ -1676,12 +1716,41 @@ function reviewSection() {
   return node;
 }
 
+/* Folding is view state and not part of the pass: it is never written to
+   storage, so a reload shows exactly what the ticks say. */
+function setFolded(article, folded) {
+  article.classList.toggle("folded", folded);
+  if (article.syncFold) article.syncFold();
+}
+
+/* The chevron opens a finished item again without taking the tick back.
+   Re-reading something you have done is not un-doing it. */
+function foldButton(article, body, noun) {
+  const btn = h("button", { class: "fold", type: "button", "aria-controls": body.id },
+    h("i", { class: "chev" }));
+  const sync = () => {
+    const open = !article.classList.contains("folded");
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    const label = (open ? "Hide the " : "Show the ") + noun;
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+  };
+  article.syncFold = sync;
+  btn.addEventListener("click", () => {
+    article.classList.toggle("folded");
+    sync();
+  });
+  sync();
+  return btn;
+}
+
 function tickButton(key, article) {
   const btn = h("button", { class: "tick", type: "button" },
     h("span", { class: "mark", text: "✓" }));
   const apply = () => {
     const done = TICKS.has(key);
     article.classList.toggle("done", done);
+    setFolded(article, done);
     btn.setAttribute("aria-pressed", done ? "true" : "false");
     const label = done ? "Mark as not done" : "Mark as done";
     btn.title = label;
@@ -1713,19 +1782,44 @@ function stepItem(step) {
   const paths = new Set(step.hunk_ids.map(id => HUNKS[id] && HUNKS[id].path).filter(Boolean));
   const showPath = step.path && !(paths.size === 1 && paths.has(step.path));
   const article = h("article", { class: "step", id: "step-" + step.n });
+  const body = h("div", { class: "body", id: "step-" + step.n + "-body" }, hunks);
   article.append(
     h("div", { class: "head" },
       tickButton("s" + step.n, article),
       h("div", { class: "htext" },
         h("h3", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
         h("p", { class: "why" }, prose(step.why)),
-        showPath ? h("div", { class: "path", text: step.path }) : null)),
-    hunks);
+        showPath ? h("div", { class: "path", text: step.path }) : null),
+      foldButton(article, body, "code")),
+    body);
   return article;
+}
+
+/* A rule is quoted, never paraphrased and never re-rendered: `text` rather than
+   `prose`, because the backticks in someone else's document are their
+   characters and not this report's markup. The attribution is the point of the
+   block, so it is never optional. */
+function ruleQuote(rule) {
+  if (!rule) return null;
+  const said = (label, value) => value
+    ? h("div", { class: "said" }, label ? h("span", { class: "lbl", text: label }) : null,
+        h("span", { text: value }))
+    : null;
+  return h("div", { class: "rule" },
+    said(rule.was ? "Was" : null, rule.was),
+    said(rule.was ? "Now" : null, rule.quote),
+    h("div", { class: "src", text: rule.source }));
 }
 
 function checkItem(check, n) {
   const article = h("article", { class: "step check", id: "check-" + n });
+  const body = h("div", { class: "body", id: "check-" + n + "-body" },
+    h("div", { class: "tail" },
+      ruleQuote(check.rule),
+      h("div", { class: "q" },
+        h("span", { class: "mk", text: "?" }),
+        h("p", {}, prose(check.question))),
+      hunkRefs(check.hunk_ids)));
   article.append(
     h("div", { class: "head" },
       tickButton("c" + n, article),
@@ -1734,12 +1828,9 @@ function checkItem(check, n) {
           h("span", { class: "tag", text: ATTN_LABEL[check.kind] || check.kind })),
         h("h3", {}, h("span", { class: "ord", text: String(n) }), prose(check.title)),
         h("p", { class: "why" }, prose(check.why)),
-        check.path ? h("div", { class: "path", text: check.path }) : null)),
-    h("div", { class: "tail" },
-      h("div", { class: "q" },
-        h("span", { class: "mk", text: "?" }),
-        h("p", {}, prose(check.question))),
-      hunkRefs(check.hunk_ids)));
+        check.path ? h("div", { class: "path", text: check.path }) : null),
+      foldButton(article, body, "question")),
+    body);
   return article;
 }
 
