@@ -4,6 +4,7 @@ SKILL.md is what the model running this skill actually reads, so a stale path or
 a command that no longer works is a runtime failure, not a typo. These tests
 hold the docs to the filesystem and to the CLI.
 """
+import json
 import re
 import subprocess
 import sys
@@ -53,7 +54,7 @@ def test_every_path_the_docs_name_exists(doc):
 
 
 def test_the_documented_pipeline_runs(tmp_path):
-    """The exact two-command pipeline SKILL.md tells the model to run."""
+    """The exact commands SKILL.md tells the model to run, in that order."""
     parse = subprocess.run(
         [sys.executable, "skills/precis/scripts/parse_diff.py",
          str(FIXTURES / "medium.diff")],
@@ -65,6 +66,16 @@ def test_the_documented_pipeline_runs(tmp_path):
         input=parse.stdout, capture_output=True, text=True, cwd=ROOT)
     assert done.returncode == 0, done.stderr
     assert out.exists() and out.stat().st_size > 1000
+
+    rules = tmp_path / "rules.json"
+    found = subprocess.run(
+        [sys.executable, "skills/precis/scripts/find_rules.py", str(out),
+         "--root", str(ROOT), "-o", str(rules)],
+        capture_output=True, text=True, cwd=ROOT)
+    assert found.returncode == 0, found.stderr
+    # This repository states its own rules, so a run over it must find them.
+    read = json.loads(rules.read_text(encoding="utf-8"))
+    assert "CONTRIBUTING.md" in [d["path"] for d in read["docs"]]
 
 
 def test_the_docs_do_not_teach_the_model_to_review():
@@ -140,8 +151,6 @@ def test_the_readme_shows_screenshots_that_exist():
 
 def test_every_shipped_example_is_a_valid_report_model():
     """An example that no longer validates is an example that lies."""
-    import json
-
     from validate_model import validate
     models = sorted((ROOT / "examples").glob("*.json"))
     assert models, "examples/ has no report models"
