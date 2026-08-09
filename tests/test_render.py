@@ -232,7 +232,7 @@ def test_the_schema_minimal_example_renders(tmp_path, template_text):
     """The floor case: a degraded run still produces a whole page."""
     from test_fixtures import REFERENCES
     text = (REFERENCES / "schema.md").read_text(encoding="utf-8")
-    marker = "# Part 3 - A minimal valid report model"
+    marker = "- A minimal valid report model"
     block = re.search(r"```json\n(.*?)\n```", text[text.index(marker):], re.S)
     model = json.loads(block.group(1))
     html = rendered(model, template_text)

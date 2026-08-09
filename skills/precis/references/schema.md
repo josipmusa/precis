@@ -1,22 +1,25 @@
 # The precis data contract
 
-There are two JSON documents in precis, and one direction of flow:
+There are three JSON documents in precis, and one direction of flow:
 
 ```
-diff ──▶ parse_diff.py + classify.py ──▶ PRE-MODEL ──▶ [analysis, LLM] ──▶ REPORT MODEL ──▶ render_report.py ──▶ HTML
-         deterministic                   (facts)        judgement            (facts + meaning)   template only
+diff ──▶ parse_diff.py + classify.py ──▶ PRE-MODEL ──▶ [analysis, LLM] ──▶ ANALYSIS ──▶ build_model.py ──▶ REPORT MODEL ──▶ render_report.py ──▶ HTML
+         deterministic                   (facts)        judgement          (meaning)     (rejoins them)     (facts + meaning)   template only
 ```
 
 The **pre-model** is what a script can know for certain: paths, hunks, line counts,
 rename detection, whether a file is generated or vendored. No judgement.
 
+The **analysis** is the report model with hollow hunks - see
+[The analysis file](#the-analysis-file). It is the only document written by hand.
+
 The **report model** is what the report is. Everything the HTML shows comes from it and
 nothing else. The template never re-parses a diff, never calls out, never guesses. If the
 report should say something, the report model has a field for it.
 
-Both documents are UTF-8 JSON. Both carry `schema_version`. This file is the only place
-either shape is defined; changing a field here means changing all three fixtures and both
-ends of the pipeline in the same commit.
+All three are UTF-8 JSON. The pre-model and the report model carry `schema_version`. This
+file is the only place any of the shapes is defined; changing a field here means changing
+all three fixtures and both ends of the pipeline in the same commit.
 
 ---
 
@@ -927,7 +930,48 @@ copying them, but it may not silently drop one.
 
 ---
 
-# Part 3 - A minimal valid report model
+# Part 3 - The analysis file
+
+The document the analysis phase writes, and the only one written by hand. It is a report
+model in every respect but one: its `hunks` entries carry judgement and nothing else.
+
+```json
+"hunks": {
+  "h1": { "change_kind": "new_logic",      "significance": "core" },
+  "h9": { "change_kind": "dependency",     "significance": "mechanical", "quote_lines": 8 }
+}
+```
+
+| Field | Req | Notes |
+|---|---|---|
+| `change_kind` | required | Same enumeration as `change_map`. |
+| `significance` | required | Same enumeration as `change_map`. Never inferred from `classification.significance_hint` by a script; the hint is a starting point for a reader, not an answer. |
+| `quote_lines` | optional | Positive integer. Quote only the first N lines of this hunk and mark it `truncated`. For a long noise hunk that is worth showing the shape of and not worth reading. |
+
+Any other key is an error. In particular `lines` is an error: diff text is copied by
+`build_model.py` from the pre-model, never authored here. That is the whole reason the
+analysis file exists as a separate document - a retyped diff line is the one mistake in a
+precis report that a reviewer cannot catch by reading the report.
+
+`build_model.py` then:
+
+- copies `path`, `old_path`, `language`, `header`, the four line counts, `section`, and
+  `lines` from the pre-model hunk with the same id;
+- sets `truncated` when the parser truncated the hunk, the budget elided it, or
+  `quote_lines` shortened it;
+- fills `stats.files_changed`, `additions`, `deletions`, `hunks` and
+  `changed_lines_by_role` from the pre-model when absent, and **fails** when present and
+  different;
+- fills `coverage.tier`, `coverage.hunks_total`, and `coverage.files_total` when absent;
+- stamps `source.generated_by` and `source.generated_at` when absent;
+- fails on a hunk id the parser never produced, and on a hunk referenced anywhere in the
+  document that the analysis did not classify.
+
+It validates the assembled model and writes nothing if that fails.
+
+---
+
+# Part 4 - A minimal valid report model
 
 The smallest document the renderer accepts. Every optional field omitted, every required
 field present. Useful as a template smoke test and as a floor for what a degraded run
@@ -1048,7 +1092,7 @@ still produces.
 
 ---
 
-# Part 4 - Invariants the renderer checks
+# Part 5 - Invariants the renderer checks
 
 `render_report.py` validates these before writing HTML and fails loudly rather than
 producing a report that lies:

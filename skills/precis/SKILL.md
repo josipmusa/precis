@@ -34,14 +34,15 @@ the rule is repeated in `references/analysis.md` where the prose gets written.
 Four phases, and each one only gets to do its own job.
 
 ```
-diff  ->  parse_diff.py  ->  classify.py  ->  you  ->  render_report.py  ->  report.html
-          (facts)           (signal/noise)  (judgement)  (template only)
+diff -> parse_diff.py -> classify.py ->   you    -> build_model.py -> render_report.py -> report.html
+        (facts)          (signal/noise)  (judgement)  (copies the diff)  (template only)
 ```
 
 1. **Ingest.** Get the diff and its metadata. `references/ingestion.md`.
 2. **Parse and classify.** Two deterministic scripts. Never do this by eye.
-3. **Analyse.** Write the report model, which is JSON. `references/analysis.md`.
-4. **Render.** One command. You never write HTML.
+3. **Analyse.** Write the analysis, which is JSON. `references/analysis.md`.
+4. **Build and render.** Two commands. You never copy diff text, and you never
+   write HTML.
 
 ### 1. Ingest
 
@@ -67,8 +68,13 @@ ends up quoting the wrong line.
 
 ### 3. Analyse
 
-Write the report model against `references/schema.md`, following the procedure
-in `references/analysis.md`. The parts that need the most care:
+Write the analysis against `references/schema.md`, following the procedure in
+`references/analysis.md`. It is the report model with hollow hunks: every other
+section in full, and a `hunks` entry per hunk carrying only `change_kind` and
+`significance`. **Never copy diff lines into it.** `build_model.py` does that,
+and a retyped line is a report quoting code the repository does not contain.
+
+The parts that need the most care:
 
 - **The call graph** needs the checkout, not just the diff. Grep for callers of
   the changed symbols and put the unchanged ones on the graph, muted. Every
@@ -79,16 +85,19 @@ in `references/analysis.md`. The parts that need the most care:
 - **A check is a question only the reviewer's context can answer.** If precis
   can answer it by reading the file, it is not a check.
 
-### 4. Render
+### 4. Build and render
 
 ```bash
-python3 skills/precis/scripts/validate_model.py /tmp/precis.model.json
+python3 skills/precis/scripts/build_model.py /tmp/precis.analysis.json \
+  --pre /tmp/precis.pre.json -o /tmp/precis.model.json
 python3 skills/precis/scripts/render_report.py /tmp/precis.model.json -o precis-1184.html
 ```
 
-`render_report.py` validates before writing and refuses rather than emitting a
-report that lies. If validation fails, fix the model. Never patch the template
-to accommodate one report, never hand-edit the HTML, never write HTML yourself.
+`build_model.py` fills in the hunk bodies from the pre-model, checks your counts
+against it, validates, and refuses to write a model that fails. `render_report.py`
+validates again before writing. If either fails, fix the analysis: the message
+names the field. Never patch the template to accommodate one report, never
+hand-edit the HTML, never write HTML yourself.
 
 ## What lives where
 
@@ -99,6 +108,7 @@ to accommodate one report, never hand-edit the HTML, never write HTML yourself.
 | `references/analysis.md` | How to turn the facts into the report model without reviewing. |
 | `scripts/parse_diff.py` | Unified diff to facts. Deterministic. |
 | `scripts/classify.py` | Signal, noise, and the content budget. Deterministic. |
+| `scripts/build_model.py` | Your analysis plus the pre-model's hunks to one report model. |
 | `scripts/validate_model.py` | The contract, executable. Exits 1 on a violation. |
 | `scripts/render_report.py` | Model plus template to one HTML file. |
 | `assets/template.html` | The only thing that draws. |
@@ -113,6 +123,7 @@ size to the change in front of you - `small.json`, `medium.json`, or
 1. **No verdicts.** See above. This is the product.
 2. **Every number comes from the pre-model.** Never estimate a count.
 3. **Every claim points at code.** Hunk ids or `path:line`, or it does not go in.
+   Diff text is copied by `build_model.py`, never typed by you.
 4. **Admit what you did not read.** `coverage.limitations` is not optional
    modesty; an elided lockfile, a binary file, a missing PR description, and a
    fork you could not check out all belong there.

@@ -4,6 +4,30 @@ The pre-model says what changed. This phase says what it means, in the shape
 `references/schema.md` defines. It is the only phase with judgement in it, and
 the only one that can produce something a reviewer would resent.
 
+What you write is the **analysis file**: the report model with hollow hunks.
+Every section in full, and a `hunks` map whose entries carry only the judgement
+about each hunk:
+
+```json
+"hunks": {
+  "h1": { "change_kind": "new_logic", "significance": "core" },
+  "h2": { "change_kind": "modified_logic", "significance": "core" },
+  "h9": { "change_kind": "dependency", "significance": "mechanical", "quote_lines": 8 }
+}
+```
+
+`build_model.py` fills in the paths, headers, line numbers, and the diff lines
+themselves from the pre-model. **Do not copy diff text into the analysis.** Not
+one line: a line you retype is a line the report quotes that the repository may
+not contain, and it is the one error in a precis report that a reviewer cannot
+catch by reading. `quote_lines` is the only lever you have over the copy - it
+quotes the first N lines of a long noise hunk and marks it truncated. A hunk you
+send a reviewer to read in `steps` may not be truncated, and the validator says
+so if you try.
+
+Every hunk you mention anywhere has to appear in the map. That is deliberate:
+the map is the record that you decided about each one.
+
 **The rule that overrides everything else here: precis does not review code.**
 No verdicts, no findings, no quality opinions, no suggestions, no "this could
 be". You are writing the briefing a reviewer reads *before* they form an
@@ -167,12 +191,15 @@ skips paragraphs, so a paragraph is a field that will not be read.
 ## Finish
 
 ```bash
-python3 scripts/validate_model.py /tmp/precis.model.json
+python3 scripts/build_model.py /tmp/precis.analysis.json \
+  --pre /tmp/precis.pre.json -o /tmp/precis.model.json
 python3 scripts/render_report.py /tmp/precis.model.json -o precis-1184.html
 ```
 
-`render_report.py` validates again before it writes, and refuses rather than
-producing a report that lies. **Never hand-write HTML, never edit the rendered
-page, never patch the template to make a particular report work.** The template
-renders from the JSON blob and nothing else; if something cannot be expressed in
-the model, that is a schema conversation, not a workaround.
+`build_model.py` copies the hunk bodies in, reconciles your counts against the
+pre-model, and validates. `render_report.py` validates again before it writes.
+Both refuse rather than producing a report that lies, and both name the field
+that failed. **Never hand-write HTML, never edit the rendered page, never patch
+the template to make a particular report work.** The template renders from the
+JSON blob and nothing else; if something cannot be expressed in the model, that
+is a schema conversation, not a workaround.

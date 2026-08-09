@@ -2693,7 +2693,7 @@
     "h13": {
       "id": "h13",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -46,47 +46,47 @@",
       "old_start": 46,
       "old_lines": 47,
@@ -2757,7 +2757,7 @@
     "h14": {
       "id": "h14",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -136,17 +136,17 @@",
       "old_start": 136,
       "old_lines": 17,
@@ -2821,7 +2821,7 @@
     "h15": {
       "id": "h15",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -166,32 +166,32 @@",
       "old_start": 166,
       "old_lines": 32,
@@ -2885,7 +2885,7 @@
     "h16": {
       "id": "h16",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -271,47 +271,47 @@",
       "old_start": 271,
       "old_lines": 47,
@@ -2949,7 +2949,7 @@
     "h17": {
       "id": "h17",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -331,17 +331,17 @@",
       "old_start": 331,
       "old_lines": 17,
@@ -3013,7 +3013,7 @@
     "h18": {
       "id": "h18",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -376,32 +376,32 @@",
       "old_start": 376,
       "old_lines": 32,
@@ -3077,7 +3077,7 @@
     "h19": {
       "id": "h19",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -451,32 +451,32 @@",
       "old_start": 451,
       "old_lines": 32,
@@ -3141,7 +3141,7 @@
     "h20": {
       "id": "h20",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -539,6 +539,21 @@",
       "old_start": 539,
       "old_lines": 6,
@@ -3205,7 +3205,7 @@
     "h21": {
       "id": "h21",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -556,17 +571,17 @@",
       "old_start": 556,
       "old_lines": 17,
@@ -3269,7 +3269,7 @@
     "h22": {
       "id": "h22",
       "path": "poetry.lock",
-      "language": "text",
+      "language": null,
       "header": "@@ -632,4 +647,4 @@",
       "old_start": 632,
       "old_lines": 4,
