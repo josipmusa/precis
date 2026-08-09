@@ -154,3 +154,77 @@ def test_every_shipped_example_has_its_rendered_page():
     for model in sorted((ROOT / "examples").glob("*.json")):
         assert model.with_suffix(".html").exists(), (
             f"{model.name} has no rendered .html beside it; an example is a pair")
+
+
+# ------------------------------------------------- nothing private ships
+
+# Assembled from fragments so that this file does not itself contain the strings
+# it bans. The scan below covers every tracked file, this one included, and an
+# exclusion list would be the first thing to rot.
+PRIVATE_TERMS = [
+    "aev" + "on",
+    "call" + "shift",
+    "click" + "up",
+    r"\.inter" + r"nal\b",
+    "amaz" + "onaws",
+    "/Us" + "ers/",
+    "/ho" + "me/[a-z]",
+    "google" + r"apis\.com/[a-z]",
+]
+
+# Anything shaped like a credential. None of these should ever appear in a public
+# repository, and the cost of finding out after the push is high.
+SECRET_SHAPES = [
+    r"gh[pousr]_[A-Za-z0-9]{16}",
+    "github" + r"_pat_[A-Za-z0-9]{16}",
+    r"sk-[A-Za-z0-9]{20}",
+    r"xox[baprs]-[A-Za-z0-9]",
+    "AK" + r"IA[0-9A-Z]{16}",
+    "-----BE" + "GIN [A-Z ]*PRIVATE KEY",
+]
+
+
+def _tracked_text_files():
+    """What git would publish, minus the binaries. Skips if this is not a checkout."""
+    try:
+        out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT,
+                             capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):  # pragma: no cover
+        pytest.skip("git is not available")
+    if out.returncode != 0:  # pragma: no cover
+        pytest.skip("not a git checkout")
+    binary = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".woff", ".woff2"}
+    paths = [ROOT / name for name in out.stdout.split("\0") if name]
+    return [p for p in paths if p.suffix.lower() not in binary and p.is_file()]
+
+
+@pytest.mark.parametrize("pattern", PRIVATE_TERMS + SECRET_SHAPES)
+def test_no_tracked_file_leaks_anything_private(pattern):
+    """The repository is public. Employer, client, infrastructure and credential
+    strings must never reach it, in any file, including the fixtures and the
+    shipped examples."""
+    rx = re.compile(pattern, re.I)
+    hits = []
+    for path in _tracked_text_files():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for match in rx.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            hits.append(f"{path.relative_to(ROOT)}:{line}: {match.group(0)!r}")
+    assert hits == [], "\n".join(hits)
+
+
+def test_invented_and_upstream_content_never_names_the_maintainer():
+    """Fixtures are invented and examples are other people's pull requests. The
+    maintainer's own handle belongs in the project metadata and nowhere else, so
+    finding it here means real content leaked into content that should have none."""
+    rx = re.compile("jos" + "ip", re.I)
+    hits = []
+    for directory in (FIXTURES, ROOT / "examples"):
+        for path in sorted(directory.glob("*")):
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            match = rx.search(text)
+            if match:
+                hits.append(f"{path.relative_to(ROOT)}: {match.group(0)!r}")
+    assert hits == [], "\n".join(hits)

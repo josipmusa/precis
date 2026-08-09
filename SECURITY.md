@@ -29,7 +29,7 @@ A diff is untrusted input, and so is a pull request description. Both end up in 
 report, so both are treated as hostile:
 
 - The model is embedded as JSON inside a `<script type="application/json">` element with
-  every `<` written as the `<` escape, which makes `</script` and `<!--`
+  every `<` written as the `\u003c` escape, which makes `</script` and `<!--`
   unrepresentable while keeping the document valid JSON. U+2028 and U+2029 go too, since
   they are legal in a JSON string and terminate a line in some parsers.
 - Every string the template draws is set as text or escaped. The only markup honoured in

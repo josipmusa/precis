@@ -182,18 +182,6 @@ def test_diagram_sizes_stay_comprehensible(fixture_model):
                 )
 
 
-def test_fixtures_contain_nothing_private():
-    """Fixture content is invented. Nothing may point at a real host or account."""
-    banned = re.compile(
-        r"aevon|callshift|josip|clickup|\.internal\b|amazonaws|googleapis\.com/[a-z]",
-        re.I,
-    )
-    for path in sorted(FIXTURES.glob("*")):
-        text = path.read_text(encoding="utf-8", errors="replace")
-        hit = banned.search(text)
-        assert hit is None, f"{path.name}: {hit.group(0)!r} at offset {hit.start()}"
-
-
 def test_headline_is_a_statement_not_a_verdict(fixture_model):
     name, model = fixture_model
     headline = model["story"]["headline"]
