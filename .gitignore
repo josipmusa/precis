@@ -7,3 +7,4 @@ venv/
 .idea/
 /out/
 *.tmp.html
+docs/specs
