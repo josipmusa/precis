@@ -6,8 +6,11 @@ A *précis* is a concise summary of a text's essential points. It also starts wi
 
 precis takes a pull request, merge request, or plain `git diff` and produces a
 **comprehension artifact**: one self-contained HTML file that explains what the change
-does, which parts are the actual change, which parts are ripple, in what order to read
-them, and what only you can decide.
+does, which parts are the actual change, which parts are ripple, grouped by the part of
+the codebase they belong to, and what only you can decide. Beside it travels a ten-line
+markdown digest for the PR comment or the chat message, and for a trivial diff the
+digest is the whole deliverable, because a full report for a 30-line fix costs more to
+open than the diff it explains.
 
 It never tells you whether the code is good. That is your job, and handing you a verdict
 is the fastest way to stop you doing it.
@@ -43,25 +46,50 @@ Nothing else: no packages to install, no services, no keys.
 
 ## What a report contains
 
-**A story, in three beats.** What the system did, what it does now, and what that
-touches. Plus what the description claims, set against what the diff does, quoting the
-author verbatim.
+**A story, in three beats**, and the share of the diff that is the change itself. Plus
+what the description claims, set against what the diff does, quoting the author verbatim.
+
+**The ten-second answers, before anything else.** Whether runtime behaviour changes,
+whether anything someone outside the diff depends on changes shape, and whether tests
+arrive with the change. Three plain sentences under the story, each one a fact or a link
+to where it is shown, so you know what you are walking into before you read a hunk. When
+a change reads as two independent changes, that is a fourth.
+
+**The change, grouped by area.** Every file lands in the part of the codebase it belongs
+to: the domain decision, the API contract, the persistence behind it, the tests that pin
+it. A frontend change groups by components, state, and styling instead. Each area carries
+its own reading, its own questions, and its own file list, so you finish one area before
+you start the next. The code itself waits behind one fold per area, and opens when you
+are ready to read rather than greeting you as a wall.
+
+**Every changed contract, as a before/after table.** A changed signature, schema, config
+default, or feature flag is a delta, so it renders as one: what it was, what it is now,
+in two rows you can check at a glance. And because precis runs with the checkout, it can
+say the thing a diff view structurally cannot: how many call sites the surface has
+elsewhere in the repository, how many this diff also updates, and exactly where the ones
+it does not touch live.
+
+![A changed contract as a before/after table](docs/img/contracts.png)
+
+**Inside each area, the lines that matter.** A reading step shows the lines precis
+annotated, with a line of context each side; the full diff is one fold away. The order
+still runs across the whole change, so definition still comes before use, and every hunk
+wears one of four labels: behaviour, contract, mechanical, or tests.
+
+![A reading step showing its annotated lines](docs/img/review-pass.png)
+
+**Checks you tick off**, each one a question precis cannot answer, because answering it
+needs context that lives in your head and not in the repository. Each check sits in the
+area it belongs to.
+
+![Three checks, each ending in a question](docs/img/checks.png)
 
 **A call graph across files**, including the callers that did not change, which are
 exactly the ones a diff view hides. Every edge points at a hunk or a `path:line`; an edge
-precis cannot evidence is an edge it does not draw.
+precis cannot evidence is an edge it does not draw. And when the change moves no
+structure at all, there is no diagram, because a map of unchanged code is decoration.
 
 ![The call graph from a report for sqlalchemy/alembic#1805](docs/img/call-graph.png)
-
-**A reading order** with the code inline and annotations on the lines that carry the
-change, so you are never asked to hold two files in your head at once.
-
-![A numbered reading step with inline annotations](docs/img/review-pass.png)
-
-**Checks you tick off**, each one a question precis cannot answer, because answering it
-needs context that lives in your head and not in the repository.
-
-![Three checks, each ending in a question](docs/img/checks.png)
 
 **Your project's own rules, quoted.** precis reads the documents that state them,
 `CLAUDE.md`, `CONTRIBUTING.md`, a style guide, an ADR, and where the change departs from
@@ -108,7 +136,9 @@ diff ─▶ parse_diff.py ─▶ classify.py ─▶ the model ─▶ build_model
 - **`build_model.py`** copies the hunk bodies in from the parser, checks every stated
   number against it, and refuses to write a model that disagrees.
 - **`render_report.py`** validates the model and fills one template. The template renders
-  from the embedded JSON and nothing else.
+  from the embedded JSON and nothing else. The same validated model also yields the
+  ten-line markdown digest, so the digest inherits every guarantee the report has,
+  the verdict scan included.
 
 `validate_model.py` is the contract in executable form. Two of its checks are the product
 rather than hygiene: a character cap on every prose field, because a reviewer in a hurry

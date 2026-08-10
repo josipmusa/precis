@@ -48,12 +48,15 @@ check" survives that. "The retry loop should run after the check" does not.
 2. Read the core and supporting hunks properly. Not skimmed.
 3. Resolve the call graph against the checkout (below). This is the step that
    needs the repository and not just the diff.
-4. Read the rule documents `find_rules.py` found. `references/rules.md`.
-5. Write `story`, then `behavior`, then `review_pass`, then `seams`.
-6. Fill `change_map.groups` from the classification, adjusting where you
+4. Inventory the changed contracts and grep for their callers (below). Also a
+   checkout step, and the single highest-leverage one.
+5. Read the rule documents `find_rules.py` found. `references/rules.md`.
+6. Write `story` (with `shape` and `tests`), then `behavior`, then `contracts`,
+   then `review_pass`, then `seams`.
+7. Fill `change_map.groups` from the classification, adjusting where you
    disagree with the hint, and `stats.signal_ratio` from your final calls.
-7. Write `coverage` last, from `budget`, `warnings`, and the documents you read.
-8. Validate. Fix. Validate again.
+8. Write `coverage` last, from `budget`, `warnings`, and the documents you read.
+9. Validate. Fix. Validate again.
 
 ---
 
@@ -98,6 +101,88 @@ find the line or leave it out.
 The renderer derives how many mapped files appear on no path and says so on the
 page. There is no field for that number, so it cannot drift.
 
+**It is usually read as text, not as a picture.** A graph that does not branch -
+no node with two or more changed callers or callees - renders as an indented
+trace, which is more legible than a drawing and pastes into a pull request
+comment. Write node labels and edge labels so they read in a line of text: an
+edge label is a phrase like `first`, `per service`, or `issubclass`, and a
+`note` on a node is the sentence a reader gets instead of a tooltip.
+
+**Draw only what changed.** The graph exists to show a structural delta: a new
+component, a new call edge, a moved boundary, plus the one hop of unchanged
+neighbours that makes the delta legible. If the change adds, removes, and moves
+no relationship - a value change, a docs change, a rename with the same call
+shape - `graph: null` is the right answer and the page renders no map at all.
+A map of unchanged code is decoration, and the reader pays for decoration in
+trust.
+
+---
+
+## `contracts` - what changed shape
+
+For every surface someone outside this diff depends on - an API signature or
+response, a schema, a config default, a wire format, a feature flag, a CLI -
+write a before/after pair. Transcribe, do not describe: `before` and `after`
+are the shape as code says it, and the renderer sets them in a two-row table.
+An empty `contracts` array is itself the answer most reviewers came for, so
+emptiness has to be earned by having looked.
+
+**Then find the callers.** This is the question a diff view structurally
+cannot answer: who else uses this, and did the change reach them?
+
+```bash
+grep -rn "calculate_fee(" --include='*.py' src/ | grep -v tests/
+grep -rn "fully_refunded" -r src/ docs/
+```
+
+Count the call sites outside the changed surface's own file. The ones this diff
+also updates go in `callers.updated`; the ones it does not touch go in
+`callers.untouched`, each as `path:line`. Write `callers` only for surfaces you
+actually searched; an untouched call site the report missed costs more trust
+than the whole field earns. If the checkout was not available, omit `callers`
+and say so in `coverage.limitations`.
+
+Keep it to surfaces whose contract changed. A touched private helper is not a
+contract, and listing it here buries the two entries that matter.
+
+---
+
+## `change_map.groups` - the areas
+
+The groups are the backbone of the rendered report. Each one becomes an area
+card that carries its own reading steps, its own checks, its own skip groups,
+and its own file list, so a reviewer works one area at a time. A lazy grouping
+is a lazy report; this is the section where the segmentation earns its keep.
+
+**Label by purpose, never by directory.** "Digest header construction", not
+"src/requests". "API contract", not "handlers". The `role` is metadata the page
+never shows; the label is the only thing that says what this part of the change
+is *for*, so it has to carry both the layer and the purpose.
+
+**One role, several areas, whenever the change has several concerns.** The
+role enumeration is coarse on purpose, and nothing limits a role to one group.
+A backend change usually falls into areas like the domain decision, the API
+contract it surfaces through, the persistence that backs it, and the tests
+that pin it. A frontend-heavy change almost never reads well as one `ui`
+group: split it into the areas a frontend reviewer actually thinks in, such as
+components, state and data flow, styling, routing, and the API client
+boundary, each its own `ui`-role group with its own label.
+
+**Three to seven areas.** One is right for a genuinely single-concern change;
+past seven the list of areas becomes its own reading assignment, so merge
+related concerns instead. The decomposition is the report's spine and this cap
+is what keeps the spine visible.
+
+**Order groups by where the reading starts.** The renderer leads with the area
+that holds step 1 and keeps your order for areas with nothing to read, so put
+the core-bearing group first and the mechanical tail last. When the order
+carries a dependency - this area defines the interface the next one consumes -
+say so in `order_note`, one clause.
+
+**Write `summary` for every area a reviewer will spend time in.** One line on
+what this part of the change is doing; it renders directly under the area's
+title.
+
 ---
 
 ## `story`
@@ -115,6 +200,17 @@ sentences. Three archetypes that work:
 Beats are not a summary of the diff. A reviewer can already see 43 files
 changed; what they cannot see is that 40 of them are one mechanical consequence
 of the three that matter.
+
+**`shape` and `tests` both land in the masthead.** `shape` is the first word of
+the metadata line and never appears again, so it is one word for what kind of
+change this reads as; reach for `mixed` whenever the diff
+genuinely carries more than one kind, because `mixed` is a finding, not a
+failure to decide, and it usually travels with `seams`. `tests` states whether
+tests *in this diff* exercise the changed behaviour: `yes`, `partial` (the
+`note` names what is and is not exercised), `none`, or `n/a` when
+`behavior.changed` is false. It is a statement of fact about the diff. Whether
+the tests are sufficient is the reviewer's call, and wording that implies an
+answer fails the verdict scan or deserves to.
 
 `intent_delta` compares the author's stated intent against what the diff does.
 It is **evidence, not accusation**: `stated` quotes the author verbatim,
@@ -146,7 +242,14 @@ The checklist a reviewer completes. Two kinds of item, one numbering.
 ones: definition before use, migration before the code that depends on it,
 interface before implementation. Each step names its hunks, and those hunks must
 be present in full - a step pointing at an elided hunk is a step a reviewer
-cannot do.
+cannot do. Steps render inside the area that owns their file, numbered across
+the whole pass, so the order survives the grouping.
+
+**Anchored annotations are the code a reader sees.** A step shows only the
+lines its annotations anchor to, with a line of context each side; the full
+hunk sits behind a fold. Anchor an annotation to every line a reader has to
+see, because a step with no anchored annotation shows no code until the reader
+unfolds it. An annotation says what the line does, never what you think of it.
 
 **`checks` - what to decide.** Each carries a `question`, and the question rule
 is absolute:
@@ -169,7 +272,10 @@ departure you do not report.
 **`skippable` - what can be left.** Groups of files with a reason. This is where
 the 40-file refactor gets its 32 files back. The reason has to be a fact
 ("regenerated by `scripts/regen_clients.sh`, no hand edits"), not reassurance
-("these are fine").
+("these are fine"). When the group is the same edit applied many times, set
+`sample_hunk_id` to one representative hunk: "the same swap, nineteen times -
+one shown" earns the skip better than any sentence, and it costs the reader
+four lines to verify.
 
 ---
 
@@ -202,7 +308,8 @@ skips paragraphs, so a paragraph is a field that will not be read.
 ```bash
 python3 scripts/build_model.py /tmp/precis.analysis.json \
   --pre /tmp/precis.pre.json -o /tmp/precis.model.json
-python3 scripts/render_report.py /tmp/precis.model.json -o precis-1184.html
+python3 scripts/render_report.py /tmp/precis.model.json -o precis-1184.html \
+  --digest precis-1184.md
 ```
 
 `build_model.py` copies the hunk bodies in, reconciles your counts against the

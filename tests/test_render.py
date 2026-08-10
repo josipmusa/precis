@@ -128,14 +128,11 @@ def js_object_keys(template_text, name):
 
 
 @pytest.mark.parametrize("map_name,allowed", [
-    ("ROLE_LABEL", validate_model.ROLES),
     ("KIND_LABEL", validate_model.CHANGE_KINDS),
-    ("ATTN_LABEL", validate_model.ATTENTION_KINDS),
     ("STATUS_LABEL", validate_model.FILE_STATUS),
     ("SOURCE_KIND_LABEL", validate_model.SOURCE_KINDS),
     ("DELTA_LABEL", validate_model.DELTA_KINDS),
     ("EVIDENCE_LABEL", validate_model.EVIDENCE),
-    ("GRAPH_KIND_LABEL", validate_model.GRAPH_NODE_KINDS),
     ("REL_LABEL", validate_model.REL_KINDS),
     ("EMPH_LABEL", validate_model.EMPHASIS),
 ])
@@ -144,43 +141,34 @@ def test_every_enumeration_value_has_a_label(template_text, map_name, allowed):
     assert js_object_keys(template_text, map_name) == set(allowed), map_name
 
 
-def test_significance_labels_are_complete(template_text):
-    assert js_object_keys(template_text, "SIG_LABEL") == set(validate_model.SIGNIFICANCE)
+def test_the_enumerations_the_page_stopped_showing_have_no_labels(template_text):
+    """Roles, check kinds, significance and graph node kinds are taxonomy the
+    reader had to decode. They live in the model; they do not render."""
+    for gone in ("ROLE_LABEL", "ATTN_LABEL", "SIG_LABEL", "GRAPH_KIND_LABEL",
+                 "CONTRACT_KIND_LABEL", "KIND_ORDER"):
+        assert gone not in template_text, f"{gone} came back"
 
 
-def test_kind_order_covers_every_change_kind(template_text):
-    match = re.search(r"KIND_ORDER\s*=\s*\[(.*?)\];", template_text, re.S)
-    assert match
-    listed = set(re.findall(r'"(\w+)"', match.group(1)))
-    assert listed == validate_model.CHANGE_KINDS
-
-
-def test_every_change_kind_has_a_colour(template_text):
-    for kind in validate_model.CHANGE_KINDS:
-        assert f"--k-{kind}:" in template_text, f"no colour token for change_kind {kind}"
-
-
-def test_every_significance_has_a_colour(template_text):
-    for value in validate_model.SIGNIFICANCE:
-        assert f"--sig-{value}:" in template_text
-
-
-# Typography and geometry are theme-independent; everything else is a colour.
-NON_PALETTE = {"--sans", "--serif", "--mono", "--radius"}
+# Typography is theme-independent; everything else is a colour.
+NON_PALETTE = {"--text", "--mono"}
 
 
 def test_every_colour_token_is_defined_for_both_themes(template_text):
     """A token defined only in the light block leaves a hole in dark mode."""
-    def tokens(start):
-        block = template_text[start:template_text.index("\n}", start)]
+    def tokens(start, end):
+        block = template_text[start:template_text.index(end, start)]
         return set(re.findall(r"(--[\w-]+):", block)) - NON_PALETTE
 
-    light = tokens(template_text.index(":root {"))
-    dark = tokens(template_text.index(':root[data-theme="dark"] {'))
-    media = tokens(template_text.index(':root:not([data-theme="light"]) {'))
-    assert light - dark == set(), "tokens missing from the explicit dark palette"
-    assert light - media == set(), "tokens missing from the prefers-color-scheme palette"
-    assert dark == media, "the two dark palettes have drifted apart"
+    light = tokens(template_text.index(":root {"), "\n}")
+    dark = tokens(template_text.index("@media (prefers-color-scheme: dark) {"), "\n  }")
+    assert light - dark == set(), "tokens missing from the dark palette"
+    assert dark - light == set(), "the dark palette defines a token the light one does not"
+
+
+def test_dark_mode_is_the_system_preference_and_nothing_else(template_text):
+    """One less control, one less thing to remember. The page follows the OS."""
+    assert "data-theme" not in template_text
+    assert "toggleTheme" not in template_text
 
 
 # ------------------------------------------------------------------- the CLI
@@ -241,15 +229,33 @@ def test_the_schema_minimal_example_renders(tmp_path, template_text):
 
 # ------------------------------------------------------ the shape of a page
 
-def test_every_graph_node_kind_has_a_shape(template_text):
-    """An unhandled kind falls through to a plain rectangle, which silently
-    tells the reader that a table and a function are the same sort of thing."""
-    match = re.search(r"function nodeShape\(.*?\n\}", template_text, re.S)
-    assert match, "template has no nodeShape function"
-    body = match.group(0)
-    generic = {"function"}  # the plain rectangle is correct for these
-    for kind in validate_model.GRAPH_NODE_KINDS - generic:
-        assert f'"{kind}"' in body, f"nodeShape gives {kind} no shape of its own"
+def test_a_diagram_draws_two_shapes_and_no_more(template_text):
+    """Shape taxonomy is the same disease as colour taxonomy: a cylinder, a pill
+    and a folded note ask the reader to learn a key before the picture says
+    anything. Rectangles, and a diamond where something is decided."""
+    body = re.search(r"function nodeShape\(.*?\n\}", template_text, re.S).group(0)
+    assert '"decision"' in body
+    for kind in validate_model.GRAPH_NODE_KINDS | {"store", "queue", "actor", "note"}:
+        if kind == "decision":
+            continue
+        assert f'"{kind}"' not in body, f"nodeShape still gives {kind} a shape of its own"
+    assert body.count("s(\"rect\"") == 1, "more than one rectangle variant survived"
+
+
+def test_a_diagram_carries_two_colours_at_most(template_text):
+    """Ink for what was already there, the accent for what this change touched,
+    a dashed outline for what it removed. No third hue to decode."""
+    body = re.search(r"function emphColor\(.*?\n\}", template_text, re.S).group(0)
+    used = set(re.findall(r"var\(--[\w-]+\)", body))
+    assert used <= {"var(--accent)", "var(--ink-soft)"}, used
+
+
+def test_a_diagram_label_wraps_rather_than_truncating(template_text):
+    """A label clipped to unreadability is a diagram lying about its contents.
+    The box is sized to the label, not the label to the box."""
+    assert "function clip(" not in template_text, "the truncating helper came back"
+    body = re.search(r"function drawFlow\(.*?\n\}", template_text, re.S).group(0)
+    assert "longestWord" in body, "node width no longer accounts for its longest word"
 
 
 def test_the_pass_persists_under_the_head_sha(template_text):
@@ -268,55 +274,31 @@ def test_a_carriage_return_cannot_double_the_line_height(template_text):
     )
 
 
-def test_a_ticked_item_folds_its_body_away(template_text):
-    """A finished step should cost a line of the page, not forty. The head stays
-    so the reader can still see what they did."""
-    assert re.search(r"\.step\.folded\s*>\s*\.body\s*\{[^}]*display:\s*none",
-                     template_text), "no rule hides the body of a folded item"
-    assert 'classList.toggle("folded"' in template_text, (
-        "ticking an item no longer folds it")
+def test_a_tick_is_a_checkbox_and_a_counter_and_nothing_else(template_text):
+    """The pass is a record of what was read, not a piece of choreography. No
+    fold-on-tick, no flash, no progress bar, no summary to copy."""
+    body = re.search(r"function tickBox\(.*?\n\}", template_text, re.S).group(0)
+    assert 'type: "checkbox"' in body
+    assert "refreshCount" in body, "ticking no longer updates the counter"
+    for ghost in ("classList.toggle(\"folded\"", "foldButton", "passSummary",
+                  "copySummary", "resetPass", "pbar", "flash"):
+        assert ghost not in template_text, f"{ghost} survived the redesign"
 
 
-def test_the_fold_button_reopens_a_done_item_without_unticking_it(template_text):
-    """Re-reading something you have finished is not un-finishing it, and the
-    fold is a view state rather than part of the pass."""
-    match = re.search(r"function foldButton\(.*?\n\}", template_text, re.S)
-    assert match, "template has no foldButton"
-    body = match.group(0)
-    assert "TICKS" not in body, "the fold button reaches into the pass record"
-    assert "saveTicks" not in body, "the fold state is being persisted"
+def test_the_counter_is_plain_text(template_text):
+    body = re.search(r"function refreshCount\(.*?\n\}", template_text, re.S).group(0)
+    assert "of ${total} done" in body
+    assert "width" not in body, "the counter is drawing a bar again"
 
 
-def test_a_fold_is_wired_for_a_screen_reader(template_text):
-    """A control that hides content has to say so, and say what it hides."""
-    match = re.search(r"function foldButton\(.*?\n\}", template_text, re.S)
-    assert match
-    assert "aria-expanded" in match.group(0)
-    assert "aria-controls" in match.group(0)
-
-
-def test_the_done_state_no_longer_dims_the_card(template_text):
-    """The fold carries the finished signal now. Dimming on top of it is noise,
-    and a struck-through heading is unreadable at 55% opacity."""
-    assert not re.search(r"\.step\.done\s*\{[^}]*opacity", template_text)
-    assert not re.search(r"\.step\.done[^{]*\{[^}]*line-through", template_text)
-
-
-def test_following_a_link_into_a_folded_step_opens_it(template_text):
-    """A graph node sends the reader to the step that covers its code. Landing
-    them on a closed head shows them nothing."""
-    match = re.search(r"function openHunkAt\(.*?\n\}", template_text, re.S)
-    assert match, "template has no openHunkAt"
-    assert "setFolded(step, false)" in match.group(0)
-
-
-def test_paper_shows_every_body_whatever_the_ticks_say(template_text):
-    """A printed report that hides half the diff is worse than one that ignores
-    the ticks."""
+def test_paper_hides_the_controls_and_keeps_the_document(template_text):
+    """The memo test is literal: printed, this is a document, and every fold is
+    open because nothing can be unfolded on paper."""
     print_block = template_text[template_text.index("@media print {"):]
     print_block = print_block[:print_block.index("\n}\n")]
-    assert re.search(r"\.step\.folded\s*>\s*\.body\s*\{[^}]*display:\s*block",
-                     print_block), "print does not unfold the bodies"
+    assert re.search(r"\.tick[^{]*\{[^}]*display:\s*none", print_block)
+    assert re.search(r"summary\.link\s*\{[^}]*display:\s*none", print_block)
+    assert "beforeprint" in template_text, "collapsed details are dropped on paper"
 
 
 # -------------------------------------------------- a check that quotes a rule
@@ -348,7 +330,8 @@ def test_the_quoted_rule_sits_with_the_question_it_informs(template_text):
     """It is what a reviewer reads to answer the check, so it folds away with
     the question rather than staying in the head after the tick."""
     body = re.search(r"function checkItem\(.*?\n\}", template_text, re.S).group(0)
-    assert body.index("ruleQuote") > body.index('class: "body"')
+    assert body.index("ruleQuote") > body.index('class: "stepbody"')
+    assert body.index("ruleQuote") < body.index('class: "q"')
 
 
 def test_the_coverage_notice_names_the_rule_documents_that_were_read(template_text):
@@ -369,6 +352,244 @@ def test_the_treemap_is_gone(template_text):
     """It answered a question no reviewer was asking. It does not come back."""
     for ghost in ("drawTreemap", "squarify", ".treemap", "tmwrap", "tmnote", "filelabel"):
         assert ghost not in template_text, f"{ghost} survived the redesign"
+
+
+def test_the_pass_lives_inside_the_area_that_owns_it(template_text):
+    """Steps and checks render inside the role group that owns their file, so a
+    reviewer works one area at a time instead of hopping between a reading list
+    and a file list. The flat numbered section does not come back."""
+    assert "function areasSection" in template_text
+    assert "function areaCard" in template_text
+    assert "Read these, in this order" not in template_text
+
+
+def test_a_step_leads_with_its_annotated_lines_and_folds_the_rest(template_text):
+    """A page that reprints the whole diff loses to the diff. A step shows the
+    lines precis wrote about; the full hunk stays one fold away, never gone."""
+    assert "function snippetNode" in template_text
+    body = re.search(r"function stepItem\(.*?\n\}", template_text, re.S).group(0)
+    assert "snippetNode" in body, "a step no longer shows its annotated lines"
+    assert "fulldiff" in body, "a step no longer offers the full diff"
+
+
+def test_the_masthead_answers_the_header_questions_in_sentences(template_text):
+    """Behaviour, contracts, tests, seams: the ten-second header. A reviewer
+    settles these before reading anything, and each answer is a sentence with
+    its own link rather than a row in a labelled grid."""
+    body = re.search(r"function answers\(.*?\n\}", template_text, re.S).group(0)
+    assert 'href: "#behavior"' in body
+    assert 'href: "#contract-"' in body
+    assert 'href: "#seams"' in body
+    assert "TESTS_TEXT[tests.state]" in body
+    assert 'class: "flag"' not in template_text, "the labelled flags grid came back"
+
+
+def test_the_masthead_is_five_blocks_of_prose(template_text):
+    """One metadata line, the headline, the story, one sentence of triage, and
+    the answers. No chips, no big number, no bar."""
+    body = re.search(r"function masthead\(.*?\n\}\n", template_text, re.S).group(0)
+    for block in ("meta,", "h1", "beats", "triageSentence()", "answers()"):
+        assert block in body, f"the masthead lost its {block}"
+    for ghost in ("chip", "class: \"bar\"", "barkey", "ratio", "confidence"):
+        assert ghost not in body, f"{ghost} is still in the masthead"
+
+
+def test_the_shape_is_one_word_in_the_metadata_line(template_text):
+    assert js_object_keys(template_text, "SHAPE_LABEL") == set(validate_model.SHAPES)
+    body = re.search(r"function masthead\(.*?\n\}\n", template_text, re.S).group(0)
+    assert "SHAPE_LABEL[story.shape]" in body
+    assert template_text.count("SHAPE_LABEL[story.shape]") == 1, (
+        "the shape is named more than once on the page")
+
+
+def test_a_contract_renders_as_a_before_after_table(template_text):
+    """Deltas beat prose. A changed signature or default is a two-row table a
+    reader can check in one glance, never a sentence describing one."""
+    assert "function contractNode" in template_text
+    body = re.search(r"function contractNode\(.*?\n\}", template_text, re.S).group(0)
+    assert "beforeafter" in body
+    assert "callersLine" in body
+
+
+def test_the_blast_radius_total_is_derived_not_declared(template_text):
+    """updated + untouched is computed on the page, so the total cannot
+    disagree with its parts, and every untouched site carries its ref."""
+    body = re.search(r"function callersLine\(.*?\n\}", template_text, re.S).group(0)
+    assert "untouched.length" in body
+    assert "refLink" in body
+
+
+def test_the_walkthrough_waits_behind_one_fold(template_text):
+    """Level three of the page: the card says what an area is and what changes
+    shape in it; the code opens when the reader is ready to read."""
+    assert "function walkBlock" in template_text
+    body = re.search(r"function walkBlock\(.*?\n\}", template_text, re.S).group(0)
+    assert 'h("details", { class: "walk" }' in body, "the walkthrough no longer folds"
+
+
+def test_a_hunk_header_carries_its_triage_word(template_text):
+    """Every hunk wears one of the four hats, derived on the page rather than
+    declared in the model so it cannot drift. It is the one classification the
+    page still shows, because it changes what the reader does."""
+    assert "function triageOfHunk" in template_text
+    body = re.search(r"function hunkHead\(.*?\n\}", template_text, re.S).group(0)
+    assert "triageOfHunk" in body and "TRIAGE_LABEL[triage]" in body
+    assert js_object_keys(template_text, "TRIAGE_LABEL") == {
+        "behaviour", "contract", "mechanical", "tests", "docs"}
+
+
+def test_the_triage_word_is_the_only_visible_taxonomy(template_text):
+    """One classification renders, as a word rather than a pill. Everything that
+    needed a key to read is gone, and so is every key."""
+    assert ".tri.t-behaviour { color: var(--accent); }" in template_text
+    assert not re.search(r"\.tri\s*\{[^}]*(border|background|border-radius)", template_text), (
+        "the triage word is wearing a pill again")
+    for ghost in ('class: "legend"', "barkey", "dkey", "kindchip", "sigdot", "microlabel",
+                  'class: "role"', 'class: "chip"', 'class: "tag"'):
+        assert ghost not in template_text, f"{ghost} survived the redesign"
+
+
+def test_a_file_row_says_a_word_only_when_it_changes_the_reading(template_text):
+    """A word on every row is a taxonomy wearing prose. New and modified logic
+    is what a changed file is by default, so those rows say nothing."""
+    shown = re.search(r"KIND_SHOWN = new Set\(\[(.*?)\]\)", template_text, re.S).group(1)
+    listed = set(re.findall(r'"(\w+)"', shown))
+    assert listed == {"moved", "rename", "formatting", "generated", "deleted"}
+    assert listed < validate_model.CHANGE_KINDS
+
+
+def test_the_code_is_not_syntax_coloured(template_text):
+    """One accent, the diff's own green and red, and nothing else. A four-hue
+    tinter inside a hunk is decoration the reader did not ask for."""
+    for ghost in ("makeTinter", "tk-key", "tk-str", "--tok-", "LANGS"):
+        assert ghost not in template_text, f"{ghost} survived the redesign"
+
+
+def test_the_page_holds_two_typefaces(template_text):
+    """One text face and one mono. The four-voice mix is what made it read like
+    a dashboard."""
+    faces = set(re.findall(r"font-family:\s*var\((--[\w-]+)\)", template_text))
+    faces |= set(re.findall(r"font:[^;]*var\((--[\w-]+)\)", template_text))
+    assert faces <= {"--text", "--mono"}, faces
+    assert "--serif" not in template_text and "--sans" not in template_text
+
+
+def test_a_skip_can_show_one_representative_hunk(template_text):
+    """"The same edit, nineteen times - one shown" is the strongest form of a
+    mechanical skip, and it needs the one to show."""
+    body = re.search(r"function skipRow\(.*?\n\}", template_text, re.S).group(0)
+    assert "sample_hunk_id" in body
+
+
+def test_deep_links_borrow_their_host_from_the_source(template_text):
+    """A path:line becomes a blob link only with a head SHA and the PR's own
+    URL to borrow a host from. The template invents no destinations."""
+    body = re.search(r"function blobUrl\(.*?\n\}", template_text, re.S).group(0)
+    assert "src.url" in body
+    assert "github.com" not in body, "a hardcoded host crept into the template"
+
+
+def test_no_diagram_renders_when_nothing_structural_changed(template_text):
+    """A map of unchanged code is decoration. No graph means no section, and
+    unchanged behaviour is answered by one sentence in the masthead."""
+    map_body = re.search(r"function mapSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "return null" in map_body
+    behavior_body = re.search(r"function behaviorSection\(.*?\n\}", template_text, re.S).group(0)
+    assert re.search(r"if \(!b\.changed\) return null", behavior_body)
+
+
+def test_the_call_graph_is_a_text_trace_unless_it_branches(template_text):
+    """An indented trace is more legible than a picture, and it pastes into a
+    pull request comment. Only a fan a line would misrepresent earns the SVG."""
+    body = re.search(r"function mapSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "graphBranches(graph)" in body and "callTrace(graph)" in body
+    branches = re.search(r"function graphBranches\(.*?\n\}", template_text, re.S).group(0)
+    assert ">= 2" in branches, "branching is no longer decided by two or more edges"
+    trace = re.search(r"function callTrace\(.*?\n\}", template_text, re.S).group(0)
+    assert 'h("pre"' in trace, "the trace is no longer a pre block"
+    assert "EMPH_LABEL[node.emphasis]" in trace, (
+        "the trace relies on colour to say what changed")
+
+
+def test_the_diagrams_carry_their_own_sentence(template_text):
+    """Two pictures side by side state a delta; the caption says which."""
+    body = re.search(r"function behaviorSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "figcaption" in body and "What changed" in body
+
+
+def test_coverage_lives_in_the_footer_with_the_provenance(template_text):
+    """"What precis read" stopped nobody at the top of the page and meant
+    nothing to the readers it stopped. It sits with the provenance now, next to
+    confidence and evidence; only a partial reading earns a line upstairs."""
+    footer = re.search(r"function footerNode\(.*?\n\}", template_text, re.S).group(0)
+    assert "coverageNotice" in footer
+    assert "story.evidence" in footer and "story.confidence" in footer
+    mast = re.search(r"function triageSentence\(.*?\n\}", template_text, re.S).group(0)
+    assert 'cov.tier !== "full"' in mast and "hunks_read" in mast
+
+
+def test_the_triage_sentence_replaced_the_number_and_the_bar(template_text):
+    """One sentence, already interpreted: how big, how much of it is the change,
+    where the behaviour change actually lives, and how long it takes to read."""
+    body = re.search(r"function triageSentence\(.*?\n\}", template_text, re.S).group(0)
+    assert "signal_ratio" in body
+    assert "behaviourFootprint()" in body
+    assert "estimated_minutes" in body
+    assert "linesBySignificance" not in template_text, "the bar's arithmetic survived it"
+
+
+def test_the_page_is_readable_with_no_clicks(template_text):
+    """Two mechanisms, maximum: a disclosure and a tick. Nothing else on the
+    page reacts to a pointer, and nothing is only stated behind a fold."""
+    handlers = set(re.findall(r'addEventListener\("(\w+)"', template_text))
+    assert handlers <= {"change", "resize", "beforeprint", "afterprint"}, handlers
+    for ghost in ("IntersectionObserver", "scrollIntoView", "mouseenter",
+                  "positionTip", "navigator.clipboard", "<nav"):
+        assert ghost not in template_text, f"{ghost} survived the redesign"
+
+
+# --------------------------------------------------------------- the digest
+
+def test_the_digest_is_ten_ish_lines_that_answer_the_header(tmp_path):
+    result = run_cli(str(FIXTURES / "medium.json"), "--digest", "-", "--no-html")
+    assert result.returncode == 0, result.stderr
+    text = result.stdout
+    lines = [line for line in text.strip().splitlines() if line]
+    assert len(lines) <= 10, "a digest that needs scrolling is a report"
+    for needle in ("Behaviour:", "Contracts:", "Tests:", "Read in"):
+        assert needle in text, f"the digest lost its {needle} line"
+
+
+def test_the_digest_lists_areas_in_reading_order(fixtures):
+    """The area holding step 1 leads, exactly as it does on the page."""
+    text = render_report.digest(fixtures["medium"])
+    assert text.index("Refund rules and ledger") < text.index("TypeScript client")
+
+
+def test_the_digest_points_at_the_report_it_travels_with(tmp_path):
+    out = tmp_path / "r.html"
+    md = tmp_path / "r.md"
+    result = run_cli(str(FIXTURES / "small.json"), "-o", str(out), "--digest", str(md))
+    assert result.returncode == 0, result.stderr
+    assert "Full report: r.html" in md.read_text(encoding="utf-8")
+    assert out.exists()
+
+
+def test_no_html_without_a_digest_is_refused():
+    result = run_cli(str(FIXTURES / "small.json"), "--no-html")
+    assert result.returncode == 2
+
+
+def test_the_digest_still_requires_a_valid_model(tmp_path):
+    """The digest inherits the model's guarantees, the verdict scan included,
+    because it is only ever built from a model that passed validation."""
+    model = json.loads((FIXTURES / "small.json").read_text(encoding="utf-8"))
+    model["review_pass"]["checks"][0]["why"] = "This retry policy is wrong."
+    broken = tmp_path / "b.json"
+    broken.write_text(json.dumps(model), encoding="utf-8")
+    result = run_cli(str(broken), "--digest", "-", "--no-html")
+    assert result.returncode == 1
+    assert "verdict" in result.stderr
 
 
 # --------------------------------------------------------------- house style
@@ -415,11 +636,7 @@ def test_a_diagram_label_drops_backticks_it_cannot_render(template_text):
 def test_a_graph_node_counts_its_own_hunks_not_its_file(template_text):
     """An unchanged neighbour must not wear the diff stats of the file it sits in."""
     assert "function nodeCounts(node)" in template_text
-    assert "basename(node.path) + nodeCounts(node)" in template_text
-
-
-def test_the_bar_counts_lines_by_hunk_not_by_file(template_text):
-    """A core hunk in a supporting file must not be counted as supporting;
-    tests/test_fixtures.py holds the same arithmetic against the models."""
-    assert "function linesBySignificance()" in template_text
-    assert "const by = linesBySignificance();" in template_text
+    trace = re.search(r"function callTrace\(.*?\n\}", template_text, re.S).group(0)
+    assert "nodeCounts(node)" in trace
+    graph = re.search(r"function drawCallGraph\(.*?\n\}", template_text, re.S).group(0)
+    assert "nodeCounts(node)" in graph

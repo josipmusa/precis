@@ -37,6 +37,9 @@ FILE_STATUS = {"added", "modified", "deleted", "renamed", "copied",
                "mode_changed", "binary"}
 SOURCE_KINDS = {"github_pr", "gitlab_mr", "git_range", "patch_file"}
 COVERAGE_TIERS = {"full", "core", "summary"}
+SHAPES = {"feature", "bugfix", "refactor", "docs", "chore", "mixed"}
+TEST_STATES = {"yes", "partial", "none", "n/a"}
+CONTRACT_KINDS = {"api", "schema", "config", "wire", "flag", "cli"}
 EVIDENCE = {"pr_description", "linked_issue", "commit_messages", "branch_name", "code"}
 DELTA_KINDS = {"scope_creep", "drive_by", "incidental"}
 ATTENTION_KINDS = {"behavioral", "security_surface", "irreversible_migration",
@@ -355,15 +358,16 @@ def _collect_refs(model):
                 if key == "hunk_ids" and isinstance(value, list):
                     for hid in value:
                         refs.append(("%s.hunk_ids" % path, hid))
-                elif key == "hunk_id" and isinstance(value, str):
-                    refs.append(("%s.hunk_id" % path, value))
+                elif key in ("hunk_id", "sample_hunk_id") and isinstance(value, str):
+                    refs.append(("%s.%s" % (path, key), value))
                 else:
                     walk(value, "%s.%s" % (path, key))
         elif isinstance(node, list):
             for i, item in enumerate(node):
                 walk(item, "%s[%d]" % (path, i))
 
-    for section in ("story", "change_map", "behavior", "review_pass", "seams"):
+    for section in ("story", "change_map", "contracts", "behavior", "review_pass",
+                    "seams"):
         walk(model.get(section), section)
     return refs
 
@@ -431,7 +435,7 @@ def validate(model, label="report") -> list[str]:
                  % (version, SUPPORTED_MAJOR))
 
     for key in ("source", "coverage", "stats", "story", "change_map",
-                "behavior", "review_pass", "seams", "hunks"):
+                "contracts", "behavior", "review_pass", "seams", "hunks"):
         if key not in model:
             rep.fail("root", "missing required section %r" % key)
     if rep.problems and "hunks" not in model:
@@ -508,6 +512,22 @@ def validate(model, label="report") -> list[str]:
     if "paragraph" in story:
         rep.fail("story", "paragraph is not part of the contract; the story is "
                           "carried by beats")
+    rep.enum(story.get("shape"), SHAPES, "story", "shape")
+    tests = story.get("tests")
+    if not isinstance(tests, dict):
+        rep.fail("story", "tests is required: { state, note } saying whether tests "
+                          "in this diff exercise the changed behaviour")
+    else:
+        rep.enum(tests.get("state"), TEST_STATES, "story.tests", "state")
+        _text(rep, tests, "note", "story.tests", 100,
+              required=tests.get("state") == "partial")
+        behavior_changed = (model.get("behavior") or {}).get("changed")
+        if behavior_changed is False and tests.get("state") != "n/a":
+            rep.fail("story.tests", "state must be 'n/a' when behavior.changed is "
+                                    "false; there is no changed behaviour to exercise")
+        if behavior_changed is True and tests.get("state") == "n/a":
+            rep.fail("story.tests", "state may not be 'n/a' when behavior.changed "
+                                    "is true; say yes, partial, or none")
     rep.enum(story.get("confidence"), CONFIDENCE, "story", "confidence")
     evidence = story.get("evidence")
     if not isinstance(evidence, list) or not evidence:
@@ -587,6 +607,59 @@ def validate(model, label="report") -> list[str]:
                                "relationship worth drawing")
     else:
         _validate_graph(rep, change_map.get("graph"), mapped_files)
+
+    # ---- contracts
+    contracts = model.get("contracts")
+    if not isinstance(contracts, list):
+        rep.fail("contracts", "must be an array, even when empty; an empty array "
+                              "says precis looked and no contract changed shape")
+        contracts = []
+    contract_ids = set()
+    for i, entry in enumerate(contracts):
+        where = "contracts[%d]" % i
+        if not isinstance(entry, dict):
+            rep.fail(where, "must be an object")
+            continue
+        cid = entry.get("id")
+        if not cid:
+            rep.fail(where, "id is required")
+        elif cid in contract_ids:
+            rep.fail(where, "duplicate contract id %r" % cid)
+        contract_ids.add(cid)
+        rep.enum(entry.get("kind"), CONTRACT_KINDS, where, "kind")
+        _text(rep, entry, "name", where, 60)
+        _text(rep, entry, "note", where, 100, required=False)
+        # before/after are transcriptions of code, exempt from the verdict scan
+        # like hunk lines, but they still have caps.
+        for side in ("before", "after"):
+            value = entry.get(side)
+            if value is not None and not isinstance(value, str):
+                rep.fail(where, "%s must be a string or null" % side)
+            elif isinstance(value, str) and len(value) > 120:
+                rep.fail(where, "%s is %d characters, the cap is 120"
+                         % (side, len(value)))
+        if entry.get("before") is None and entry.get("after") is None:
+            rep.fail(where, "at least one of before/after is required; null before "
+                            "is a new surface, null after is a removed one")
+        if not isinstance(entry.get("hunk_ids"), list) or not entry.get("hunk_ids"):
+            rep.fail(where, "hunk_ids must be a non-empty array; a contract change "
+                            "the diff does not show is not one precis reports")
+        callers = entry.get("callers")
+        if callers is not None:
+            cwhere = where + ".callers"
+            if not isinstance(callers, dict):
+                rep.fail(cwhere, "must be an object with updated and untouched")
+            else:
+                _int(rep, callers, "updated", cwhere)
+                untouched = callers.get("untouched")
+                if not isinstance(untouched, list):
+                    rep.fail(cwhere, "untouched must be an array, even when empty")
+                else:
+                    for ri, ref in enumerate(untouched):
+                        if not isinstance(ref, str) or not REF_RE.match(ref):
+                            rep.fail("%s.untouched[%d]" % (cwhere, ri),
+                                     "must be a path:line ref, as "
+                                     "src/reports/audit.py:88, got %r" % (ref,))
 
     # ---- behavior
     behavior = model.get("behavior") or {}
@@ -701,6 +774,14 @@ def validate(model, label="report") -> list[str]:
         for gid in group.get("group_ids") or []:
             if gid not in group_ids:
                 rep.fail(where, "group_ids references unknown change_map group %r" % gid)
+        sample = group.get("sample_hunk_id")
+        if sample is not None:
+            hunk = hunks.get(sample)
+            if hunk is None:
+                rep.fail(where, "sample_hunk_id references unknown hunk %r" % sample)
+            elif hunk.get("path") not in files:
+                rep.fail(where, "sample_hunk_id %r is from %r, which is not one of "
+                                "this group's files" % (sample, hunk.get("path")))
 
     # Nothing may be silently dropped: every mapped file is read or explicitly skipped.
     for path, gid in sorted(mapped_files.items()):

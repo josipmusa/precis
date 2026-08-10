@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "source": {
     "kind": "github_pr",
     "title": "Add configurable revision_map_class option",
@@ -76,6 +76,11 @@
         "text": "Nothing subclasses it here. The ordering itself is unchanged; only who decides it can move."
       }
     ],
+    "shape": "feature",
+    "tests": {
+      "state": "partial",
+      "note": "`test_config.py` pins reading and the subclass check; nothing runs a command with a custom map."
+    },
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -433,6 +438,31 @@
       }
     ]
   },
+  "contracts": [
+    {
+      "id": "c1",
+      "kind": "config",
+      "name": "revision_map_class",
+      "before": null,
+      "after": "dotted path to a RevisionMap subclass (default alembic.script.revision.RevisionMap)",
+      "note": "Read in `from_config()`; a value that is not a RevisionMap subclass raises CommandError.",
+      "hunk_ids": [
+        "h5"
+      ]
+    },
+    {
+      "id": "c2",
+      "kind": "api",
+      "name": "ScriptDirectory(revision_map_class=...)",
+      "before": "ScriptDirectory(...) always builds revision.RevisionMap",
+      "after": "optional revision_map_class keyword; None keeps the built-in map",
+      "hunk_ids": [
+        "h2",
+        "h3",
+        "h4"
+      ]
+    }
+  ],
   "behavior": {
     "changed": true,
     "note": null,

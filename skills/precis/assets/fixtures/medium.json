@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "source": {
     "kind": "github_pr",
     "title": "Partial refunds over the API",
@@ -103,6 +103,11 @@
         "text": "It ships as `POST /orders/{id}/refunds`, alongside two unrelated changes."
       }
     ],
+    "shape": "feature",
+    "tests": {
+      "state": "yes",
+      "note": "`test_policy.py` pins the cumulative maths; `test_refunds_api.py` drives the endpoint."
+    },
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -590,6 +595,68 @@
       }
     ]
   },
+  "contracts": [
+    {
+      "id": "c1",
+      "kind": "api",
+      "name": "POST /orders/{order_id}/refunds",
+      "before": null,
+      "after": "201 RefundResponse, scope refunds:write",
+      "note": "New write surface; refunds previously ran through the support console.",
+      "hunk_ids": [
+        "h7"
+      ]
+    },
+    {
+      "id": "c2",
+      "kind": "api",
+      "name": "OrderResponse",
+      "before": "fully_refunded: bool",
+      "after": "refunded_cents: int",
+      "hunk_ids": [
+        "h9"
+      ]
+    },
+    {
+      "id": "c3",
+      "kind": "schema",
+      "name": "orders",
+      "before": "fully_refunded boolean",
+      "after": "refunded_cents integer NOT NULL DEFAULT 0; status gains 'partially_refunded'",
+      "note": "The backfill runs inline in the same migration.",
+      "hunk_ids": [
+        "h6"
+      ],
+      "callers": {
+        "updated": 1,
+        "untouched": [
+          "src/meridian/support/console_views.py:88"
+        ]
+      }
+    },
+    {
+      "id": "c4",
+      "kind": "config",
+      "name": "api.max_page_size",
+      "before": "200",
+      "after": "100",
+      "note": "Changed in the same file as the new refund limit; no refund code reads it.",
+      "hunk_ids": [
+        "h4"
+      ]
+    },
+    {
+      "id": "c5",
+      "kind": "config",
+      "name": "orders.max_refunds_per_order",
+      "before": null,
+      "after": "10",
+      "note": "New cap; `RefundPolicy` reads it per order.",
+      "hunk_ids": [
+        "h4"
+      ]
+    }
+  ],
   "behavior": {
     "changed": true,
     "note": null,

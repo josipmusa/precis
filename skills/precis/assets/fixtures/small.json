@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "source": {
     "kind": "github_pr",
     "title": "Fix duplicate refunds when Stripe retries a webhook",
@@ -81,6 +81,11 @@
         "text": "`EventClaim` takes the event id first. A second delivery returns 200 and stops."
       }
     ],
+    "shape": "bugfix",
+    "tests": {
+      "state": "yes",
+      "note": "The replayed-delivery path is exercised in `test_refund_handler.py`."
+    },
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -321,6 +326,7 @@
       }
     ]
   },
+  "contracts": [],
   "behavior": {
     "changed": true,
     "note": null,

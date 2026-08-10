@@ -27,9 +27,10 @@ all three fixtures and both ends of the pipeline in the same commit.
 
 - **required** fields must be present. **optional** fields may be absent or `null`; the
   template treats absent and `null` identically and hides the corresponding UI.
-- Every `*_kind`, `role`, `significance`, and `confidence` field is a **closed
-  enumeration**. The template styles each value. An unknown value renders as a neutral
-  fallback rather than crashing, but emitting one is a bug.
+- Every `*_kind`, `role`, `significance`, `confidence`, `shape`, and `state` field
+  is a **closed enumeration**. Most of them steer what the page says rather than
+  showing up in it. An unknown value falls back to something neutral rather than
+  crashing, but emitting one is a bug.
 - Arrays are **ordered and meaningful** unless stated otherwise. `review_pass.steps` is
   the reading order. `review_pass.checks` is ordered by how much precis thinks the item
   warrants a reader's time, without ever saying so numerically.
@@ -50,12 +51,13 @@ all three fixtures and both ends of the pipeline in the same commit.
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "source":        { ... },
   "coverage":      { ... },
   "stats":         { ... },
   "story":         { ... },
   "change_map":    { ... },
+  "contracts":     [ ... ],
   "behavior":      { ... },
   "review_pass":   { ... },
   "seams":         { ... },
@@ -66,12 +68,13 @@ all three fixtures and both ends of the pipeline in the same commit.
 
 | Field | Req | Notes |
 |---|---|---|
-| `schema_version` | required | `"1.0"`. Renderer refuses a major version it does not know. |
+| `schema_version` | required | `"1.1"`. Renderer refuses a major version it does not know. |
 | `source` | required | Provenance and identity of the change. |
 | `coverage` | required | What precis actually looked at. Honesty lives here. |
 | `stats` | required | Deterministic counts, copied from the pre-model. |
-| `story` | required | Headline, beats, intent-vs-diff delta. |
+| `story` | required | Headline, beats, shape, tests, intent-vs-diff delta. |
 | `change_map` | required | The symbol graph plus every file, grouped by role. |
+| `contracts` | required | Every changed contract as a before/after pair. May be empty. |
 | `behavior` | required | Before/after. May declare `changed: false`. |
 | `review_pass` | required | The pass a reviewer completes: steps, checks, and the skippable remainder. |
 | `seams` | required | Independent-concern clusters. May declare `detected: false`. |
@@ -125,9 +128,9 @@ Identity, provenance, reproducibility.
 
 ## `coverage`
 
-Where precis admits what it did and did not read. The template renders this as a small
-provenance strip, and expands it into a visible banner whenever `tier != "full"` or
-`limitations` is non-empty.
+Where precis admits what it did and did not read. It renders in the footer with the
+rest of the provenance; a partial reading also earns one sentence in the masthead,
+because that is the one coverage fact that cannot wait for the end of the page.
 
 ```json
 "coverage": {
@@ -196,8 +199,8 @@ which is computed from the final significance assignments.
 
 `signal_ratio` is `core changed lines ÷ total changed lines`. It is the number behind the
 report's central claim: most of a diff is not the change. Rendered as a percentage.
-`changed_lines_by_kind` and `changed_lines_by_role` are optional; they feed the summary
-bar and are recomputable from `change_map` if absent.
+`changed_lines_by_kind` and `changed_lines_by_role` are optional; nothing on the page
+draws them, and they are recomputable from `change_map` if absent.
 
 ---
 
@@ -214,6 +217,8 @@ what the change says it does and what it does.
     { "label": "Impact", "text": "One refund could reach the ledger twice." },
     { "label": "Now",    "text": "`claim_event()` takes the row first. Retries get a 200." }
   ],
+  "shape": "bugfix",
+  "tests": { "state": "yes", "note": "The retry path is exercised end to end in `test_webhooks.py`." },
   "confidence": "high",
   "evidence": ["pr_description", "linked_issue", "commit_messages", "code"],
   "caveat": null,
@@ -241,8 +246,10 @@ what the change says it does and what it does.
 |---|---|---|
 | `headline` | required | One sentence, **≤ 100 chars**, present tense, describes the change not the code's quality. This is the first thing a reader sees. |
 | `beats` | required | 2–4 entries, each `{ label, text }`. `label` ≤ 14 chars, `text` ≤ 100 chars. |
+| `shape` | required | `feature` \| `bugfix` \| `refactor` \| `docs` \| `chore` \| `mixed`. One word for what kind of change this reads as. `mixed` is itself information: it says the diff carries more than one kind of change, and usually travels with `seams`. |
+| `tests` | required | `{ state, note }`. Whether tests **in this diff** exercise the changed behaviour. `state` is `yes` \| `partial` \| `none` \| `n/a`. `note` ≤ 100, optional except for `partial`, where it names what is exercised and what is not. `n/a` is for a change with no runtime behaviour to exercise, and is required exactly when `behavior.changed` is false. |
 | `confidence` | required | `high` \| `medium` \| `low`. See the rule below. |
-| `evidence` | required | Ordered array from `pr_description`, `linked_issue`, `commit_messages`, `branch_name`, `code`. What the story was reconstructed from. Rendered as chips so a reader can discount accordingly. |
+| `evidence` | required | Ordered array from `pr_description`, `linked_issue`, `commit_messages`, `branch_name`, `code`. What the story was reconstructed from. Named in the footer, in a sentence, so a reader can discount accordingly. |
 | `caveat` | optional | **Required in practice whenever `confidence != "high"`.** ≤ 160 chars, naming what is missing, e.g. `"No description and single-word commit messages; this story is inferred from the code alone."` |
 | `intent_delta` | required | May have empty arrays, must be present. |
 
@@ -271,8 +278,22 @@ could be deleted without the reader losing the thread, delete it.
 corroborates. `medium` is code plus useful commit messages, or a description that only
 partly matches the diff. `low` is code alone. A `low`-confidence story is still written -
 a reader with an inferred story is better off than a reader with none - but the report
-labels it as inferred and shows the banner. Never present an inferred story as if it were
-sourced.
+says so: the `caveat` sits with the story, and the footer names what the story was read
+from. Never present an inferred story as if it were sourced.
+
+### `shape` and `tests`
+
+Two of the questions a reviewer settles before reading anything, answered in the
+masthead. `shape` is what kind of change this is, in one word, so a reader knows
+which reading posture to take. `tests` says whether the behaviour this diff
+changes is exercised by tests *arriving in the same diff* - a statement of fact
+about the diff, never an opinion about whether the tests are enough.
+
+- `yes` - tests in this diff exercise the changed behaviour.
+- `partial` - some of it. `note` names what is exercised and what is not.
+- `none` - no test in this diff touches the changed behaviour.
+- `n/a` - there is no changed runtime behaviour to exercise. Required exactly
+  when `behavior.changed` is false, and forbidden when it is true.
 
 ### `intent_delta`
 
@@ -372,7 +393,9 @@ a node whose `emphasis` is not `unchanged` must name the `hunk_ids` that changed
 node carrying `hunk_ids` must have a `path` that appears in `groups`. Nothing links
 through to code the report does not list.
 
-**`kind` enumeration** - shape carries kind, as in the behaviour diagrams:
+**`kind` enumeration** - what a node is. It is not drawn as a shape of its own; the
+graph renders as an indented text trace unless it genuinely branches, and when it is
+drawn every node is a box:
 
 | Value | Means |
 |---|---|
@@ -411,7 +434,23 @@ that count, so it cannot drift out of step with the graph.
 
 **Group fields.** `id` (required, unique, referenced by `review_pass.skippable`),
 `role` (required), `label` (required, ≤ 40, human phrase, not the role name), `summary`
-(optional, ≤ 100), `files` (required, non-empty).
+(optional, ≤ 100), `order_note` (optional, ≤ 100), `files` (required, non-empty).
+
+Groups are the areas the report is organised around: each renders as a section
+carrying its own reading steps, checks, and files. Several groups may share a
+`role` - a frontend change splits into components, state, and styling, all
+`ui`. Order them by where the reading starts; the template leads with the
+group that holds step 1 and keeps this order for the rest.
+
+**Three to seven groups.** Fewer than three and the grouping is not doing
+anything (one is still right for a genuinely single-concern change); more than
+seven and the list itself becomes the thing a reader has to study. Merge related
+concerns rather than exceeding seven.
+
+`order_note` says why this area sits where it does in the reading order, when
+the reason is not obvious: `"After the domain area: this is the surface that
+exposes what it decides."` One clause; leave it off when the order explains
+itself.
 
 **`role` enumeration** - the vertical axis of the map:
 
@@ -436,18 +475,21 @@ that count, so it cannot drift out of step with the graph.
 (optional, required when `status` is `renamed` or `copied`), `note` (optional, ≤ 100;
 present for every `core` file).
 
-**`change_kind` enumeration** - the colour axis of the ledger:
+**`change_kind` enumeration** - what sort of edit a file carries. The report shows a
+plain word for the kinds that change how a row is read (`moved`, `rename`, `formatting`,
+`generated`, `deleted`) and nothing for the rest, because new and modified logic is what
+a changed file is by default. It is never a colour and never a key:
 
-| Value | Legend label | Means |
-|---|---|---|
-| `new_logic` | New logic | Behaviour that did not exist before. |
-| `modified_logic` | Modified logic | Existing behaviour altered. |
-| `moved` | Moved code | Relocated with its body substantially intact. |
-| `rename` | Mechanical rename | Identifier or path renamed, semantics unchanged. |
-| `formatting` | Formatting only | Whitespace, import order, formatter output. |
-| `generated` | Generated | Machine-produced output, not hand-edited. |
-| `content` | Values and content | Config values, constants, fixtures, prose, manifests. |
-| `deleted` | Deleted | Removal without replacement. |
+| Value | Means |
+|---|---|
+| `new_logic` | Behaviour that did not exist before. |
+| `modified_logic` | Existing behaviour altered. |
+| `moved` | Relocated with its body substantially intact. |
+| `rename` | Identifier or path renamed, semantics unchanged. |
+| `formatting` | Whitespace, import order, formatter output. |
+| `generated` | Machine-produced output, not hand-edited. |
+| `content` | Config values, constants, fixtures, prose, manifests. |
+| `deleted` | Removal without replacement. |
 
 **`significance` enumeration** - drives what a reader is asked to read:
 
@@ -460,6 +502,63 @@ present for every `core` file).
 **The promotion rule.** When you are unsure whether something is `supporting` or
 `mechanical`, it is `supporting`. Hiding one line that mattered costs more than showing
 twenty that did not.
+
+---
+
+## `contracts`
+
+Every contract this change alters, as a before/after pair. A contract is a shape
+someone outside this diff depends on: an API signature or response, a database
+schema, a config default, a wire format, a feature flag, a CLI. Deltas beat
+prose everywhere they apply, so these render as two-column tables, never as
+sentences.
+
+Required, and an empty array is a statement: precis looked and nothing with an
+outside dependant changed shape. That is the answer a reviewer needs most often,
+and it belongs in the report rather than being inferable from silence.
+
+```json
+"contracts": [
+  {
+    "id": "c1",
+    "kind": "schema",
+    "name": "processed_events",
+    "before": null,
+    "after": "id, event_id UNIQUE, claimed_at",
+    "note": "New table; the UNIQUE constraint is what makes the guard atomic.",
+    "hunk_ids": ["h9"],
+    "callers": {
+      "updated": 2,
+      "untouched": ["src/reports/refund_audit.py:88"]
+    }
+  }
+]
+```
+
+| Field | Req | Notes |
+|---|---|---|
+| `id` | required | Unique, `c<n>`. |
+| `kind` | required | `api` \| `schema` \| `config` \| `wire` \| `flag` \| `cli`. |
+| `name` | required | ≤ 60. The surface as a person would say it: `calculate_fee()`, `orders.legacy_refund_id`, `WEBHOOK_TIMEOUT`. |
+| `before`, `after` | see note | Each ≤ 120 or `null`. At least one must be non-null: `before: null` is a new surface, `after: null` is a removed one. These are transcriptions of code - a signature, a shape, a value - not prose, and like hunk lines they are exempt from the verdict scan. |
+| `note` | optional | ≤ 100, precis's voice, scanned. What a reader cannot see from the pair itself. |
+| `hunk_ids` | required | Non-empty. A contract change that is not visible in the diff is not one precis reports. |
+| `callers` | optional | The blast radius. See below. |
+
+### `callers` - the blast radius
+
+For a changed surface with callers elsewhere in the repository, say what
+happened to them. `updated` (required integer) counts call sites this diff also
+changes; `untouched` (required array, may be empty) lists the call sites it does
+not, each as a `path:line` ref found by searching the checkout - the same
+evidence rule as graph edges. The renderer derives the total, so it cannot
+disagree with the parts.
+
+This field is only for surfaces whose callers were actually searched for. A
+`callers` you did not grep for is worse than none: an untouched call site the
+report missed is exactly the kind of claim that kills trust in the rest of it.
+Omit the field when the search was not done, and say so in
+`coverage.limitations` when it could not be.
 
 ---
 
@@ -532,8 +631,8 @@ colours, or sizes.
 
 **Edge fields.** `from`, `to` (required - node ids for `flow`, lane ids for `sequence`),
 `label` (optional, ≤ 40 chars), `kind` (required - `call` \| `return` \| `async` \|
-`error` \| `data`), `emphasis` (required), `hunk_ids` (optional; makes the edge clickable
-through to the code).
+`error` \| `data`), `emphasis` (required), `hunk_ids` (optional; the code this edge was
+read from).
 
 **`emphasis` enumeration.** `unchanged` \| `added` \| `removed` \| `changed`. This is how
 before/after reads at a glance: the `after` diagram carries `added` and `changed`, the
@@ -599,6 +698,11 @@ omit both to attach the note to the hunk as a whole), `text` (required, ≤ 150)
 
 Annotations are the sharpest place for review-flavoured judgement to leak in. An
 annotation says *what this line does* or *what it changes*, never *whether it is right*.
+
+Anchored annotations also decide what a reader sees: a step renders only the
+lines they anchor to, one line of context each side, with the full hunk behind
+a fold. A step whose annotations anchor to no line shows no code until the
+reader unfolds it.
 
 **Reading-order construction rule.** Step 1 is the core change, not the entry point, not
 the test, not the migration. A reader who stops after step 1 can say what the change is.
@@ -673,7 +777,11 @@ skip by explaining the mechanism, not by asserting unimportance), `confidence`
 (required: `high` \| `medium`; a group you are not confident about does not belong here,
 promote it into `steps` instead), `group_ids` (optional, references `change_map` groups),
 `files` (required - the full list, so a reader can always look), `file_count`,
-`additions`, `deletions` (required integers).
+`additions`, `deletions` (required integers), `sample_hunk_id` (optional - one
+representative hunk id, rendered behind a fold so a reader can see the shape of
+the ripple without reading nineteen copies of it; the strongest form of a
+mechanical skip is "the same edit, applied identically across N files - one
+shown").
 
 **`kind` enumeration:**
 
@@ -1043,7 +1151,7 @@ still produces.
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "source": {
     "kind": "patch_file",
     "title": "Unnamed patch",
@@ -1067,11 +1175,14 @@ still produces.
       { "label": "Was", "text": "Every confirmation email rendered with a hardcoded `en-US` locale." },
       { "label": "Now", "text": "It renders with the locale stored on the customer record." }
     ],
+    "shape": "bugfix",
+    "tests": { "state": "none" },
     "confidence": "low",
     "evidence": ["code"],
     "caveat": "This patch arrived with no description or commit messages; the story is inferred from the code alone.",
     "intent_delta": { "stated": null, "also_does": [], "not_done": [] }
   },
+  "contracts": [],
   "change_map": {
     "graph": null,
     "groups": [
@@ -1188,5 +1299,12 @@ producing a report that lies:
     carries a `rule` at all.
 17. A `documented_rule` or `rule_change` check names at least one hunk.
 18. `coverage.rules_read`, when present, is an array of strings.
+19. `story.tests.state` is `n/a` exactly when `behavior.changed` is false, and
+    `note` is present when `state` is `partial`.
+20. Every `contracts` entry carries at least one of `before`/`after`, a non-empty
+    `hunk_ids`, and, when `callers` is present, an integer `updated` and an
+    `untouched` array of `path:line` refs.
+21. A `skippable` group's `sample_hunk_id`, when present, resolves to a hunk in
+    the store whose `path` is one of that group's `files`.
 
 A validation failure is a bug in the analysis phase, not something to render around.

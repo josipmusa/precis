@@ -399,3 +399,95 @@ def test_the_old_sections_are_refused_by_name(model):
     model["reading_order"] = {}
     assert problems_matching(model, "attention was merged into review_pass.checks")
     assert problems_matching(model, "reading_order was merged into review_pass")
+
+
+# ------------------------------------------- shape, tests, and the contracts
+
+def test_an_unknown_story_shape_is_refused(model):
+    model["story"]["shape"] = "improvement"
+    assert problems_matching(model, "shape is 'improvement'")
+
+
+def test_story_tests_is_required(model):
+    del model["story"]["tests"]
+    assert problems_matching(model, "tests is required")
+
+
+def test_tests_na_is_required_exactly_when_behavior_is_unchanged(model):
+    model["story"]["tests"] = {"state": "n/a"}
+    assert problems_matching(model, "may not be 'n/a' when behavior.changed is true")
+    model["behavior"] = {"changed": False, "note": "Pure rename: every call path "
+                                                   "produces the same results."}
+    model["story"]["tests"] = {"state": "yes"}
+    assert problems_matching(model, "must be 'n/a' when behavior.changed is false")
+
+
+def test_partial_test_coverage_needs_a_note(model):
+    model["story"]["tests"] = {"state": "partial"}
+    assert problems_matching(model, "note is required")
+
+
+def test_contracts_must_be_an_array(model):
+    model["contracts"] = None
+    assert problems_matching(model, "contracts")
+
+
+def contract(**over):
+    entry = {
+        "id": "c1",
+        "kind": "schema",
+        "name": "processed_events",
+        "before": None,
+        "after": "id, event_id UNIQUE, claimed_at",
+        "hunk_ids": ["h19"],
+    }
+    entry.update(over)
+    return entry
+
+
+def test_a_well_formed_contract_validates(model):
+    model["contracts"] = [contract()]
+    assert validate(model) == []
+
+
+def test_a_contract_needs_a_before_or_an_after(model):
+    model["contracts"] = [contract(after=None)]
+    assert problems_matching(model, "at least one of before/after")
+
+
+def test_a_contract_must_point_at_the_diff(model):
+    model["contracts"] = [contract(hunk_ids=[])]
+    assert problems_matching(model, "hunk_ids must be a non-empty array")
+
+
+def test_a_contract_hunk_reference_must_resolve(model):
+    model["contracts"] = [contract(hunk_ids=["h9999"])]
+    hits = problems_matching(model, "unknown hunk 'h9999'")
+    assert hits and "contracts[0]" in hits[0]
+
+
+def test_an_untouched_caller_must_be_a_line_reference(model):
+    model["contracts"] = [contract(callers={"updated": 2,
+                                            "untouched": ["somewhere nearby"]})]
+    assert problems_matching(model, "must be a path:line ref")
+
+
+def test_contract_before_and_after_are_code_not_prose(model):
+    """A signature called shouldRetry() is a transcription, not a verdict."""
+    model["contracts"] = [contract(before="shouldRetry(attempt)",
+                                   after="shouldRetry(attempt, budget)")]
+    assert not problems_matching(model, "reads as a verdict")
+
+
+def test_a_contract_note_is_still_precis_voice(model):
+    model["contracts"] = [contract(note="The old default was wrong.")]
+    hits = problems_matching(model, "reads as a verdict")
+    assert hits and "contracts[0].note" in hits[0]
+
+
+def test_a_skip_sample_must_come_from_the_groups_own_files(model):
+    skip = model["review_pass"]["skippable"][0]
+    outside = next(h for h, v in model["hunks"].items()
+                   if v["path"] not in skip["files"])
+    skip["sample_hunk_id"] = outside
+    assert problems_matching(model, "is not one of this group's files")

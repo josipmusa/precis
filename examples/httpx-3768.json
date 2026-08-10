@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "source": {
     "kind": "github_pr",
     "title": "Enable ruff UP (pyupgrade) rule and fix all 56 violations",
@@ -70,6 +70,11 @@
         "text": "Six of those rewrites turn a `for`/`yield` loop into `yield from`, which delegates differently."
       }
     ],
+    "shape": "refactor",
+    "tests": {
+      "state": "none",
+      "note": "The changed test files are pyupgrade output; none exercises the new `yield from` delegation."
+    },
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -483,6 +488,19 @@
       }
     ]
   },
+  "contracts": [
+    {
+      "id": "c1",
+      "kind": "config",
+      "name": "tool.ruff.lint.select",
+      "before": "[\"E\", \"F\", \"I\", \"B\", \"PIE\"]",
+      "after": "[\"E\", \"F\", \"I\", \"B\", \"PIE\", \"UP\"]",
+      "note": "The one decision in the diff; every other file follows from it.",
+      "hunk_ids": [
+        "h15"
+      ]
+    }
+  ],
   "behavior": {
     "changed": true,
     "note": null,

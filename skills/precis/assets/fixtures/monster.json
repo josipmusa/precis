@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "source": {
     "kind": "github_pr",
     "title": "Extract a single outbound HTTP client",
@@ -123,6 +123,11 @@
         "text": "The retry rules are not a merge of the four. They are new."
       }
     ],
+    "shape": "mixed",
+    "tests": {
+      "state": "partial",
+      "note": "`test_client.py` pins the client; no test asserts the widened retryable status set."
+    },
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -942,6 +947,41 @@
       }
     ]
   },
+  "contracts": [
+    {
+      "id": "c1",
+      "kind": "config",
+      "name": "config/http.yaml",
+      "before": null,
+      "after": "per-service timeout_seconds, max_attempts, base_delay_seconds, cap_seconds",
+      "note": "Read at boot. The numbers are new, not a merge of the four copies.",
+      "hunk_ids": [
+        "h9"
+      ]
+    },
+    {
+      "id": "c2",
+      "kind": "flag",
+      "name": "enable_single_step_checkout",
+      "before": null,
+      "after": "enabled: true, percentage: 5",
+      "note": "Consumed in `checkout.py`; ships live for 5% of customers.",
+      "hunk_ids": [
+        "h8"
+      ]
+    },
+    {
+      "id": "c3",
+      "kind": "wire",
+      "name": "RetryHint",
+      "before": null,
+      "after": "{ retryAfterSeconds, attempt }",
+      "note": "Generated into the TS client; no server route returns it yet.",
+      "hunk_ids": [
+        "h5"
+      ]
+    }
+  ],
   "behavior": {
     "changed": true,
     "note": null,
@@ -1472,6 +1512,7 @@
         "label": "The other eleven call sites",
         "reason": "Every one is the two-line change read in step 5: the import moves to `meridian.http.client`, and each call gains a `client.` prefix.",
         "confidence": "high",
+        "sample_hunk_id": "h30",
         "group_ids": [
           "g-callsites"
         ],

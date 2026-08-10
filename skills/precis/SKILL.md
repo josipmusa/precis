@@ -9,7 +9,15 @@ precis is not a code review tool. It is a tool that helps humans review code.
 
 The output is one HTML file: no server, no dependencies, openable from a laptop
 or attached to a ticket. It exists to get a reviewer oriented in under two
-minutes, and then to give them a checklist they can actually finish.
+minutes, and then to give them a checklist they can actually finish. Beside it
+travels a ten-line markdown digest for the place reviewers already are: a PR
+comment, a chat message.
+
+**Scale the deliverable to the change.** For a trivial diff - under about 50
+changed lines, one concern, no contract changes - the digest alone is the
+deliverable: run the same pipeline and render with `--digest out.md --no-html`.
+A full report for a 30-line fix costs more to open than the diff it explains.
+Everything else gets the report and the digest that points at it.
 
 ## The one rule
 
@@ -87,7 +95,12 @@ The parts that need the most care:
 - **The call graph** needs the checkout, not just the diff. Grep for callers of
   the changed symbols and put the unchanged ones on the graph, muted. Every
   edge needs a hunk id or a `path:line`. An edge you cannot point at a line for
-  is an edge you do not draw.
+  is an edge you do not draw. And it is drawn only when the change moved
+  structure; a change with no new or removed relationship sets `graph: null`.
+- **The contracts** are the highest-leverage entries in the model: every
+  surface someone outside the diff depends on, as a before/after pair, with
+  its callers grepped from the checkout so the report can say "3 call sites,
+  2 updated here, 1 not touched". Count only what you searched for.
 - **The review pass** is a checklist someone completes: numbered steps to read,
   then checks to decide, then what can be skipped and why.
 - **A check is a question only the reviewer's context can answer.** If precis
@@ -102,7 +115,15 @@ The parts that need the most care:
 ```bash
 python3 skills/precis/scripts/build_model.py /tmp/precis.analysis.json \
   --pre /tmp/precis.pre.json -o /tmp/precis.model.json
-python3 skills/precis/scripts/render_report.py /tmp/precis.model.json -o precis-1184.html
+python3 skills/precis/scripts/render_report.py /tmp/precis.model.json \
+  -o precis-1184.html --digest precis-1184.md
+```
+
+For a trivial change, render the digest alone:
+
+```bash
+python3 skills/precis/scripts/render_report.py /tmp/precis.model.json \
+  --digest precis-1184.md --no-html
 ```
 
 `build_model.py` fills in the hunk bodies from the pre-model, checks your counts
@@ -161,7 +182,8 @@ size to the change in front of you - `small.json`, `medium.json`, or
 
 ## Handing it over
 
-Give the reviewer the file path and one or two sentences: the size of the
-change, the share of it that is the real change, and where the pass starts.
-Nothing else - no summary of your own findings, because you do not have
-findings.
+Give the reviewer the report path and the digest, which already says everything
+a handover message should: the size of the change, the share of it that is the
+real change, what changes shape, and where the reading starts. Add nothing on
+top - no summary of your own findings, because you do not have findings. For a
+trivial change the digest is the whole handover.

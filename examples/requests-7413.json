@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "source": {
     "kind": "github_pr",
     "title": "Fix HTTPDigestAuth uri field truncated by semicolons in URL path",
@@ -74,6 +74,11 @@
         "text": "`.params` is appended before the query, so `uri=` and `A2` both carry it."
       }
     ],
+    "shape": "bugfix",
+    "tests": {
+      "state": "yes",
+      "note": "The regression test drives all three `;` cases through `build_digest_header`."
+    },
     "confidence": "high",
     "evidence": [
       "pr_description",
@@ -242,6 +247,7 @@
       }
     ]
   },
+  "contracts": [],
   "behavior": {
     "changed": true,
     "note": null,
