@@ -150,7 +150,7 @@ contract, and listing it here buries the two entries that matter.
 ## `change_map.groups` - the areas
 
 The groups are the backbone of the rendered report. Each one becomes an area
-card that carries its own reading steps, its own checks, its own skip groups,
+section that carries its own reading steps, its own checks, its own skip groups,
 and its own file list, so a reviewer works one area at a time. A lazy grouping
 is a lazy report; this is the section where the segmentation earns its keep.
 
@@ -203,9 +203,9 @@ of the three that matter.
 
 **`shape` and `tests` both land in the masthead.** `shape` is the first word of
 the metadata line and never appears again, so it is one word for what kind of
-change this reads as; reach for `mixed` whenever the diff
-genuinely carries more than one kind, because `mixed` is a finding, not a
-failure to decide, and it usually travels with `seams`. `tests` states whether
+change this reads as; reach for `mixed` whenever the diff genuinely carries more
+than one kind, because `mixed` is a finding, not a failure to decide, and it
+usually travels with `seams`. `tests` states whether
 tests *in this diff* exercise the changed behaviour: `yes`, `partial` (the
 `note` names what is and is not exercised), `none`, or `n/a` when
 `behavior.changed` is false. It is a statement of fact about the diff. Whether

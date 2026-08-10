@@ -651,8 +651,8 @@ what to **decide**, once the reading makes sense; and what can be **skipped**, w
 reason it can be.
 
 The template renders every step and every check as a checkbox, keeps the ticks in
-`localStorage` under the head SHA, and offers a summary the reviewer can paste into the
-PR. Finishing the pass is the point. A report that is only read has not been used.
+`localStorage` under the head SHA, and counts them in one line of plain text. Finishing
+the pass is the point. A report that is only read has not been used.
 
 ```json
 "review_pass": {

@@ -86,8 +86,9 @@ area it belongs to.
 
 **A call graph across files**, including the callers that did not change, which are
 exactly the ones a diff view hides. Every edge points at a hunk or a `path:line`; an edge
-precis cannot evidence is an edge it does not draw. And when the change moves no
-structure at all, there is no diagram, because a map of unchanged code is decoration.
+precis cannot evidence is an edge it does not draw. A chain that does not branch reads as
+an indented trace rather than a picture, and when the change moves no structure at all
+there is no map, because a map of unchanged code is decoration.
 
 ![The call graph from a report for sqlalchemy/alembic#1805](docs/img/call-graph.png)
 

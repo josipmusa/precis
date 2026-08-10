@@ -21,7 +21,7 @@ The requests report spends most of its space on two lines. The alembic report
 has to order eleven files so the reader meets each one after the thing it
 depends on. The httpx report is the case precis exists for: 17 files where one
 of them is a decision and the rest are what the decision produced, which is why
-its signal ratio reads 14%.
+it says only 14% of the changed lines are the change itself.
 
 ## Opening them
 
