@@ -68,10 +68,12 @@ body {
   font: 15px/1.65 var(--text);
   font-variant-numeric: tabular-nums;
 }
+/* The scale is the hierarchy: masthead over chapter headline over layer
+   heading over item title over body, and nothing between competes. */
 h1, h2, h3, h4 { margin: 0; line-height: 1.25; letter-spacing: -.011em; }
-h1 { font: 500 clamp(26px, 4.2vw, 32px)/1.2 var(--text); }
-h2 { font: 500 24px/1.25 var(--text); }
-h3 { font: 600 19px/1.3 var(--text); }
+h1 { font: 500 clamp(28px, 4.6vw, 36px)/1.2 var(--text); }
+h2 { font: 500 clamp(25px, 4vw, 30px)/1.25 var(--text); }
+h3 { font: 500 22px/1.3 var(--text); }
 h4 { font: 600 15px/1.4 var(--text); }
 p { margin: 0; }
 a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: .06em; }
@@ -113,10 +115,25 @@ code { font: .88em/1.5 var(--mono); overflow-wrap: anywhere; }
   color: var(--ink-soft); border-left: 2px solid var(--line); padding-left: 14px;
   max-width: 84ch;
 }
+/* The reader's map of the rendered chapters: one plain line of anchors. */
+.contents { margin-top: 30px; font: 12.5px/1.9 var(--mono); color: var(--ink-faint); }
+.contents a { color: inherit; }
 
-/* -------------------------------------------------------------- sections */
-section.sec { padding: 54px 0 0; scroll-margin-top: 14px; }
-section.sec > h2 + .lead { margin-top: 8px; }
+/* -------------------------------------------------------------- chapters */
+/* A chapter boundary has to be unmistakable at a fast scroll: ninety pixels
+   of air, a numbered mono kicker over a short hairline, then a headline one
+   size below the masthead's. */
+section.chap { padding: 90px 0 0; scroll-margin-top: 14px; }
+.kicker {
+  font: 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.kicker::after {
+  content: ""; display: block; width: 34px; margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.chaphead h2 { margin-top: 14px; }
+.chap > .lead { margin-top: 10px; }
 .lead { color: var(--ink-soft); max-width: 72ch; }
 .counter { font: 12.5px/1.7 var(--mono); color: var(--ink-faint); margin-top: 10px; }
 
@@ -139,20 +156,22 @@ summary.link .sub {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--ink-faint);
 }
-details.walk[open] > summary.link .sub { display: none; }
 
-/* ----------------------------------------------------------- the areas */
-/* The backbone: the change grouped by what each part is for. A heading, a
-   sentence, and the reading that belongs to it. No panels. */
-.area { margin-top: 34px; padding-top: 30px; border-top: 1px solid var(--line); }
-.asum { margin-top: 8px; color: var(--ink-soft); max-width: 70ch; }
-.aorder { margin-top: 6px; color: var(--ink-faint); max-width: 70ch; font-size: 14px; }
-.ameta { font: 12px/1.7 var(--mono); color: var(--ink-faint); margin-top: 8px; }
+/* ---------------------------------------------------------- the layers */
+/* The map chapter's subsections: a heading, the narrative, the contracts that
+   changed here, the inventory one fold away. No panels. */
+.layer { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--line-soft); }
+.narrative { margin-top: 10px; }
+.inventory > .inner { margin: 14px 0 0 20px; }
 h4.block { margin: 30px 0 4px; }
 h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 
 /* --------------------------------------------------------------- steps */
-.step { margin-top: 24px; }
+.step { margin-top: 32px; }
+.eyebrow {
+  font: 11.5px/1.6 var(--mono); color: var(--ink-faint); margin-bottom: 3px;
+  word-break: break-all;
+}
 .step > .head { display: flex; gap: 11px; align-items: flex-start; }
 .tick { flex: none; width: 15px; height: 15px; margin: 6px 0 0; accent-color: var(--accent); }
 .step h4 { font-size: 17px; min-width: 0; }
@@ -263,6 +282,19 @@ table.files .note { color: var(--ink-soft); font-size: 13.5px; margin-top: 3px; 
 }
 .hnote .mk { color: var(--accent); flex: none; }
 .hnote .txt { max-width: 68ch; }
+/* The margin column an anchored note moves into on a wide screen. It only
+   exists there: narrow screens and paper keep the inline notes above. */
+.snipwrap { position: relative; }
+.mnotes, .mconn { display: none; }
+@media screen and (min-width: 1000px) {
+  .snipwrap > .hunk { margin-right: 322px; }
+  .snipwrap .hnote.inline { display: none; }
+  /* The annotated line's marker: a 2px accent tick, not a highlight bar. */
+  .snipwrap .hline.noted { box-shadow: inset 2px 0 0 var(--accent); }
+  .mnotes { display: block; position: absolute; top: 0; right: 0; width: 300px; height: 100%; }
+  .mnote { position: absolute; left: 0; width: 300px; font: 13.5px/1.55 var(--text); color: var(--ink); }
+  .mconn { display: block; position: absolute; inset: 0; pointer-events: none; }
+}
 .trunc {
   padding: 7px 12px; font: 11.5px/1.6 var(--mono); color: var(--ink-faint);
   border-top: 1px solid var(--line-soft); background: var(--panel-soft);
@@ -350,10 +382,10 @@ footer .creed { margin-top: 24px; color: var(--ink-faint); max-width: 64ch; }
   details > *:not(summary) { display: revert; }
   a { color: inherit; text-decoration: none; }
   .stepbody { margin-left: 0; }
-  section.sec { padding-top: 26px; }
+  section.chap { padding-top: 30px; }
   .hunk, .seam, .contract, .skip, .side { break-inside: avoid; }
-  .area { break-inside: auto; }
-  .step > .head, .step .why { break-inside: avoid; break-after: avoid; }
+  .layer { break-inside: auto; }
+  .chaphead, .step > .head, .step .why { break-inside: avoid; break-after: avoid; }
   h2, h3, h4 { break-after: avoid; }
 }
 </style>
@@ -361,7 +393,7 @@ footer .creed { margin-top: 24px; color: var(--ink-faint); max-width: 64ch; }
 <body>
 <div id="app"></div>
 
-<script id="precis-model" type="application/json">{"schema_version":"1.1","source":{"kind":"github_pr","title":"Fix HTTPDigestAuth uri field truncated by semicolons in URL path","identifier":"#7413","url":"https://github.com/psf/requests/pull/7413","repo":"psf/requests","author":"zons-zhaozhy","base":{"ref":"main","sha":"04d750509b90da728e53aee8d7516426e5a1a293"},"head":{"ref":"fix/digest-auth-uri-semicolon-params","sha":"418c76b8aa7be2255ecd2d045f761e6411ba0acb"},"commits":[{"sha":"418c76b","subject":"Fix digest auth uri field ignoring path parameters after semicolons"}],"linked_issues":[{"id":"#6990","title":"`uri` field of digest authentication incorrectly filled when the URL contains semicolons in path","url":"https://github.com/psf/requests/issues/6990"}],"description":"When a URL contains path parameters delimited by semicolons (e.g. `https://musicbrainz.org/ws/2/artist;name=Nirvana`), `urllib.parse.urlparse` splits the path into `.path` and `.params` attributes. `HTTPDigestAuth.build_digest_header()` was only using `.path` and `.query`, so the `uri` field in the `Authorization` header was truncated, causing authentication to fail on servers that validate the full request URI.\n\nThis was reported in #6990 with a concrete MusicBrainz API example.\n\nFix: include `p_parsed.params` when reconstructing the path in `build_digest_header()`.\n\nAdded a unit test that verifies the `uri` field includes semicolon-delimited path parameters.","generated_by":"precis 0.1.0","generated_at":"2026-08-09T10:00:00Z"},"coverage":{"tier":"full","hunks_read":2,"files_read":2,"note":"Two hunks, both read in full, and the callers resolved against the checkout at the PR head.","limitations":["How a server builds the URI it compares against cannot be observed from the diff or the checkout."],"hunks_total":2,"files_total":2},"stats":{"signal_ratio":0.06,"changed_lines_by_kind":{"new_logic":33,"modified_logic":2},"files_changed":2,"additions":35,"deletions":0,"hunks":2,"changed_lines_by_role":{"domain":2,"tests":33}},"story":{"headline":"A `;` segment in the last part of a path now survives into the digest `uri` and its hash.","beats":[{"label":"Before","text":"`build_digest_header` rebuilt the request-URI from `.path` and `.query` only."},{"label":"Why","text":"`urlparse` moves the last segment's `;name=x` into `.params`, which nothing read."},{"label":"Now","text":"`.params` is appended before the query, so `uri=` and `A2` both carry it."}],"shape":"bugfix","tests":{"state":"yes","note":"The regression test drives all three `;` cases through `build_digest_header`."},"confidence":"high","evidence":["pr_description","linked_issue","commit_messages","code"],"caveat":null,"intent_delta":{"stated":"Fix: include `p_parsed.params` when reconstructing the path in `build_digest_header()`.","also_does":[],"not_done":[]}},"change_map":{"summary":"Two lines in one function, and a test that states the three cases it distinguishes.","graph":{"nodes":[{"id":"n1","label":"HTTPDigestAuth.__call__","kind":"entrypoint","emphasis":"unchanged","path":"src/requests/auth.py","hunk_ids":[],"note":"Sends the header up front when a nonce from an earlier response is held."},{"id":"n2","label":"handle_401()","kind":"function","emphasis":"unchanged","path":"src/requests/auth.py","hunk_ids":[],"note":"The 401 retry path, where most digest exchanges actually build a header."},{"id":"n3","label":"build_digest_header()","kind":"function","emphasis":"changed","path":"src/requests/auth.py","hunk_ids":["h1"],"note":"Builds `path` once and uses it for both the `uri=` field and `A2`."},{"id":"n4","label":"urlparse()","kind":"external","emphasis":"unchanged","hunk_ids":[],"note":"Standard library. Splits `;params` off the final path segment."},{"id":"n5","label":"PreparedRequest.url","kind":"store","emphasis":"unchanged","hunk_ids":[],"note":"What both call sites pass in."},{"id":"n6","label":"prepare_url()","kind":"function","emphasis":"unchanged","hunk_ids":[],"note":"Builds that URL with urllib3's parser, which leaves `;` inside the path."}],"edges":[{"from":"n1","to":"n3","kind":"calls","emphasis":"unchanged","evidence":{"ref":"src/requests/auth.py:328"}},{"from":"n2","to":"n3","kind":"calls","emphasis":"unchanged","evidence":{"ref":"src/requests/auth.py:309"}},{"from":"n6","to":"n5","kind":"writes","emphasis":"unchanged","label":"keeps `;`","evidence":{"ref":"src/requests/models.py:560"}},{"from":"n3","to":"n5","kind":"reads","emphasis":"unchanged","label":"url","evidence":{"ref":"src/requests/auth.py:215"}},{"from":"n3","to":"n4","kind":"calls","emphasis":"changed","label":"now reads .params","evidence":{"hunk_ids":["h1"]}}]},"groups":[{"id":"g-auth","role":"domain","label":"Digest header construction","summary":"The whole change: two lines between the path and the query.","files":[{"path":"src/requests/auth.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":2,"deletions":0,"hunk_ids":["h1"],"note":"`path` is built once at line 217 and read twice: `uri=` at 254 and `A2` at 224."}]},{"id":"g-tests","role":"tests","label":"Regression test","summary":"One test, three URLs: params, params with a query, and neither.","files":[{"path":"tests/test_lowlevel.py","status":"modified","change_kind":"new_logic","significance":"supporting","additions":33,"deletions":0,"hunk_ids":["h2"],"note":"Calls `build_digest_header` directly with a hand-built challenge, not through a server."}]}]},"contracts":[],"behavior":{"changed":true,"note":null,"summary":"For a URL whose last path segment carries `;name=x`, both the `uri=` field and the hashed `A2` string grow that segment. A URL without one is byte-identical.","before":{"kind":"flow","title":"Before","nodes":[{"id":"b1","label":"GET http://host/ws/2/artist;name=test","kind":"start","emphasis":"unchanged"},{"id":"b2","label":"urlparse()","kind":"external","emphasis":"unchanged"},{"id":"b3","label":"path = .path, then + \"?\" + .query","kind":"process","emphasis":"unchanged"},{"id":"b4","label":".params = \"name=test\", read by nothing","kind":"note","emphasis":"removed"},{"id":"b5","label":"uri=\"/ws/2/artist\"","kind":"end","emphasis":"removed"},{"id":"b6","label":"A2 = \"GET:/ws/2/artist\"","kind":"end","emphasis":"removed"}],"edges":[{"from":"b1","to":"b2","kind":"data","emphasis":"unchanged","label":"url"},{"from":"b2","to":"b3","kind":"data","emphasis":"unchanged","label":".path, .query"},{"from":"b2","to":"b4","kind":"data","emphasis":"removed","label":".params"},{"from":"b3","to":"b5","kind":"data","emphasis":"unchanged"},{"from":"b3","to":"b6","kind":"data","emphasis":"unchanged"}]},"after":{"kind":"flow","title":"After","nodes":[{"id":"a1","label":"GET http://host/ws/2/artist;name=test","kind":"start","emphasis":"unchanged"},{"id":"a2","label":"urlparse()","kind":"external","emphasis":"unchanged"},{"id":"a3","label":"path = .path + \";\" + .params + \"?\" + .query","kind":"process","emphasis":"changed"},{"id":"a4","label":"uri=\"/ws/2/artist;name=test\"","kind":"end","emphasis":"added"},{"id":"a5","label":"A2 = \"GET:/ws/2/artist;name=test\"","kind":"end","emphasis":"added"}],"edges":[{"from":"a1","to":"a2","kind":"data","emphasis":"unchanged","label":"url"},{"from":"a2","to":"a3","kind":"data","emphasis":"changed","label":".path, .params, .query","hunk_ids":["h1"]},{"from":"a3","to":"a4","kind":"data","emphasis":"unchanged"},{"from":"a3","to":"a5","kind":"data","emphasis":"unchanged"}]},"deltas":[{"summary":"The `uri=` field gains the `;` segment.","hunk_ids":["h1"]},{"summary":"`A2` is hashed over the longer path, so `response` changes too.","hunk_ids":["h1"]}]},"review_pass":{"estimated_minutes":3,"steps":[{"n":1,"title":"The two lines","why":"This is the entire change. Everything else in the diff asserts on it.","path":"src/requests/auth.py","hunk_ids":["h1"],"annotations":[{"hunk_id":"h1","new_line":218,"text":"`urlparse` moves everything after the last `;` of the final path segment into `.params`, so `.path` alone stopped at `artist`."},{"hunk_id":"h1","new_line":219,"text":"Placed before the query so the order is path, params, query. `path` is then read twice: `A2` at line 224 and `uri=` at line 254."}]},{"n":2,"title":"The three cases the test names","why":"The test is the clearest statement of which URLs change and which do not.","path":"tests/test_lowlevel.py","hunk_ids":["h2"],"annotations":[{"hunk_id":"h2","new_line":441,"text":"The challenge is set by hand, so no server is involved. `qop` is `auth`, the branch that hashes `A2` into `response`."},{"hunk_id":"h2","new_line":448,"text":"A raw URL, not a prepared one. A real request arrives here as `prep.url`, which keeps the `;`: urllib3's parser leaves it in the path."},{"hunk_id":"h2","new_line":461,"text":"The third case pins the unchanged path: no `;`, no difference."}]}],"checks":[{"kind":"external_contract","title":"The `response` hash moves, not just the `uri` field","why":"`A2` is built from the same `path` at auth.py:224, so for these URLs the digest this client sends differs from the one it sent before.","question":"Do the servers you authenticate against compute `A2` over the full request-URI, including the `;` segment?","path":"src/requests/auth.py","hunk_ids":["h1"]},{"kind":"public_api","title":"`build_digest_header` is a public method","why":"It is called from `handle_401` at auth.py:309 and `__call__` at auth.py:328, and it is reachable from outside requests. Its return value changes for these URLs.","question":"Does anything you own call `build_digest_header` directly and compare, cache, or record the header it returns?","path":"src/requests/auth.py","hunk_ids":["h1"]},{"kind":"behavioral","title":"Only a `;` in the final path segment is affected","why":"`urlparse` splits params off the last segment only: `/a;b/c` keeps `;b` in `.path` and never lost it, while `/a/c;d` did.","question":"Do any of the URLs you send carry a `;` in a segment other than the last?","path":"src/requests/auth.py","hunk_ids":["h1"]}],"skippable":[]},"seams":{"detected":false,"note":null},"hunks":{"h1":{"id":"h1","path":"src/requests/auth.py","old_path":null,"language":"python","header":"@@ -215,6 +215,8 @@","old_start":215,"old_lines":6,"new_start":215,"new_lines":8,"section":"def KD(s: str, d: str) -> str:","lines":[{"t":" ","c":"        p_parsed = urlparse(url)","old":215,"new":215},{"t":" ","c":"        #: path is request-uri defined in RFC 2616 which should not be empty","old":216,"new":216},{"t":" ","c":"        path = p_parsed.path or \"/\"","old":217,"new":217},{"t":"+","c":"        if p_parsed.params:","old":null,"new":218},{"t":"+","c":"            path += f\";{p_parsed.params}\"","old":null,"new":219},{"t":" ","c":"        if p_parsed.query:","old":218,"new":220},{"t":" ","c":"            path += f\"?{p_parsed.query}\"","old":219,"new":221},{"t":" ","c":"","old":220,"new":222}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h2":{"id":"h2","path":"tests/test_lowlevel.py","old_path":null,"language":"python","header":"@@ -426,3 +426,36 @@","old_start":426,"old_lines":3,"new_start":426,"new_lines":36,"section":"def response_handler(sock):","lines":[{"t":" ","c":"    assert isinstance(excinfo.value, requests.exceptions.RequestException)","old":426,"new":426},{"t":" ","c":"    assert isinstance(excinfo.value, JSONDecodeError)","old":427,"new":427},{"t":" ","c":"    assert r.text not in str(excinfo.value)","old":428,"new":428},{"t":"+","c":"","old":null,"new":429},{"t":"+","c":"def test_digestauth_uri_includes_path_parameters():","old":null,"new":430},{"t":"+","c":"    \"\"\"Ensure the uri field in Digest auth header includes path parameters","old":null,"new":431},{"t":"+","c":"    (semicolon-delimited) as per RFC 7616.","old":null,"new":432},{"t":"+","c":"","old":null,"new":433},{"t":"+","c":"    Python's urlparse splits \"path;params\" into .path and .params.","old":null,"new":434},{"t":"+","c":"    The digest auth uri field must reconstruct the full path including params.","old":null,"new":435},{"t":"+","c":"","old":null,"new":436},{"t":"+","c":"    See https://github.com/psf/requests/issues/6990.","old":null,"new":437},{"t":"+","c":"    \"\"\"","old":null,"new":438},{"t":"+","c":"    auth = requests.auth.HTTPDigestAuth(\"user\", \"pass\")","old":null,"new":439},{"t":"+","c":"    auth.init_per_thread_state()","old":null,"new":440},{"t":"+","c":"    auth._thread_local.chal = {","old":null,"new":441},{"t":"+","c":"        \"nonce\": \"abc123\",","old":null,"new":442},{"t":"+","c":"        \"realm\": \"test\",","old":null,"new":443},{"t":"+","c":"        \"qop\": \"auth\",","old":null,"new":444},{"t":"+","c":"    }","old":null,"new":445},{"t":"+","c":"","old":null,"new":446},{"t":"+","c":"    # URL with semicolon path parameter (e.g. MusicBrainz API)","old":null,"new":447},{"t":"+","c":"    header = auth.build_digest_header(\"GET\", \"http://example.com/ws/2/artist;name=test\")","old":null,"new":448},{"t":"+","c":"    assert header is not None","old":null,"new":449},{"t":"+","c":"    # The uri field must include the full path with params","old":null,"new":450},{"t":"+","c":"    assert 'uri=\"/ws/2/artist;name=test\"' in header","old":null,"new":451},{"t":"+","c":"","old":null,"new":452},{"t":"+","c":"    # URL with both params and query","old":null,"new":453},{"t":"+","c":"    header2 = auth.build_digest_header(\"GET\", \"http://example.com/path;foo=bar?q=1\")","old":null,"new":454},{"t":"+","c":"    assert header2 is not None","old":null,"new":455},{"t":"+","c":"    assert 'uri=\"/path;foo=bar?q=1\"' in header2","old":null,"new":456},{"t":"+","c":"","old":null,"new":457},{"t":"+","c":"    # URL without semicolons should work as before","old":null,"new":458},{"t":"+","c":"    header3 = auth.build_digest_header(\"GET\", \"http://example.com/normal/path?q=1\")","old":null,"new":459},{"t":"+","c":"    assert header3 is not None","old":null,"new":460},{"t":"+","c":"    assert 'uri=\"/normal/path?q=1\"' in header3","old":null,"new":461}],"truncated":false,"change_kind":"new_logic","significance":"supporting"}}}</script>
+<script id="precis-model" type="application/json">{"schema_version":"1.2","source":{"kind":"github_pr","title":"Fix HTTPDigestAuth uri field truncated by semicolons in URL path","identifier":"#7413","url":"https://github.com/psf/requests/pull/7413","repo":"psf/requests","author":"zons-zhaozhy","base":{"ref":"main","sha":"04d750509b90da728e53aee8d7516426e5a1a293"},"head":{"ref":"fix/digest-auth-uri-semicolon-params","sha":"418c76b8aa7be2255ecd2d045f761e6411ba0acb"},"commits":[{"sha":"418c76b","subject":"Fix digest auth uri field ignoring path parameters after semicolons"}],"linked_issues":[{"id":"#6990","title":"`uri` field of digest authentication incorrectly filled when the URL contains semicolons in path","url":"https://github.com/psf/requests/issues/6990"}],"description":"When a URL contains path parameters delimited by semicolons (e.g. `https://musicbrainz.org/ws/2/artist;name=Nirvana`), `urllib.parse.urlparse` splits the path into `.path` and `.params` attributes. `HTTPDigestAuth.build_digest_header()` was only using `.path` and `.query`, so the `uri` field in the `Authorization` header was truncated, causing authentication to fail on servers that validate the full request URI.\n\nThis was reported in #6990 with a concrete MusicBrainz API example.\n\nFix: include `p_parsed.params` when reconstructing the path in `build_digest_header()`.\n\nAdded a unit test that verifies the `uri` field includes semicolon-delimited path parameters.","generated_by":"precis 0.1.0","generated_at":"2026-08-09T10:00:00Z"},"coverage":{"tier":"full","hunks_read":2,"files_read":2,"note":"Two hunks, both read in full, and the callers resolved against the checkout at the PR head.","limitations":["How a server builds the URI it compares against cannot be observed from the diff or the checkout."],"hunks_total":2,"files_total":2},"stats":{"signal_ratio":0.06,"changed_lines_by_kind":{"new_logic":33,"modified_logic":2},"files_changed":2,"additions":35,"deletions":0,"hunks":2,"changed_lines_by_role":{"domain":2,"tests":33}},"story":{"headline":"A `;` segment in the last part of a path now survives into the digest `uri` and its hash.","beats":[{"label":"Before","text":"`build_digest_header` rebuilt the request-URI from `.path` and `.query` only."},{"label":"Why","text":"`urlparse` moves the last segment's `;name=x` into `.params`, which nothing read."},{"label":"Now","text":"`.params` is appended before the query, so `uri=` and `A2` both carry it."}],"shape":"bugfix","tests":{"state":"yes","note":"The regression test drives all three `;` cases through `build_digest_header`."},"confidence":"high","evidence":["pr_description","linked_issue","commit_messages","code"],"caveat":null,"intent_delta":{"stated":"Fix: include `p_parsed.params` when reconstructing the path in `build_digest_header()`.","also_does":[],"not_done":[]}},"change_map":{"summary":"Two lines in one function, and a test that states the three cases it distinguishes.","graph":{"nodes":[{"id":"n1","label":"HTTPDigestAuth.__call__","kind":"entrypoint","emphasis":"unchanged","path":"src/requests/auth.py","hunk_ids":[],"note":"Sends the header up front when a nonce from an earlier response is held."},{"id":"n2","label":"handle_401()","kind":"function","emphasis":"unchanged","path":"src/requests/auth.py","hunk_ids":[],"note":"The 401 retry path, where most digest exchanges actually build a header."},{"id":"n3","label":"build_digest_header()","kind":"function","emphasis":"changed","path":"src/requests/auth.py","hunk_ids":["h1"],"note":"Builds `path` once and uses it for both the `uri=` field and `A2`."},{"id":"n4","label":"urlparse()","kind":"external","emphasis":"unchanged","hunk_ids":[],"note":"Standard library. Splits `;params` off the final path segment."},{"id":"n5","label":"PreparedRequest.url","kind":"store","emphasis":"unchanged","hunk_ids":[],"note":"What both call sites pass in."},{"id":"n6","label":"prepare_url()","kind":"function","emphasis":"unchanged","hunk_ids":[],"note":"Builds that URL with urllib3's parser, which leaves `;` inside the path."}],"edges":[{"from":"n1","to":"n3","kind":"calls","emphasis":"unchanged","evidence":{"ref":"src/requests/auth.py:328"}},{"from":"n2","to":"n3","kind":"calls","emphasis":"unchanged","evidence":{"ref":"src/requests/auth.py:309"}},{"from":"n6","to":"n5","kind":"writes","emphasis":"unchanged","label":"keeps `;`","evidence":{"ref":"src/requests/models.py:560"}},{"from":"n3","to":"n5","kind":"reads","emphasis":"unchanged","label":"url","evidence":{"ref":"src/requests/auth.py:215"}},{"from":"n3","to":"n4","kind":"calls","emphasis":"changed","label":"now reads .params","evidence":{"hunk_ids":["h1"]}}]},"groups":[{"id":"g-auth","role":"domain","label":"Digest header construction","narrative":"Two lines between the path and the query: when the last path segment carries a `;` parameter, `path` now keeps it before the query string is appended. `path` is built once and read twice - the digest `uri` field and the `A2` hash input - so both see the same value.","files":[{"path":"src/requests/auth.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":2,"deletions":0,"hunk_ids":["h1"],"note":"`path` is built once at line 217 and read twice: `uri=` at 254 and `A2` at 224."}]},{"id":"g-tests","role":"tests","label":"Regression test","narrative":"One test drives `build_digest_header` directly with a hand-built challenge, across three URLs: path parameters alone, parameters with a query, and neither. It pins the `uri` the header carries rather than the request that produced it.","files":[{"path":"tests/test_lowlevel.py","status":"modified","change_kind":"new_logic","significance":"supporting","additions":33,"deletions":0,"hunk_ids":["h2"],"note":"Calls `build_digest_header` directly with a hand-built challenge, not through a server."}]}]},"contracts":[],"behavior":{"changed":true,"note":null,"summary":"For a URL whose last path segment carries `;name=x`, both the `uri=` field and the hashed `A2` string grow that segment. A URL without one is byte-identical.","before":{"kind":"flow","title":"Before","nodes":[{"id":"b1","label":"GET http://host/ws/2/artist;name=test","kind":"start","emphasis":"unchanged"},{"id":"b2","label":"urlparse()","kind":"external","emphasis":"unchanged"},{"id":"b3","label":"path = .path, then + \"?\" + .query","kind":"process","emphasis":"unchanged"},{"id":"b4","label":".params = \"name=test\", read by nothing","kind":"note","emphasis":"removed"},{"id":"b5","label":"uri=\"/ws/2/artist\"","kind":"end","emphasis":"removed"},{"id":"b6","label":"A2 = \"GET:/ws/2/artist\"","kind":"end","emphasis":"removed"}],"edges":[{"from":"b1","to":"b2","kind":"data","emphasis":"unchanged","label":"url"},{"from":"b2","to":"b3","kind":"data","emphasis":"unchanged","label":".path, .query"},{"from":"b2","to":"b4","kind":"data","emphasis":"removed","label":".params"},{"from":"b3","to":"b5","kind":"data","emphasis":"unchanged"},{"from":"b3","to":"b6","kind":"data","emphasis":"unchanged"}]},"after":{"kind":"flow","title":"After","nodes":[{"id":"a1","label":"GET http://host/ws/2/artist;name=test","kind":"start","emphasis":"unchanged"},{"id":"a2","label":"urlparse()","kind":"external","emphasis":"unchanged"},{"id":"a3","label":"path = .path + \";\" + .params + \"?\" + .query","kind":"process","emphasis":"changed"},{"id":"a4","label":"uri=\"/ws/2/artist;name=test\"","kind":"end","emphasis":"added"},{"id":"a5","label":"A2 = \"GET:/ws/2/artist;name=test\"","kind":"end","emphasis":"added"}],"edges":[{"from":"a1","to":"a2","kind":"data","emphasis":"unchanged","label":"url"},{"from":"a2","to":"a3","kind":"data","emphasis":"changed","label":".path, .params, .query","hunk_ids":["h1"]},{"from":"a3","to":"a4","kind":"data","emphasis":"unchanged"},{"from":"a3","to":"a5","kind":"data","emphasis":"unchanged"}]},"deltas":[{"summary":"The `uri=` field gains the `;` segment.","hunk_ids":["h1"]},{"summary":"`A2` is hashed over the longer path, so `response` changes too.","hunk_ids":["h1"]}]},"review_pass":{"estimated_minutes":3,"steps":[{"n":1,"title":"The two lines","why":"This is the entire change. Everything else in the diff asserts on it.","path":"src/requests/auth.py","hunk_ids":["h1"],"annotations":[{"hunk_id":"h1","new_line":218,"text":"`urlparse` moves everything after the last `;` of the final path segment into `.params`, so `.path` alone stopped at `artist`."},{"hunk_id":"h1","new_line":219,"text":"Placed before the query so the order is path, params, query. `path` is then read twice: `A2` at line 224 and `uri=` at line 254."}]},{"n":2,"title":"The three cases the test names","why":"The test is the clearest statement of which URLs change and which do not.","path":"tests/test_lowlevel.py","hunk_ids":["h2"],"annotations":[{"hunk_id":"h2","new_line":441,"text":"The challenge is set by hand, so no server is involved. `qop` is `auth`, the branch that hashes `A2` into `response`."},{"hunk_id":"h2","new_line":448,"text":"A raw URL, not a prepared one. A real request arrives here as `prep.url`, which keeps the `;`: urllib3's parser leaves it in the path."},{"hunk_id":"h2","new_line":461,"text":"The third case pins the unchanged path: no `;`, no difference."}]}],"checks":[{"kind":"external_contract","title":"The `response` hash moves, not just the `uri` field","why":"`A2` is built from the same `path` at auth.py:224, so for these URLs the digest this client sends differs from the one it sent before.","question":"Do the servers you authenticate against compute `A2` over the full request-URI, including the `;` segment?","path":"src/requests/auth.py","hunk_ids":["h1"]},{"kind":"public_api","title":"`build_digest_header` is a public method","why":"It is called from `handle_401` at auth.py:309 and `__call__` at auth.py:328, and it is reachable from outside requests. Its return value changes for these URLs.","question":"Does anything you own call `build_digest_header` directly and compare, cache, or record the header it returns?","path":"src/requests/auth.py","hunk_ids":["h1"]},{"kind":"behavioral","title":"Only a `;` in the final path segment is affected","why":"`urlparse` splits params off the last segment only: `/a;b/c` keeps `;b` in `.path` and never lost it, while `/a/c;d` did.","question":"Do any of the URLs you send carry a `;` in a segment other than the last?","path":"src/requests/auth.py","hunk_ids":["h1"]}],"skippable":[]},"seams":{"detected":false,"note":null},"hunks":{"h1":{"id":"h1","path":"src/requests/auth.py","old_path":null,"language":"python","header":"@@ -215,6 +215,8 @@","old_start":215,"old_lines":6,"new_start":215,"new_lines":8,"section":"def KD(s: str, d: str) -> str:","lines":[{"t":" ","c":"        p_parsed = urlparse(url)","old":215,"new":215},{"t":" ","c":"        #: path is request-uri defined in RFC 2616 which should not be empty","old":216,"new":216},{"t":" ","c":"        path = p_parsed.path or \"/\"","old":217,"new":217},{"t":"+","c":"        if p_parsed.params:","old":null,"new":218},{"t":"+","c":"            path += f\";{p_parsed.params}\"","old":null,"new":219},{"t":" ","c":"        if p_parsed.query:","old":218,"new":220},{"t":" ","c":"            path += f\"?{p_parsed.query}\"","old":219,"new":221},{"t":" ","c":"","old":220,"new":222}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h2":{"id":"h2","path":"tests/test_lowlevel.py","old_path":null,"language":"python","header":"@@ -426,3 +426,36 @@","old_start":426,"old_lines":3,"new_start":426,"new_lines":36,"section":"def response_handler(sock):","lines":[{"t":" ","c":"    assert isinstance(excinfo.value, requests.exceptions.RequestException)","old":426,"new":426},{"t":" ","c":"    assert isinstance(excinfo.value, JSONDecodeError)","old":427,"new":427},{"t":" ","c":"    assert r.text not in str(excinfo.value)","old":428,"new":428},{"t":"+","c":"","old":null,"new":429},{"t":"+","c":"def test_digestauth_uri_includes_path_parameters():","old":null,"new":430},{"t":"+","c":"    \"\"\"Ensure the uri field in Digest auth header includes path parameters","old":null,"new":431},{"t":"+","c":"    (semicolon-delimited) as per RFC 7616.","old":null,"new":432},{"t":"+","c":"","old":null,"new":433},{"t":"+","c":"    Python's urlparse splits \"path;params\" into .path and .params.","old":null,"new":434},{"t":"+","c":"    The digest auth uri field must reconstruct the full path including params.","old":null,"new":435},{"t":"+","c":"","old":null,"new":436},{"t":"+","c":"    See https://github.com/psf/requests/issues/6990.","old":null,"new":437},{"t":"+","c":"    \"\"\"","old":null,"new":438},{"t":"+","c":"    auth = requests.auth.HTTPDigestAuth(\"user\", \"pass\")","old":null,"new":439},{"t":"+","c":"    auth.init_per_thread_state()","old":null,"new":440},{"t":"+","c":"    auth._thread_local.chal = {","old":null,"new":441},{"t":"+","c":"        \"nonce\": \"abc123\",","old":null,"new":442},{"t":"+","c":"        \"realm\": \"test\",","old":null,"new":443},{"t":"+","c":"        \"qop\": \"auth\",","old":null,"new":444},{"t":"+","c":"    }","old":null,"new":445},{"t":"+","c":"","old":null,"new":446},{"t":"+","c":"    # URL with semicolon path parameter (e.g. MusicBrainz API)","old":null,"new":447},{"t":"+","c":"    header = auth.build_digest_header(\"GET\", \"http://example.com/ws/2/artist;name=test\")","old":null,"new":448},{"t":"+","c":"    assert header is not None","old":null,"new":449},{"t":"+","c":"    # The uri field must include the full path with params","old":null,"new":450},{"t":"+","c":"    assert 'uri=\"/ws/2/artist;name=test\"' in header","old":null,"new":451},{"t":"+","c":"","old":null,"new":452},{"t":"+","c":"    # URL with both params and query","old":null,"new":453},{"t":"+","c":"    header2 = auth.build_digest_header(\"GET\", \"http://example.com/path;foo=bar?q=1\")","old":null,"new":454},{"t":"+","c":"    assert header2 is not None","old":null,"new":455},{"t":"+","c":"    assert 'uri=\"/path;foo=bar?q=1\"' in header2","old":null,"new":456},{"t":"+","c":"","old":null,"new":457},{"t":"+","c":"    # URL without semicolons should work as before","old":null,"new":458},{"t":"+","c":"    header3 = auth.build_digest_header(\"GET\", \"http://example.com/normal/path?q=1\")","old":null,"new":459},{"t":"+","c":"    assert header3 is not None","old":null,"new":460},{"t":"+","c":"    assert 'uri=\"/normal/path?q=1\"' in header3","old":null,"new":461}],"truncated":false,"change_kind":"new_logic","significance":"supporting"}}}</script>
 <script>
 "use strict";
 /* =========================================================================
@@ -592,7 +624,7 @@ function refsLine(ids, label) {
    the reading, and the three answers a reviewer settles before opening a file.
    Confidence and evidence are provenance about the report rather than facts
    about the change, so they wait in the footer. */
-function masthead() {
+function masthead(chapters) {
   const src = M.source || {};
   const story = M.story || {};
 
@@ -618,9 +650,20 @@ function masthead() {
       story.caveat ? h("p", { class: "caveat" }, prose(story.caveat)) : null,
       triageSentence(),
       answers(),
-      intentBlock()
+      intentBlock(),
+      contentsLine(chapters)
     )
   );
+}
+
+/* The reader's map: one plain line naming the chapters that actually rendered
+   for this change, each an anchor. Absent chapters never appear, so the
+   numbering the reader sees here is the numbering on the page. */
+function contentsLine(chapters) {
+  const row = h("p", { class: "contents" });
+  chapters.forEach((c, i) => add(row, [i ? " · " : null,
+    h("a", { href: "#" + c.id, text: c.n + " " + c.short })]));
+  return row;
 }
 
 /* The number, the bar and the key were one sentence pretending to be a
@@ -745,19 +788,43 @@ function intentBlock() {
   return block;
 }
 
-/* =============================================================== sections */
-function section(id, title, lead, ...body) {
-  return h("section", { class: "sec", id },
-    h("h2", {}, typeof title === "string" ? prose(title) : title),
+/* =============================================================== chapters */
+/* The page is numbered chapters built from one list. A chapter with nothing
+   to say for this change is omitted, and the numbering closes over the gap,
+   so neither the contents line nor the kickers ever count a hole. */
+const CHAPTERS = [
+  { id: "behavior", short: "Behaviour", title: "Behaviour: before and after", build: behaviorSection },
+  { id: "map", short: "Structure", title: "What calls what", build: mapSection },
+  { id: "layers", short: "Layer by layer", title: "The change, layer by layer", build: layersSection },
+  { id: "reading", short: "The reading", title: "The reading", build: readingSection },
+  { id: "decide", short: "Decide", title: "Decide", build: decideSection }
+];
+
+function buildChapters() {
+  const chapters = [{ id: "top", short: "Overview", n: 1, node: null }];
+  for (const def of CHAPTERS) {
+    const node = def.build();
+    if (!node) continue;
+    const n = chapters.length + 1;
+    node.prepend(chapterHead(n, def));
+    chapters.push({ id: def.id, short: def.short, n, node });
+  }
+  return chapters;
+}
+
+function chapterHead(n, def) {
+  return h("header", { class: "chaphead" },
+    h("p", { class: "kicker", text: String(n).padStart(2, "0") + " · " + def.short }),
+    h("h2", {}, prose(def.title)));
+}
+
+function section(id, lead, ...body) {
+  return h("section", { class: "chap", id },
     lead ? h("p", { class: "lead" }, typeof lead === "string" ? prose(lead) : lead) : null,
     body);
 }
 
-/* ============================================================== the areas */
-/* Every file, every reading step, every question sits inside the area of the
-   codebase it belongs to. A reviewer works one area at a time instead of
-   hopping between a reading list and a file list. */
-
+/* ================================================================ the pass */
 /* The ticks live in localStorage under the head SHA, so a reload resumes and a
    new head starts clean. Nothing else about a ticked step changes: it is a
    record of what was read, not a piece of choreography. */
@@ -795,36 +862,29 @@ function refreshCount() {
   node.textContent = total ? `${TICKS.size} of ${total} done` : "";
 }
 
-function areasSection() {
-  const skips = PASS.skippable || [];
-  const total = STEPS.length + CHECKS.length;
+/* ==================================================== chapter: the layers */
+/* A prose-first map of the change: one subsection per layer, in the model's
+   own order, which is the flow of a request through the system. Narrative
+   first, the contracts that changed here under it, the inventory one quiet
+   fold away. This chapter is a map, not a task list; the pass lives in the
+   two chapters after it. */
+function layersSection() {
+  if (!GROUPS.length) return null;
 
-  /* Wire each step, check, contract and skip group to the area that owns its
-     file. Anything with no file to point at spans the change, and says so. */
-  const stepsOf = new Map(), checksOf = new Map(), skipsOf = new Map(), contractsOf = new Map();
-  const crossChecks = [], crossSkips = [], crossContracts = [];
+  /* Wire each contract and skip group to the layer that owns its file.
+     Anything no single layer owns closes the chapter instead. */
+  const contractsOf = new Map(), skipsOf = new Map();
+  const crossContracts = [], crossSkips = [];
   const claim = (map, gid, item) => {
     if (!map.has(gid)) map.set(gid, []);
     map.get(gid).push(item);
   };
-  for (const step of STEPS) {
-    const g = groupOfPath(step.path) ||
-              groupOfPath(((HUNKS[step.hunk_ids[0]] || {}).path));
-    if (g) claim(stepsOf, g.id, step);
-  }
   for (const c of CONTRACTS) {
     const g = groupOfPath(((HUNKS[(c.hunk_ids || [])[0]] || {}).path));
     if (g) claim(contractsOf, g.id, c);
     else crossContracts.push(c);
   }
-  CHECKS.forEach((check, i) => {
-    const n = STEPS.length + i + 1;
-    const g = groupOfPath(check.path) ||
-              groupOfPath(((HUNKS[(check.hunk_ids || [])[0]] || {}).path));
-    if (g) claim(checksOf, g.id, { check, n });
-    else crossChecks.push({ check, n });
-  });
-  for (const sk of skips) {
+  for (const sk of PASS.skippable || []) {
     let gid = (sk.group_ids || [])[0];
     if (!gid) {
       const owners = new Set((sk.files || [])
@@ -835,35 +895,16 @@ function areasSection() {
     else crossSkips.push(sk);
   }
 
-  /* Areas appear in the order the reading starts: the area holding step 1
-     leads, and areas with nothing to read keep the model's own order. */
-  const firstStep = g => {
-    const list = stepsOf.get(g.id);
-    return list ? list[0].n : Infinity;
-  };
-  const ordered = GROUPS.map((g, i) => [g, i])
-    .sort((a, b) => (firstStep(a[0]) - firstStep(b[0])) || (a[1] - b[1]))
-    .map(pair => pair[0]);
-
-  const cards = ordered.map(g =>
-    areaCard(g, stepsOf.get(g.id) || [], checksOf.get(g.id) || [],
-             skipsOf.get(g.id) || [], contractsOf.get(g.id) || []));
-  if (crossChecks.length || crossSkips.length || crossContracts.length) {
-    cards.push(crossCard(crossChecks, crossSkips, crossContracts));
-  }
-
-  const node = section("change", "The change, by area",
-    `${plural(total, "thing")} to read or decide, sorted into the parts of the `
-    + "codebase they belong to. Tick as you go; the page remembers.",
-    h("p", { class: "counter", id: "count" }), cards);
-  requestAnimationFrame(refreshCount);
-  return node;
+  return section("layers", null,
+    GROUPS.map(g => layerNode(g, contractsOf.get(g.id) || [],
+                              skipsOf.get(g.id) || [])),
+    crossContracts.length || crossSkips.length
+      ? crossLayer(crossContracts, crossSkips) : null,
+    seamsBlock());
 }
 
-function areaCard(g, steps, checks, skips, contracts) {
-  const lines = g.files.reduce((a, f) => a + (f.additions || 0) + (f.deletions || 0), 0);
+function layerNode(g, contracts, skips) {
   const body = h("div", {});
-  if (steps.length) body.append(walkBlock(steps));
   if (contracts.length) {
     body.append(h("h4", { class: "block",
       text: contracts.length === 1 ? "Changed contract" : "Changed contracts" }));
@@ -871,54 +912,107 @@ function areaCard(g, steps, checks, skips, contracts) {
       text: "a shape someone outside this diff depends on" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  if (checks.length) {
-    body.append(h("h4", { class: "block", text: "Decide" }));
-    body.append(h("p", { class: "sub", text: "yours to judge; precis has no opinion" }));
-    for (const c of checks) body.append(checkItem(c.check, c.n));
-  }
-  for (const sk of skips) body.append(skipRow(sk));
-  body.append(filesBlock(g, !steps.length && !skips.length));
-
-  return h("section", { class: "area", id: "area-" + g.id },
+  body.append(inventoryFold(g, skips));
+  return h("section", { class: "layer", id: "layer-" + g.id },
     h("h3", {}, prose(g.label)),
-    g.summary ? h("p", { class: "asum" }, prose(g.summary)) : null,
-    g.order_note ? h("p", { class: "aorder" }, prose(g.order_note)) : null,
-    h("p", { class: "ameta",
-      text: `${plural(g.files.length, "file")} · ${lines.toLocaleString()} changed lines` }),
+    h("p", { class: "narrative prose" }, prose(g.narrative)),
     body);
 }
 
-/* Questions, skips, and contracts that no single area owns. */
-function crossCard(checks, skips, contracts) {
+/* Contracts and skip groups that no single layer owns close the chapter. */
+function crossLayer(contracts, skips) {
   const body = h("div", {});
-  if ((contracts || []).length) {
+  if (contracts.length) {
     body.append(h("h4", { class: "block", text: "Changed contracts" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  if (checks.length) {
-    body.append(h("h4", { class: "block", text: "Decide" }));
-    body.append(h("p", { class: "sub", text: "yours to judge; precis has no opinion" }));
-    for (const c of checks) body.append(checkItem(c.check, c.n));
-  }
   for (const sk of skips) body.append(skipRow(sk));
-  return h("section", { class: "area", id: "area-cross" },
-    h("h3", { text: "The change as a whole" }),
+  return h("section", { class: "layer", id: "layer-cross" },
+    h("h3", { text: "Across the change" }),
     body);
 }
 
-/* The guided walkthrough for one area, one fold away. The area above it already
-   says what this part of the codebase is and what changes shape in it; the code
-   opens when the reader is ready to read it. */
-function walkBlock(steps) {
-  const first = steps[0].n;
-  const label = steps.length === 1
-    ? `Read step ${first}`
-    : `Read steps ${first} to ${steps[steps.length - 1].n}`;
-  return h("details", { class: "walk" },
-    h("summary", { class: "link" },
-      h("span", { text: label }),
-      h("span", { class: "sub", text: steps.map(st => plain(st.title)).join(" · ") })),
-    steps.map(stepItem));
+/* The complete account of a layer's files, one quiet fold away: the ledger,
+   then the skip groups that live in this layer with their reasons. */
+function inventoryFold(g, skips) {
+  const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
+  const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
+  return h("details", { class: "inventory" },
+    h("summary", { class: "link", text:
+      `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this layer`
+      + ` · +${adds} −${dels}` }),
+    h("div", { class: "inner" },
+      filesTable(g),
+      skips.map(skipRow)));
+}
+
+function filesTable(g) {
+  return h("table", { class: "files" }, h("tbody", {},
+    g.files.map(f => {
+      const [dir, base] = splitPath(f.path);
+      return h("tr", {},
+        h("td", {},
+          h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
+          f.moved_from ? h("span", { class: "moved", text: "← " + f.moved_from }) : null,
+          f.note ? h("div", { class: "note" }, prose(f.note)) : null),
+        h("td", { class: "word",
+          text: KIND_SHOWN.has(f.change_kind) ? KIND_LABEL[f.change_kind] : "" }),
+        h("td", { class: "num" },
+          f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
+          f.deletions ? h("span", { class: "minus", text: "−" + f.deletions }) : null,
+          (!f.additions && !f.deletions)
+            ? h("span", { class: "faint", text: STATUS_LABEL[f.status] }) : null)
+      );
+    })));
+}
+
+/* Independent concerns are part of the map, so they close the layer chapter:
+   where the seams run, never advice to split. */
+function seamsBlock() {
+  const seams = M.seams || {};
+  if (!seams.detected) return null;
+  const clusters = seams.clusters || [];
+  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
+  return h("section", { class: "layer", id: "seams" },
+    h("h3", { text: "This reads as more than one change" }),
+    seams.note ? h("p", { class: "narrative prose" }, prose(seams.note)) : null,
+    clusters.map(c => h("div", { class: "seam" },
+      h("h4", {}, prose(c.label)),
+      h("p", {}, prose(c.summary)),
+      h("p", { class: "meta",
+        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
+      (c.independent_of || []).length
+        ? h("p", { class: "quiet", text: "Shares nothing with "
+            + listOf(c.independent_of.map(id => plain(nameOf.get(id) || id))) + "." })
+        : null)));
+}
+
+/* =================================================== chapter: the reading */
+/* The guided pass, strictly linear: steps 1 to N in numeric order, one
+   continuous flow. The by-layer view is the previous chapter's job; neither
+   pretends to be the other. The tick counter lives here, where the pass
+   starts. */
+function readingSection() {
+  if (!STEPS.length) return null;
+  const minutes = PASS.estimated_minutes;
+  const node = section("reading",
+    `${plural(STEPS.length, "step")}, in the order the change makes sense`
+    + `${minutes ? `, about ${plural(minutes, "minute")}` : ""}. `
+    + "Tick as you go; the page remembers.",
+    h("p", { class: "counter", id: "count" }),
+    STEPS.map(stepItem));
+  requestAnimationFrame(refreshCount);
+  return node;
+}
+
+/* Without an area wrapper, each step names its own bearings: the layer it
+   belongs to and the file it reads, one quiet line above the title. */
+function stepEyebrow(step) {
+  const path = step.path || ((HUNKS[step.hunk_ids[0]] || {}).path);
+  const g = groupOfPath(path);
+  const text = [g ? plain(g.label) : null, path ? basename(path) : null]
+    .filter(Boolean).join(" · ");
+  return text ? h("p", { class: "eyebrow", text }) : null;
 }
 
 function stepItem(step) {
@@ -933,28 +1027,31 @@ function stepItem(step) {
     if (snip) body.append(snip);
   }
   for (const a of anns.filter(a => a.new_line == null && a.old_line == null)) {
-    body.append(h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
-      h("div", { class: "txt" }, prose(a.text))));
+    body.append(noteNode(a));
   }
   const total = step.hunk_ids.reduce((n, id) => n + ((HUNKS[id] || {}).lines || []).length, 0);
   body.append(h("details", { class: "fulldiff" },
     h("summary", { class: "link",
       text: `The full diff: ${plural(total, "line")} in ${plural(step.hunk_ids.length, "hunk")}` }),
-    step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id], []) : null)));
-
-  /* The snippet headers already name the file. Repeat the step path only when
-     the step spans more than the one file. */
-  const paths = new Set(step.hunk_ids.map(id => HUNKS[id] && HUNKS[id].path).filter(Boolean));
-  const showPath = step.path && !(paths.size === 1 && paths.has(step.path));
+    step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id]) : null)));
 
   return h("article", { class: "step", id: "step-" + step.n },
     h("div", { class: "head" },
       tickBox("s" + step.n, "Mark step " + step.n + " as read"),
       h("div", { style: "min-width:0" },
+        stepEyebrow(step),
         h("h4", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
-        h("p", { class: "why" }, prose(step.why)),
-        showPath ? h("p", { class: "path", text: step.path }) : null)),
+        h("p", { class: "why" }, prose(step.why)))),
     body);
+}
+
+/* ======================================================= chapter: decide */
+/* The questions only the reviewer can answer, numbered on from the steps so
+   the whole pass stays one sequence. */
+function decideSection() {
+  if (!CHECKS.length) return null;
+  return section("decide", "Yours to judge; precis has no opinion.",
+    CHECKS.map((check, i) => checkItem(check, STEPS.length + i + 1)));
 }
 
 /* A rule is quoted, never paraphrased and never re-rendered: `text` rather than
@@ -1042,63 +1139,21 @@ function skipRow(g) {
       sample ? h("div", {},
         h("p", { class: "samplelbl",
           text: "One representative hunk; the rest follow the same shape." }),
-        hunkNode(sample, [])) : null,
+        hunkNode(sample)) : null,
       h("div", { class: "filelist" }, (g.files || []).map(p => h("div", { text: p })))));
 }
 
-/* The complete account of an area's files, one fold away. The steps above it
-   already showed the ones worth reading. */
-function filesBlock(g, open) {
-  const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
-  const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
-  const table = h("table", { class: "files" }, h("tbody", {},
-    g.files.map(f => {
-      const [dir, base] = splitPath(f.path);
-      return h("tr", {},
-        h("td", {},
-          h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
-          f.moved_from ? h("span", { class: "moved", text: "← " + f.moved_from }) : null,
-          f.note ? h("div", { class: "note" }, prose(f.note)) : null),
-        h("td", { class: "word",
-          text: KIND_SHOWN.has(f.change_kind) ? KIND_LABEL[f.change_kind] : "" }),
-        h("td", { class: "num" },
-          f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
-          f.deletions ? h("span", { class: "minus", text: "−" + f.deletions }) : null,
-          (!f.additions && !f.deletions)
-            ? h("span", { class: "faint", text: STATUS_LABEL[f.status] }) : null)
-      );
-    })));
-  return h("details", { class: "areafiles", open: open || null },
-    h("summary", { class: "link", text:
-      `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this area`
-      + ` · +${adds} −${dels}` }),
-    table);
-}
-
 /* --------------------------------------------------------------- hunks */
-function hunkNode(hunk, annotations) {
+/* The full diff of one hunk, plain. Annotations belong to the snippets; a
+   full hunk behind its fold is only ever the code itself. */
+function hunkNode(hunk) {
   const body = h("div", { class: "hbody" });
   const lines = hunk.lines || [];
   /* A file that is entirely new has no old-side numbers; do not spend a column
      on an empty gutter, especially on a phone. */
   const hasOld = lines.some(l => l.old != null);
   const hasNew = lines.some(l => l.new != null);
-  const byLine = new Map();
-  for (const a of annotations || []) {
-    const key = a.new_line != null ? "n" + a.new_line : a.old_line != null ? "o" + a.old_line : null;
-    if (key === null) continue;
-    if (!byLine.has(key)) byLine.set(key, []);
-    byLine.get(key).push(a);
-  }
-  for (const a of (annotations || []).filter(a => a.new_line == null && a.old_line == null)) {
-    body.append(noteNode(a));
-  }
-  for (const line of lines) {
-    body.append(lineNode(line, hasOld, hasNew));
-    const notes = (line.new != null ? byLine.get("n" + line.new) || [] : [])
-      .concat(line.old != null ? byLine.get("o" + line.old) || [] : []);
-    for (const a of notes) body.append(noteNode(a));
-  }
+  for (const line of lines) body.append(lineNode(line, hasOld, hasNew));
   if (hunk.truncated) {
     body.append(h("div", { class: "trunc",
       text: `Truncated: showing the first ${plural(lines.length, "line")} of this hunk.` }));
@@ -1133,16 +1188,21 @@ function lineNode(line, hasOld, hasNew) {
 }
 
 /* An annotation is the highest-value text on the page: precis pointing at one
-   line and saying what it does. */
-function noteNode(a) {
-  return h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
+   line and saying what it does. `inline` marks the copy that lives between
+   code rows, which the wide layout swaps for its margin twin. */
+function noteNode(a, inline) {
+  return h("div", { class: "hnote" + (inline ? " inline" : "") },
+    h("span", { class: "mk", text: "›" }),
     h("div", { class: "txt" }, prose(a.text)));
 }
 
-/* The annotated lines of one hunk, each with a line of context either side and
-   its annotation under it. This is what a step shows by default: the lines
-   precis wrote about, not the wall of diff around them. Returns null when
-   nothing in the hunk is anchored, and the caller falls back to the fold. */
+/* The annotated lines of one hunk, each with a line of context either side.
+   This is what a step shows by default: the lines precis wrote about, not the
+   wall of diff around them. Every anchored note is laid down twice - inline in
+   the code flow, and as a margin twin the wide layout positions beside its
+   line - and CSS shows exactly one of the two, so print and phones need no
+   script. Returns null when nothing in the hunk is anchored, and the caller
+   falls back to the fold. */
 function snippetNode(hunk, annotations) {
   const lines = hunk.lines || [];
   const anchored = [];
@@ -1168,14 +1228,75 @@ function snippetNode(hunk, annotations) {
   const body = h("div", { class: "hbody" });
   const hasOld = lines.some(l => l.old != null);
   const hasNew = lines.some(l => l.new != null);
+  const pairs = [];
   let prev = -2;
   for (const i of Array.from(keep).sort((a, b) => a - b)) {
     if (i > prev + 1) body.append(h("div", { class: "gapline", text: "· · ·" }));
-    body.append(lineNode(lines[i], hasOld, hasNew));
-    for (const a of notesAt.get(i) || []) body.append(noteNode(a));
+    const row = lineNode(lines[i], hasOld, hasNew);
+    const notes = notesAt.get(i) || [];
+    if (notes.length) row.className += " noted";
+    body.append(row);
+    for (const a of notes) {
+      body.append(noteNode(a, true));
+      pairs.push({ line: row, note: h("div", { class: "mnote" }, prose(a.text)) });
+    }
     prev = i;
   }
-  return h("div", { class: "hunk snippet" }, hunkHead(hunk, false), body);
+  const wrap = h("div", { class: "snipwrap" },
+    h("div", { class: "hunk snippet" }, hunkHead(hunk, false), body),
+    h("div", { class: "mnotes" }, pairs.map(p => p.note)));
+  wrap._pairs = pairs;
+  SNIPWRAPS.push(wrap);
+  return wrap;
+}
+
+/* ----------------------------------------------------------- margin notes */
+/* The wide layout moves each anchored note into the margin beside its line:
+   top-aligned with the line, pushed down when the note above needs the room,
+   and tied back by a hairline connector so a pushed note still names its
+   line. Everything here is geometry; the words were laid down at build time,
+   so a browser without any of this still shows the inline notes. */
+const SNIPWRAPS = [];
+const WIDE = matchMedia("(min-width: 1000px)");
+
+function placeMarginNotes(wrap) {
+  const pairs = wrap._pairs || [];
+  if (!pairs.length) return;
+  if (!WIDE.matches) {
+    wrap.style.minHeight = "";
+    if (wrap._conn) wrap._conn.replaceChildren();
+    return;
+  }
+  const box = wrap.getBoundingClientRect();
+  if (!box.height) return;                     /* inside a closed fold */
+  if (!wrap._conn) {
+    wrap._conn = s("svg", { class: "mconn", "aria-hidden": "true" });
+    wrap.append(wrap._conn);
+  }
+  const code = wrap.firstChild.getBoundingClientRect();
+  const x1 = code.right - box.left + 2;
+  const x2 = box.width - 308;
+  let flow = 0;
+  const ties = [];
+  for (const p of pairs) {
+    const lr = p.line.getBoundingClientRect();
+    const lineTop = lr.top - box.top;
+    const top = Math.max(lineTop, flow);
+    p.note.style.top = top + "px";
+    flow = top + p.note.offsetHeight + 12;
+    ties.push({ y1: lineTop + lr.height / 2, y2: top + 9 });
+  }
+  wrap.style.minHeight = Math.ceil(flow - 12) + "px";
+  const w = Math.ceil(box.width), hh = Math.ceil(Math.max(box.height, flow));
+  wrap._conn.setAttribute("viewBox", `0 0 ${w} ${hh}`);
+  wrap._conn.setAttribute("width", w);
+  wrap._conn.setAttribute("height", hh);
+  wrap._conn.replaceChildren(...ties.map(t => s("line", {
+    x1, y1: t.y1, x2, y2: t.y2, stroke: "var(--line)", "stroke-width": 1 })));
+}
+
+function placeAllMarginNotes() {
+  for (const wrap of SNIPWRAPS) placeMarginNotes(wrap);
 }
 
 /* ------------------------------------------------------------ call graph */
@@ -1193,7 +1314,7 @@ function mapSection() {
   const body = graphBranches(graph)
     ? h("div", { class: "graph" }, drawCallGraph(graph).node)
     : callTrace(graph);
-  return section("map", "What calls what", cm.summary || null, body, offGraphNote(graph));
+  return section("map", cm.summary || null, body, offGraphNote(graph));
 }
 
 /* A linear trace cannot misrepresent a chain. It can misrepresent a fan, so a
@@ -1365,7 +1486,7 @@ function behaviorSection() {
       h("span", { class: "mk", text: "▸" }), prose(d.summary),
       refsLine(d.hunk_ids)))) : null;
 
-  return section("behavior", "Behaviour: before and after", null, figure, deltas);
+  return section("behavior", null, figure, deltas);
 }
 
 function debounce(fn, ms) {
@@ -1721,24 +1842,6 @@ function wrapText(text, maxPx, size, maxLines) {
   return lines.slice(0, maxLines || 3);
 }
 
-/* ----------------------------------------------------------------- seams */
-function seamsSection() {
-  const seams = M.seams || {};
-  if (!seams.detected) return null;
-  const clusters = seams.clusters || [];
-  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
-  return section("seams", "This reads as more than one change", seams.note,
-    clusters.map(c => h("div", { class: "seam" },
-      h("h4", {}, prose(c.label)),
-      h("p", {}, prose(c.summary)),
-      h("p", { class: "meta",
-        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
-      (c.independent_of || []).length
-        ? h("p", { class: "quiet", text: "Shares nothing with "
-            + listOf(c.independent_of.map(id => plain(nameOf.get(id) || id))) + "." })
-        : null)));
-}
-
 /* ---------------------------------------------------------------- footer */
 /* Provenance: how this report was made, what it was read from, and what it did
    not read. None of it is a fact about the change, so none of it is upstairs. */
@@ -1798,26 +1901,36 @@ function footerNode() {
 /* ------------------------------------------------------------------ boot */
 function boot() {
   const app = document.getElementById("app");
+  const chapters = buildChapters();
+  app.append(masthead(chapters));
   const main = h("main", { class: "wrap" });
-  main.append(areasSection());
-  const map = mapSection();
-  if (map) main.append(map);
-  const behavior = behaviorSection();
-  if (behavior) main.append(behavior);
-  const seams = seamsSection();
-  if (seams) main.append(seams);
-
-  app.append(masthead());
+  for (const c of chapters) if (c.node) main.append(c.node);
   app.append(main);
   app.append(footerNode());
 
-  /* Printing must not silently drop the parts that happen to be collapsed. */
+  /* Margin notes track the layout: any reflow - a resize, a fold opening,
+     the fonts arriving - re-places them. */
+  WIDE.addEventListener("change", placeAllMarginNotes);
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(placeAllMarginNotes).observe(document.body);
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(placeAllMarginNotes);
+  }
+  requestAnimationFrame(placeAllMarginNotes);
+
+  /* Printing must not silently drop the parts that happen to be collapsed,
+     and paper gets the inline notes, so the margin geometry comes off. */
   let reopened = [];
   addEventListener("beforeprint", () => {
     reopened = Array.from(document.querySelectorAll("details:not([open])"));
     for (const d of reopened) d.open = true;
+    for (const wrap of SNIPWRAPS) wrap.style.minHeight = "";
   });
-  addEventListener("afterprint", () => { for (const d of reopened) d.open = false; });
+  addEventListener("afterprint", () => {
+    for (const d of reopened) d.open = false;
+    placeAllMarginNotes();
+  });
 }
 
 boot();

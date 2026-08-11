@@ -68,10 +68,12 @@ body {
   font: 15px/1.65 var(--text);
   font-variant-numeric: tabular-nums;
 }
+/* The scale is the hierarchy: masthead over chapter headline over layer
+   heading over item title over body, and nothing between competes. */
 h1, h2, h3, h4 { margin: 0; line-height: 1.25; letter-spacing: -.011em; }
-h1 { font: 500 clamp(26px, 4.2vw, 32px)/1.2 var(--text); }
-h2 { font: 500 24px/1.25 var(--text); }
-h3 { font: 600 19px/1.3 var(--text); }
+h1 { font: 500 clamp(28px, 4.6vw, 36px)/1.2 var(--text); }
+h2 { font: 500 clamp(25px, 4vw, 30px)/1.25 var(--text); }
+h3 { font: 500 22px/1.3 var(--text); }
 h4 { font: 600 15px/1.4 var(--text); }
 p { margin: 0; }
 a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: .06em; }
@@ -113,10 +115,25 @@ code { font: .88em/1.5 var(--mono); overflow-wrap: anywhere; }
   color: var(--ink-soft); border-left: 2px solid var(--line); padding-left: 14px;
   max-width: 84ch;
 }
+/* The reader's map of the rendered chapters: one plain line of anchors. */
+.contents { margin-top: 30px; font: 12.5px/1.9 var(--mono); color: var(--ink-faint); }
+.contents a { color: inherit; }
 
-/* -------------------------------------------------------------- sections */
-section.sec { padding: 54px 0 0; scroll-margin-top: 14px; }
-section.sec > h2 + .lead { margin-top: 8px; }
+/* -------------------------------------------------------------- chapters */
+/* A chapter boundary has to be unmistakable at a fast scroll: ninety pixels
+   of air, a numbered mono kicker over a short hairline, then a headline one
+   size below the masthead's. */
+section.chap { padding: 90px 0 0; scroll-margin-top: 14px; }
+.kicker {
+  font: 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.kicker::after {
+  content: ""; display: block; width: 34px; margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.chaphead h2 { margin-top: 14px; }
+.chap > .lead { margin-top: 10px; }
 .lead { color: var(--ink-soft); max-width: 72ch; }
 .counter { font: 12.5px/1.7 var(--mono); color: var(--ink-faint); margin-top: 10px; }
 
@@ -139,20 +156,22 @@ summary.link .sub {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--ink-faint);
 }
-details.walk[open] > summary.link .sub { display: none; }
 
-/* ----------------------------------------------------------- the areas */
-/* The backbone: the change grouped by what each part is for. A heading, a
-   sentence, and the reading that belongs to it. No panels. */
-.area { margin-top: 34px; padding-top: 30px; border-top: 1px solid var(--line); }
-.asum { margin-top: 8px; color: var(--ink-soft); max-width: 70ch; }
-.aorder { margin-top: 6px; color: var(--ink-faint); max-width: 70ch; font-size: 14px; }
-.ameta { font: 12px/1.7 var(--mono); color: var(--ink-faint); margin-top: 8px; }
+/* ---------------------------------------------------------- the layers */
+/* The map chapter's subsections: a heading, the narrative, the contracts that
+   changed here, the inventory one fold away. No panels. */
+.layer { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--line-soft); }
+.narrative { margin-top: 10px; }
+.inventory > .inner { margin: 14px 0 0 20px; }
 h4.block { margin: 30px 0 4px; }
 h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 
 /* --------------------------------------------------------------- steps */
-.step { margin-top: 24px; }
+.step { margin-top: 32px; }
+.eyebrow {
+  font: 11.5px/1.6 var(--mono); color: var(--ink-faint); margin-bottom: 3px;
+  word-break: break-all;
+}
 .step > .head { display: flex; gap: 11px; align-items: flex-start; }
 .tick { flex: none; width: 15px; height: 15px; margin: 6px 0 0; accent-color: var(--accent); }
 .step h4 { font-size: 17px; min-width: 0; }
@@ -263,6 +282,19 @@ table.files .note { color: var(--ink-soft); font-size: 13.5px; margin-top: 3px; 
 }
 .hnote .mk { color: var(--accent); flex: none; }
 .hnote .txt { max-width: 68ch; }
+/* The margin column an anchored note moves into on a wide screen. It only
+   exists there: narrow screens and paper keep the inline notes above. */
+.snipwrap { position: relative; }
+.mnotes, .mconn { display: none; }
+@media screen and (min-width: 1000px) {
+  .snipwrap > .hunk { margin-right: 322px; }
+  .snipwrap .hnote.inline { display: none; }
+  /* The annotated line's marker: a 2px accent tick, not a highlight bar. */
+  .snipwrap .hline.noted { box-shadow: inset 2px 0 0 var(--accent); }
+  .mnotes { display: block; position: absolute; top: 0; right: 0; width: 300px; height: 100%; }
+  .mnote { position: absolute; left: 0; width: 300px; font: 13.5px/1.55 var(--text); color: var(--ink); }
+  .mconn { display: block; position: absolute; inset: 0; pointer-events: none; }
+}
 .trunc {
   padding: 7px 12px; font: 11.5px/1.6 var(--mono); color: var(--ink-faint);
   border-top: 1px solid var(--line-soft); background: var(--panel-soft);
@@ -350,10 +382,10 @@ footer .creed { margin-top: 24px; color: var(--ink-faint); max-width: 64ch; }
   details > *:not(summary) { display: revert; }
   a { color: inherit; text-decoration: none; }
   .stepbody { margin-left: 0; }
-  section.sec { padding-top: 26px; }
+  section.chap { padding-top: 30px; }
   .hunk, .seam, .contract, .skip, .side { break-inside: avoid; }
-  .area { break-inside: auto; }
-  .step > .head, .step .why { break-inside: avoid; break-after: avoid; }
+  .layer { break-inside: auto; }
+  .chaphead, .step > .head, .step .why { break-inside: avoid; break-after: avoid; }
   h2, h3, h4 { break-after: avoid; }
 }
 </style>
@@ -361,7 +393,7 @@ footer .creed { margin-top: 24px; color: var(--ink-faint); max-width: 64ch; }
 <body>
 <div id="app"></div>
 
-<script id="precis-model" type="application/json">{"schema_version":"1.1","source":{"kind":"github_pr","title":"Add configurable revision_map_class option","identifier":"#1805","url":"https://github.com/sqlalchemy/alembic/pull/1805","repo":"sqlalchemy/alembic","author":"jasonwbarnett","base":{"ref":"main","sha":"02d72c21d97c0f62b43d4856b60767524f17a00f"},"head":{"ref":"add-configurable-revision-map-class","sha":"e70c62d9d31517ade6c7e249a776c4fb1f325bb4"},"commits":[{"sha":"e70c62d","subject":"Add configurable revision_map_class option to ScriptDirectory"}],"linked_issues":[{"id":"#1804","title":"Allow custom RevisionMap subclass for pluggable revision ordering","url":"https://github.com/sqlalchemy/alembic/issues/1804"}],"description":"Closes #1804\n\n## Summary\n\n- Adds a `revision_map_class` configuration option to `ScriptDirectory`, allowing a custom `RevisionMap` subclass to be specified via `alembic.ini` or `pyproject.toml` using a dotted Python path (e.g. `mypackage.custom:CustomRevisionMap`)\n- Adds a `resolve_dotted_name()` utility for resolving `\"module:ClassName\"` strings to Python objects, with clear error messages for import/attribute failures\n- Exports `RevisionMap` from the `alembic.script` package for convenient subclassing\n\n## Motivation\n\nSee #1804 for full context. In short: there is currently no way to customize how Alembic orders concurrent, unrelated migrations (multiple heads) without monkey-patching. This small change (one new keyword argument with a `None` default, entirely opt-in) opens up an extension point for external packages to implement custom ordering — such as git-history-based ordering — by subclassing `RevisionMap` and overriding `_topological_sort()`.\n\n## Changes\n\n- **`alembic/util/pyfiles.py`**: New `resolve_dotted_name()` utility\n- **`alembic/script/base.py`**: New `revision_map_class` parameter on `ScriptDirectory.__init__()` and `from_config()`, with subclass validation\n- **`alembic/script/__init__.py`**: Export `RevisionMap` for convenient subclassing\n- **Templates**: Commented-out `revision_map_class` option in all ini/toml templates\n- **Tests**: 12 new tests for the utility function, config integration, and validation\n- **Changelog**: `docs/build/unreleased/revision_map_class.rst`\n\n## Test plan\n\n- [x] `resolve_dotted_name()` tests (colon format, dot format, error cases)\n- [x] `revision_map_class` via constructor and via `from_config()`\n- [x] Validation rejects non-subclasses, unresolvable modules/attributes\n- [x] `RevisionMap` properly exported from `alembic.script`\n- [x] Full `test_config.py` suite passes (75 tests)","generated_by":"precis 0.1.0","generated_at":"2026-08-09T10:20:00Z"},"coverage":{"tier":"full","hunks_read":16,"files_read":11,"note":"Every hunk read in full. Callers and the override target resolved against the checkout at the PR head.","limitations":["No packaged `RevisionMap` subclass exists to read; the new extension point is exercised only by the tests here."],"hunks_total":16,"files_total":11},"stats":{"signal_ratio":0.31,"changed_lines_by_kind":{"new_logic":147,"modified_logic":31,"content":38},"files_changed":11,"additions":214,"deletions":2,"hunks":16,"changed_lines_by_role":{"docs":13,"persistence":91,"tests":112}},"story":{"headline":"`ScriptDirectory` will build a `RevisionMap` subclass named in config instead of the built-in one.","beats":[{"label":"Need","text":"The order of unrelated concurrent heads came from `RevisionMap`, with no way in but a patch."},{"label":"Now","text":"`revision_map_class` takes a dotted name, resolved and checked before it is used."},{"label":"Next","text":"Nothing subclasses it here. The ordering itself is unchanged; only who decides it can move."}],"shape":"feature","tests":{"state":"partial","note":"`test_config.py` pins reading and the subclass check; nothing runs a command with a custom map."},"confidence":"high","evidence":["pr_description","commit_messages","code"],"caveat":null,"intent_delta":{"stated":"This small change (one new keyword argument with a `None` default, entirely opt-in) opens up an extension point for external packages.","also_does":[{"summary":"Adds `resolve_dotted_name`, a general utility exported from `alembic.util`, not scoped to this option.","where":["alembic/util/pyfiles.py","alembic/util/__init__.py"],"hunk_ids":["h12","h13"],"kind":"incidental"},{"summary":"It accepts `module.Class` as well as the `module:Class` form the templates and changelog document.","where":["alembic/util/pyfiles.py"],"hunk_ids":["h13"],"kind":"incidental"}],"not_done":[]}},"change_map":{"summary":"One new utility, one parameter threaded through two constructors, and the same comment block in five scaffolds.","graph":{"nodes":[{"id":"n1","label":"command.upgrade()","kind":"entrypoint","emphasis":"unchanged","hunk_ids":[],"note":"One of fifteen commands that reach `from_config`, at command.py:252 and below."},{"id":"n2","label":"ScriptDirectory.from_config()","kind":"function","emphasis":"changed","path":"alembic/script/base.py","hunk_ids":["h5","h6"],"note":"Reads the option, resolves it, and rejects anything that is not a subclass."},{"id":"n3","label":"ScriptDirectory.__init__()","kind":"function","emphasis":"changed","path":"alembic/script/base.py","hunk_ids":["h3","h4"],"note":"Takes the class as a keyword argument and instantiates whatever it is given."},{"id":"n4","label":"resolve_dotted_name()","kind":"function","emphasis":"added","path":"alembic/util/pyfiles.py","hunk_ids":["h13"],"note":"Imports the module, returns the attribute, raises `CommandError` on failure."},{"id":"n5","label":"get_alembic_option()","kind":"config","emphasis":"unchanged","hunk_ids":[],"note":"Searches the ini section first and `[tool.alembic]` in pyproject.toml second."},{"id":"n6","label":"revision.RevisionMap","kind":"type","emphasis":"unchanged","hunk_ids":[],"note":"Still the default, and now also the base class the resolved name has to satisfy."},{"id":"n7","label":"_topological_sort()","kind":"function","emphasis":"unchanged","hunk_ids":[],"note":"The method the description names as the reason for the extension point."}],"edges":[{"from":"n1","to":"n2","kind":"calls","emphasis":"unchanged","evidence":{"ref":"alembic/command.py:252"}},{"from":"n2","to":"n5","kind":"reads","emphasis":"added","label":"the option","evidence":{"hunk_ids":["h5"]}},{"from":"n2","to":"n4","kind":"calls","emphasis":"added","evidence":{"hunk_ids":["h5"]}},{"from":"n2","to":"n6","kind":"reads","emphasis":"added","label":"issubclass","evidence":{"hunk_ids":["h5"]}},{"from":"n2","to":"n3","kind":"calls","emphasis":"changed","label":"revision_map_class","evidence":{"hunk_ids":["h6"]}},{"from":"n3","to":"n6","kind":"calls","emphasis":"changed","label":"or the subclass","evidence":{"hunk_ids":["h4"]}},{"from":"n6","to":"n7","kind":"calls","emphasis":"unchanged","evidence":{"ref":"alembic/script/revision.py:822"}}]},"groups":[{"id":"g-core","role":"domain","label":"The option and its plumbing","summary":"A resolver, a keyword argument, and the code that reads config.","files":[{"path":"alembic/util/pyfiles.py","status":"modified","change_kind":"new_logic","significance":"core","additions":35,"deletions":0,"hunk_ids":["h13"],"note":"One new function. `importlib` and `Any` were already imported, so nothing else moved."},{"path":"alembic/script/base.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":26,"deletions":1,"hunk_ids":["h2","h3","h4","h5","h6"],"note":"The only line removed in the whole change is the hard-coded `RevisionMap(...)` at line 98."},{"path":"alembic/util/__init__.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":1,"deletions":0,"hunk_ids":["h12"],"note":"Re-export, which is what makes `util.resolve_dotted_name` work in `base.py`."},{"path":"alembic/script/__init__.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":2,"deletions":1,"hunk_ids":["h1"],"note":"`RevisionMap` joins `__all__`, so subclassing needs no private import."}]},{"id":"g-templates","role":"config","label":"Scaffold templates","summary":"The same commented example in every project template alembic can generate.","files":[{"path":"alembic/templates/generic/alembic.ini.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h8"],"note":"Four comment lines and a commented setting, placed after `recursive_version_locations`."},{"path":"alembic/templates/async/alembic.ini.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h7"]},{"path":"alembic/templates/multidb/alembic.ini.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h9"]},{"path":"alembic/templates/pyproject/pyproject.toml.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h10"],"note":"Same block, with the value quoted for toml."},{"path":"alembic/templates/pyproject_async/pyproject.toml.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h11"]}]},{"id":"g-docs","role":"docs","label":"Changelog entry","summary":"The unreleased-notes file that becomes a line in the release notes.","files":[{"path":"docs/build/unreleased/revision_map_class.rst","status":"added","change_kind":"content","significance":"mechanical","additions":13,"deletions":0,"hunk_ids":["h14"],"note":"Tagged `usecase, scripts`, with no ticket number filled in."}]},{"id":"g-tests","role":"tests","label":"Config tests","summary":"Two new classes: one for the resolver, one for the option end to end.","files":[{"path":"tests/test_config.py","status":"modified","change_kind":"new_logic","significance":"supporting","additions":112,"deletions":0,"hunk_ids":["h15","h16"],"note":"Half the changed lines in the pull request. Both failure paths and both formats are covered."}]}]},"contracts":[{"id":"c1","kind":"config","name":"revision_map_class","before":null,"after":"dotted path to a RevisionMap subclass (default alembic.script.revision.RevisionMap)","note":"Read in `from_config()`; a value that is not a RevisionMap subclass raises CommandError.","hunk_ids":["h5"]},{"id":"c2","kind":"api","name":"ScriptDirectory(revision_map_class=...)","before":"ScriptDirectory(...) always builds revision.RevisionMap","after":"optional revision_map_class keyword; None keeps the built-in map","hunk_ids":["h2","h3","h4"]}],"behavior":{"changed":true,"note":null,"summary":"With the option unset the built object is what it was. With it set, `from_config` resolves the dotted name, refuses a class that is not a `RevisionMap`, and passes it on.","before":{"kind":"flow","title":"Before","nodes":[{"id":"b1","label":"alembic upgrade head","kind":"start","emphasis":"unchanged"},{"id":"b2","label":"ScriptDirectory.from_config()","kind":"process","emphasis":"unchanged"},{"id":"b3","label":"ScriptDirectory.__init__()","kind":"process","emphasis":"unchanged"},{"id":"b4","label":"revision.RevisionMap(self._load_revisions)","kind":"end","emphasis":"unchanged"}],"edges":[{"from":"b1","to":"b2","kind":"call","emphasis":"unchanged"},{"from":"b2","to":"b3","kind":"call","emphasis":"unchanged"},{"from":"b3","to":"b4","kind":"call","emphasis":"unchanged","label":"always"}]},"after":{"kind":"flow","title":"After","nodes":[{"id":"a1","label":"alembic upgrade head","kind":"start","emphasis":"unchanged"},{"id":"a2","label":"ScriptDirectory.from_config()","kind":"process","emphasis":"unchanged"},{"id":"a3","label":"revision_map_class set?","kind":"decision","emphasis":"added"},{"id":"a4","label":"resolve_dotted_name()","kind":"process","emphasis":"added"},{"id":"a5","label":"subclass of RevisionMap?","kind":"decision","emphasis":"added"},{"id":"a6","label":"CommandError","kind":"end","emphasis":"added"},{"id":"a7","label":"ScriptDirectory.__init__()","kind":"process","emphasis":"unchanged"},{"id":"a8","label":"revision.RevisionMap(self._load_revisions)","kind":"end","emphasis":"unchanged"},{"id":"a9","label":"revision_map_cls(self._load_revisions)","kind":"end","emphasis":"added"}],"edges":[{"from":"a1","to":"a2","kind":"call","emphasis":"unchanged"},{"from":"a2","to":"a3","kind":"call","emphasis":"added","hunk_ids":["h5"]},{"from":"a3","to":"a7","kind":"call","emphasis":"unchanged","label":"no"},{"from":"a3","to":"a4","kind":"call","emphasis":"added","label":"yes","hunk_ids":["h5"]},{"from":"a4","to":"a5","kind":"call","emphasis":"added","hunk_ids":["h5"]},{"from":"a5","to":"a6","kind":"error","emphasis":"added","label":"no","hunk_ids":["h5"]},{"from":"a5","to":"a7","kind":"call","emphasis":"added","label":"yes","hunk_ids":["h6"]},{"from":"a7","to":"a8","kind":"call","emphasis":"unchanged","label":"default"},{"from":"a7","to":"a9","kind":"call","emphasis":"added","label":"configured","hunk_ids":["h4"]}]},"deltas":[{"summary":"`from_config` gains a resolve-and-check step before it builds anything.","hunk_ids":["h5"]},{"summary":"`__init__` picks the class instead of naming it.","hunk_ids":["h4"]},{"summary":"A misconfigured name now fails the command rather than the migration.","hunk_ids":["h5","h13"]}]},"review_pass":{"estimated_minutes":8,"steps":[{"n":1,"title":"The resolver","why":"Everything else depends on what this accepts and what it raises. It is the only genuinely new code.","path":"alembic/util/pyfiles.py","hunk_ids":["h13"],"annotations":[{"hunk_id":"h13","new_line":34,"text":"The second form is `rpartition`, so `a.b.C` splits at the last dot. The templates and the changelog document only the colon form."},{"hunk_id":"h13","new_line":43,"text":"`import_module` runs the target module at this point, which is inside every alembic command, not inside a migration."}]},{"n":2,"title":"The keyword argument","why":"The constructor is the direct entry point, and it is where the default is decided.","path":"alembic/script/base.py","hunk_ids":["h2","h3","h4"],"annotations":[{"hunk_id":"h4","new_line":102,"text":"The one removed line in the change was here: `self.revision_map = revision.RevisionMap(self._load_revisions)`."},{"hunk_id":"h4","new_line":107,"text":"Whatever arrived is called. This path performs no subclass check of its own."}]},{"n":3,"title":"Reading and checking the option","why":"The config path is the one users reach, and the only one that validates.","path":"alembic/script/base.py","hunk_ids":["h5","h6"],"annotations":[{"hunk_id":"h5","new_line":197,"text":"`get_alembic_option` reads the ini section first and `[tool.alembic]` in pyproject.toml second, so an ini value wins."},{"hunk_id":"h5","new_line":204,"text":"`CommandError` is what alembic prints as a message rather than a traceback, so this surfaces as a command failure."},{"hunk_id":"h6","new_line":225,"text":"The keyword is passed last, alongside the other options `from_config` collects."}]},{"n":4,"title":"The two exports","why":"One line each in two `__init__` files, both load-bearing: `util.resolve_dotted_name` in step 3, and `RevisionMap` for subclassing.","path":"alembic/script/__init__.py","hunk_ids":["h1","h12"],"annotations":[]},{"n":5,"title":"What the tests pin","why":"Half the changed lines. They state the accepted formats, both failure messages, and that the default is untouched.","path":"tests/test_config.py","hunk_ids":["h15","h16"],"annotations":[{"hunk_id":"h16","new_line":795,"text":"`type(script.revision_map) is RevisionMap` rather than isinstance, so a subclass would fail this."},{"hunk_id":"h16","new_line":806,"text":"The constructor path is tested with a subclass, and the config path with a rejection. Neither test sets a subclass through config."}]}],"checks":[{"kind":"public_api","title":"Only the config path checks the subclass","why":"`from_config` raises `CommandError` at base.py:204 for a class that is not a `RevisionMap`. `ScriptDirectory(...)` called directly instantiates whatever it is handed.","question":"Do you build `ScriptDirectory` directly anywhere, where that check does not run?","path":"alembic/script/base.py","hunk_ids":["h4","h5"]},{"kind":"dependency_surface","title":"A dotted name is imported during every command","why":"`resolve_dotted_name` calls `importlib.import_module` inside `from_config`, which runs for all fifteen commands in `alembic/command.py`.","question":"Is the module holding your subclass importable in every environment that runs an alembic command, including CI and containers?","path":"alembic/util/pyfiles.py","hunk_ids":["h13"]},{"kind":"config_surface","title":"The same key can be set in two files","why":"`get_alembic_option` searches the configparser section before the toml one, so a value in `alembic.ini` takes precedence over `[tool.alembic]`.","question":"Do any of your environments carry both an `alembic.ini` and a `[tool.alembic]` block?","path":"alembic/script/base.py","hunk_ids":["h5"]},{"kind":"behavioral","title":"`_topological_sort` decides the order migrations run in","why":"It is called from `iterate_revisions` at revision.py:822, which is the walk behind upgrade and downgrade. The description names it as the method a subclass would override.","question":"Would a different ordering of concurrent unrelated heads be safe to apply in your deployments?","path":"alembic/script/base.py","hunk_ids":["h4"]}],"skippable":[{"label":"Scaffold templates","reason":"The same five commented lines in each of the five project templates, differing only in toml quoting. They run no code.","confidence":"high","file_count":5,"additions":25,"deletions":0,"group_ids":["g-templates"],"files":["alembic/templates/async/alembic.ini.mako","alembic/templates/generic/alembic.ini.mako","alembic/templates/multidb/alembic.ini.mako","alembic/templates/pyproject/pyproject.toml.mako","alembic/templates/pyproject_async/pyproject.toml.mako"]},{"label":"Changelog entry","reason":"Restates the option for the release notes. The wording matches the comment block in the templates and the docstring in step 1.","confidence":"high","file_count":1,"additions":13,"deletions":0,"group_ids":["g-docs"],"files":["docs/build/unreleased/revision_map_class.rst"]}]},"seams":{"detected":false,"note":null},"hunks":{"h1":{"id":"h1","path":"alembic/script/__init__.py","old_path":null,"language":"python","header":"@@ -1,4 +1,5 @@","old_start":1,"old_lines":4,"new_start":1,"new_lines":5,"section":null,"lines":[{"t":" ","c":"from .base import Script","old":1,"new":1},{"t":" ","c":"from .base import ScriptDirectory","old":2,"new":2},{"t":"+","c":"from .revision import RevisionMap","old":null,"new":3},{"t":" ","c":"","old":3,"new":4},{"t":"-","c":"__all__ = [\"ScriptDirectory\", \"Script\"]","old":4,"new":null},{"t":"+","c":"__all__ = [\"ScriptDirectory\", \"Script\", \"RevisionMap\"]","old":null,"new":5}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h2":{"id":"h2","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -16,6 +16,7 @@","old_start":16,"old_lines":6,"new_start":16,"new_lines":7,"section":null,"lines":[{"t":" ","c":"from typing import Sequence","old":16,"new":16},{"t":" ","c":"from typing import Set","old":17,"new":17},{"t":" ","c":"from typing import Tuple","old":18,"new":18},{"t":"+","c":"from typing import Type","old":null,"new":19},{"t":" ","c":"from typing import TYPE_CHECKING","old":19,"new":20},{"t":" ","c":"from typing import Union","old":20,"new":21},{"t":" ","c":"","old":21,"new":22}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h3":{"id":"h3","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -86,6 +87,9 @@","old_start":86,"old_lines":6,"new_start":87,"new_lines":9,"section":"def __init__(","lines":[{"t":" ","c":"        messaging_opts: MessagingOptions = cast(","old":86,"new":87},{"t":" ","c":"            \"MessagingOptions\", util.EMPTY_DICT","old":87,"new":88},{"t":" ","c":"        ),","old":88,"new":89},{"t":"+","c":"        revision_map_class: Optional[","old":null,"new":90},{"t":"+","c":"            Type[revision.RevisionMap]","old":null,"new":91},{"t":"+","c":"        ] = None,","old":null,"new":92},{"t":" ","c":"    ) -> None:","old":89,"new":93},{"t":" ","c":"        self.dir = _preserving_path_as_str(dir)","old":90,"new":94},{"t":" ","c":"        self.version_locations = [","old":91,"new":95}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h4":{"id":"h4","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -95,7 +99,12 @@","old_start":95,"old_lines":7,"new_start":99,"new_lines":12,"section":"def __init__(","lines":[{"t":" ","c":"        self.truncate_slug_length = truncate_slug_length or 40","old":95,"new":99},{"t":" ","c":"        self.sourceless = sourceless","old":96,"new":100},{"t":" ","c":"        self.output_encoding = output_encoding","old":97,"new":101},{"t":"-","c":"        self.revision_map = revision.RevisionMap(self._load_revisions)","old":98,"new":null},{"t":"+","c":"        revision_map_cls = (","old":null,"new":102},{"t":"+","c":"            revision_map_class","old":null,"new":103},{"t":"+","c":"            if revision_map_class is not None","old":null,"new":104},{"t":"+","c":"            else revision.RevisionMap","old":null,"new":105},{"t":"+","c":"        )","old":null,"new":106},{"t":"+","c":"        self.revision_map = revision_map_cls(self._load_revisions)","old":null,"new":107},{"t":" ","c":"        self.timezone = timezone","old":99,"new":108},{"t":" ","c":"        self.hooks = hooks","old":100,"new":109},{"t":" ","c":"        self.recursive_version_locations = recursive_version_locations","old":101,"new":110}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h5":{"id":"h5","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -183,6 +192,21 @@","old_start":183,"old_lines":6,"new_start":192,"new_lines":21,"section":"def from_config(cls, config: Config) -> ScriptDirectory:","lines":[{"t":" ","c":"            sys.path[:0] = prepend_sys_path","old":183,"new":192},{"t":" ","c":"","old":184,"new":193},{"t":" ","c":"        rvl = config.get_alembic_boolean_option(\"recursive_version_locations\")","old":185,"new":194},{"t":"+","c":"","old":null,"new":195},{"t":"+","c":"        revision_map_class: Optional[Type[revision.RevisionMap]] = None","old":null,"new":196},{"t":"+","c":"        rmc = config.get_alembic_option(\"revision_map_class\")","old":null,"new":197},{"t":"+","c":"        if rmc is not None:","old":null,"new":198},{"t":"+","c":"            resolved = util.resolve_dotted_name(rmc)","old":null,"new":199},{"t":"+","c":"            if not (","old":null,"new":200},{"t":"+","c":"                isinstance(resolved, type)","old":null,"new":201},{"t":"+","c":"                and issubclass(resolved, revision.RevisionMap)","old":null,"new":202},{"t":"+","c":"            ):","old":null,"new":203},{"t":"+","c":"                raise util.CommandError(","old":null,"new":204},{"t":"+","c":"                    f\"revision_map_class {rmc!r} must be a subclass of \"","old":null,"new":205},{"t":"+","c":"                    \"alembic.script.revision.RevisionMap\"","old":null,"new":206},{"t":"+","c":"                )","old":null,"new":207},{"t":"+","c":"            revision_map_class = resolved","old":null,"new":208},{"t":"+","c":"","old":null,"new":209},{"t":" ","c":"        return ScriptDirectory(","old":186,"new":210},{"t":" ","c":"            util.coerce_resource_to_filename(script_location),","old":187,"new":211},{"t":" ","c":"            file_template=config.get_alembic_option(","old":188,"new":212}],"truncated":false,"change_kind":"new_logic","significance":"core"},"h6":{"id":"h6","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -198,6 +222,7 @@","old_start":198,"old_lines":6,"new_start":222,"new_lines":7,"section":"def from_config(cls, config: Config) -> ScriptDirectory:","lines":[{"t":" ","c":"            hooks=config.get_hooks_list(),","old":198,"new":222},{"t":" ","c":"            recursive_version_locations=rvl,","old":199,"new":223},{"t":" ","c":"            messaging_opts=config.messaging_opts,","old":200,"new":224},{"t":"+","c":"            revision_map_class=revision_map_class,","old":null,"new":225},{"t":" ","c":"        )","old":201,"new":226},{"t":" ","c":"","old":202,"new":227},{"t":" ","c":"    @contextmanager","old":203,"new":228}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h7":{"id":"h7","path":"alembic/templates/async/alembic.ini.mako","old_path":null,"language":null,"header":"@@ -79,6 +79,11 @@","old_start":79,"old_lines":6,"new_start":79,"new_lines":11,"section":"path_separator = os","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":79,"new":79},{"t":" ","c":"# recursive_version_locations = false","old":80,"new":80},{"t":" ","c":"","old":81,"new":81},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":82},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":83},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":84},{"t":"+","c":"# revision_map_class = mypackage.custom:CustomRevisionMap","old":null,"new":85},{"t":"+","c":"","old":null,"new":86},{"t":" ","c":"# the output encoding used when revision files","old":82,"new":87},{"t":" ","c":"# are written from script.py.mako","old":83,"new":88},{"t":" ","c":"# output_encoding = utf-8","old":84,"new":89}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h8":{"id":"h8","path":"alembic/templates/generic/alembic.ini.mako","old_path":null,"language":null,"header":"@@ -79,6 +79,11 @@","old_start":79,"old_lines":6,"new_start":79,"new_lines":11,"section":"path_separator = os","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":79,"new":79},{"t":" ","c":"# recursive_version_locations = false","old":80,"new":80},{"t":" ","c":"","old":81,"new":81},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":82},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":83},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":84},{"t":"+","c":"# revision_map_class = mypackage.custom:CustomRevisionMap","old":null,"new":85},{"t":"+","c":"","old":null,"new":86},{"t":" ","c":"# the output encoding used when revision files","old":82,"new":87},{"t":" ","c":"# are written from script.py.mako","old":83,"new":88},{"t":" ","c":"# output_encoding = utf-8","old":84,"new":89}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h9":{"id":"h9","path":"alembic/templates/multidb/alembic.ini.mako","old_path":null,"language":null,"header":"@@ -78,6 +78,11 @@","old_start":78,"old_lines":6,"new_start":78,"new_lines":11,"section":"path_separator = os","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":78,"new":78},{"t":" ","c":"# recursive_version_locations = false","old":79,"new":79},{"t":" ","c":"","old":80,"new":80},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":81},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":82},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":83},{"t":"+","c":"# revision_map_class = mypackage.custom:CustomRevisionMap","old":null,"new":84},{"t":"+","c":"","old":null,"new":85},{"t":" ","c":"# the output encoding used when revision files","old":81,"new":86},{"t":" ","c":"# are written from script.py.mako","old":82,"new":87},{"t":" ","c":"# output_encoding = utf-8","old":83,"new":88}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h10":{"id":"h10","path":"alembic/templates/pyproject/pyproject.toml.mako","old_path":null,"language":null,"header":"@@ -53,6 +53,11 @@","old_start":53,"old_lines":6,"new_start":53,"new_lines":11,"section":"prepend_sys_path = [","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":53,"new":53},{"t":" ","c":"# recursive_version_locations = false","old":54,"new":54},{"t":" ","c":"","old":55,"new":55},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":56},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":57},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":58},{"t":"+","c":"# revision_map_class = \"mypackage.custom:CustomRevisionMap\"","old":null,"new":59},{"t":"+","c":"","old":null,"new":60},{"t":" ","c":"# the output encoding used when revision files","old":56,"new":61},{"t":" ","c":"# are written from script.py.mako","old":57,"new":62},{"t":" ","c":"# output_encoding = \"utf-8\"","old":58,"new":63}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h11":{"id":"h11","path":"alembic/templates/pyproject_async/pyproject.toml.mako","old_path":null,"language":null,"header":"@@ -53,6 +53,11 @@","old_start":53,"old_lines":6,"new_start":53,"new_lines":11,"section":"prepend_sys_path = [","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":53,"new":53},{"t":" ","c":"# recursive_version_locations = false","old":54,"new":54},{"t":" ","c":"","old":55,"new":55},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":56},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":57},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":58},{"t":"+","c":"# revision_map_class = \"mypackage.custom:CustomRevisionMap\"","old":null,"new":59},{"t":"+","c":"","old":null,"new":60},{"t":" ","c":"# the output encoding used when revision files","old":56,"new":61},{"t":" ","c":"# are written from script.py.mako","old":57,"new":62},{"t":" ","c":"# output_encoding = \"utf-8\"","old":58,"new":63}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h12":{"id":"h12","path":"alembic/util/__init__.py","old_path":null,"language":"python","header":"@@ -29,5 +29,6 @@","old_start":29,"old_lines":5,"new_start":29,"new_lines":6,"section":null,"lines":[{"t":" ","c":"from .pyfiles import coerce_resource_to_filename as coerce_resource_to_filename","old":29,"new":29},{"t":" ","c":"from .pyfiles import load_python_file as load_python_file","old":30,"new":30},{"t":" ","c":"from .pyfiles import pyc_file_from_path as pyc_file_from_path","old":31,"new":31},{"t":"+","c":"from .pyfiles import resolve_dotted_name as resolve_dotted_name","old":null,"new":32},{"t":" ","c":"from .pyfiles import template_to_file as template_to_file","old":32,"new":33},{"t":" ","c":"from .sqla_compat import sqla_2 as sqla_2","old":33,"new":34}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h13":{"id":"h13","path":"alembic/util/pyfiles.py","old_path":null,"language":"python","header":"@@ -21,6 +21,41 @@","old_start":21,"old_lines":6,"new_start":21,"new_lines":41,"section":null,"lines":[{"t":" ","c":"from .exc import CommandError","old":21,"new":21},{"t":" ","c":"","old":22,"new":22},{"t":" ","c":"","old":23,"new":23},{"t":"+","c":"def resolve_dotted_name(dotted_name: str) -> Any:","old":null,"new":24},{"t":"+","c":"    \"\"\"Resolve a dotted name string to a Python object.","old":null,"new":25},{"t":"+","c":"","old":null,"new":26},{"t":"+","c":"    Accepts either ``\"package.module:AttributeName\"`` format (preferred,","old":null,"new":27},{"t":"+","c":"    following setuptools entry point conventions) or","old":null,"new":28},{"t":"+","c":"    ``\"package.module.AttributeName\"`` format.","old":null,"new":29},{"t":"+","c":"","old":null,"new":30},{"t":"+","c":"    \"\"\"","old":null,"new":31},{"t":"+","c":"    if \":\" in dotted_name:","old":null,"new":32},{"t":"+","c":"        module_part, _, attr_part = dotted_name.partition(\":\")","old":null,"new":33},{"t":"+","c":"    elif \".\" in dotted_name:","old":null,"new":34},{"t":"+","c":"        module_part, _, attr_part = dotted_name.rpartition(\".\")","old":null,"new":35},{"t":"+","c":"    else:","old":null,"new":36},{"t":"+","c":"        raise CommandError(","old":null,"new":37},{"t":"+","c":"            f\"Could not resolve dotted name '{dotted_name}'; expected \"","old":null,"new":38},{"t":"+","c":"            \"format 'package.module:ClassName' or 'package.module.ClassName'\"","old":null,"new":39},{"t":"+","c":"        )","old":null,"new":40},{"t":"+","c":"","old":null,"new":41},{"t":"+","c":"    try:","old":null,"new":42},{"t":"+","c":"        module = importlib.import_module(module_part)","old":null,"new":43},{"t":"+","c":"    except ImportError as ie:","old":null,"new":44},{"t":"+","c":"        raise CommandError(","old":null,"new":45},{"t":"+","c":"            f\"Could not import module '{module_part}' \"","old":null,"new":46},{"t":"+","c":"            f\"from dotted name '{dotted_name}'\"","old":null,"new":47},{"t":"+","c":"        ) from ie","old":null,"new":48},{"t":"+","c":"","old":null,"new":49},{"t":"+","c":"    try:","old":null,"new":50},{"t":"+","c":"        return getattr(module, attr_part)","old":null,"new":51},{"t":"+","c":"    except AttributeError as ae:","old":null,"new":52},{"t":"+","c":"        raise CommandError(","old":null,"new":53},{"t":"+","c":"            f\"Module '{module_part}' has no attribute '{attr_part}' \"","old":null,"new":54},{"t":"+","c":"            f\"(from dotted name '{dotted_name}')\"","old":null,"new":55},{"t":"+","c":"        ) from ae","old":null,"new":56},{"t":"+","c":"","old":null,"new":57},{"t":"+","c":"","old":null,"new":58},{"t":" ","c":"def template_to_file(","old":24,"new":59},{"t":" ","c":"    template_file: Union[str, os.PathLike[str]],","old":25,"new":60},{"t":" ","c":"    dest: Union[str, os.PathLike[str]],","old":26,"new":61}],"truncated":false,"change_kind":"new_logic","significance":"core"},"h14":{"id":"h14","path":"docs/build/unreleased/revision_map_class.rst","old_path":null,"language":"rst","header":"@@ -0,0 +1,13 @@","old_start":0,"old_lines":0,"new_start":1,"new_lines":13,"section":null,"lines":[{"t":"+","c":".. change::","old":null,"new":1},{"t":"+","c":"    :tags: usecase, scripts","old":null,"new":2},{"t":"+","c":"    :tickets:","old":null,"new":3},{"t":"+","c":"","old":null,"new":4},{"t":"+","c":"    Added a ``revision_map_class`` configuration option to","old":null,"new":5},{"t":"+","c":"    :class:`.ScriptDirectory`, allowing a custom subclass of","old":null,"new":6},{"t":"+","c":"    :class:`.RevisionMap` to be specified.  This enables external packages to","old":null,"new":7},{"t":"+","c":"    implement custom revision ordering logic, such as ordering based on git","old":null,"new":8},{"t":"+","c":"    history, without changes to Alembic core.  The option can be set in","old":null,"new":9},{"t":"+","c":"    ``alembic.ini`` or ``pyproject.toml`` using a dotted Python path in","old":null,"new":10},{"t":"+","c":"    ``\"module:ClassName\"`` format.  :class:`.RevisionMap` is now also exported","old":null,"new":11},{"t":"+","c":"    from the ``alembic.script`` package for convenient subclassing.","old":null,"new":12},{"t":"+","c":"","old":null,"new":13}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h15":{"id":"h15","path":"tests/test_config.py","old_path":null,"language":"python","header":"@@ -46,6 +46,41 @@","old_start":46,"old_lines":6,"new_start":46,"new_lines":41,"section":"def tearDown(self):","lines":[{"t":" ","c":"        clear_staging_env()","old":46,"new":46},{"t":" ","c":"","old":47,"new":47},{"t":" ","c":"","old":48,"new":48},{"t":"+","c":"class ResolveDottedNameTest(TestBase):","old":null,"new":49},{"t":"+","c":"    def test_colon_format(self):","old":null,"new":50},{"t":"+","c":"        result = util.resolve_dotted_name(\"collections:OrderedDict\")","old":null,"new":51},{"t":"+","c":"        from collections import OrderedDict","old":null,"new":52},{"t":"+","c":"","old":null,"new":53},{"t":"+","c":"        assert result is OrderedDict","old":null,"new":54},{"t":"+","c":"","old":null,"new":55},{"t":"+","c":"    def test_dot_format(self):","old":null,"new":56},{"t":"+","c":"        result = util.resolve_dotted_name(\"collections.OrderedDict\")","old":null,"new":57},{"t":"+","c":"        from collections import OrderedDict","old":null,"new":58},{"t":"+","c":"","old":null,"new":59},{"t":"+","c":"        assert result is OrderedDict","old":null,"new":60},{"t":"+","c":"","old":null,"new":61},{"t":"+","c":"    def test_invalid_no_separator(self):","old":null,"new":62},{"t":"+","c":"        with expect_raises_message(","old":null,"new":63},{"t":"+","c":"            util.CommandError,","old":null,"new":64},{"t":"+","c":"            r\"Could not resolve dotted name\",","old":null,"new":65},{"t":"+","c":"        ):","old":null,"new":66},{"t":"+","c":"            util.resolve_dotted_name(\"justaplainname\")","old":null,"new":67},{"t":"+","c":"","old":null,"new":68},{"t":"+","c":"    def test_bad_module(self):","old":null,"new":69},{"t":"+","c":"        with expect_raises_message(","old":null,"new":70},{"t":"+","c":"            util.CommandError,","old":null,"new":71},{"t":"+","c":"            r\"Could not import module\",","old":null,"new":72},{"t":"+","c":"        ):","old":null,"new":73},{"t":"+","c":"            util.resolve_dotted_name(\"nonexistent.module:Foo\")","old":null,"new":74},{"t":"+","c":"","old":null,"new":75},{"t":"+","c":"    def test_bad_attr(self):","old":null,"new":76},{"t":"+","c":"        with expect_raises_message(","old":null,"new":77},{"t":"+","c":"            util.CommandError,","old":null,"new":78},{"t":"+","c":"            r\"has no attribute\",","old":null,"new":79},{"t":"+","c":"        ):","old":null,"new":80},{"t":"+","c":"            util.resolve_dotted_name(\"collections:NoSuchThing\")","old":null,"new":81},{"t":"+","c":"","old":null,"new":82},{"t":"+","c":"","old":null,"new":83},{"t":" ","c":"class ConfigTest(TestBase):","old":49,"new":84},{"t":" ","c":"    def test_config_logging_with_file(self):","old":50,"new":85},{"t":" ","c":"        buf = io.StringIO()","old":51,"new":86}],"truncated":false,"change_kind":"new_logic","significance":"supporting"},"h16":{"id":"h16","path":"tests/test_config.py","old_path":null,"language":"python","header":"@@ -752,6 +787,83 @@","old_start":752,"old_lines":6,"new_start":787,"new_lines":83,"section":"def test_setting(self):","lines":[{"t":" ","c":"        eq_(script.output_encoding, \"latin-1\")","old":752,"new":787},{"t":" ","c":"","old":753,"new":788},{"t":" ","c":"","old":754,"new":789},{"t":"+","c":"class RevisionMapClassTest(TestBase):","old":null,"new":790},{"t":"+","c":"    def setUp(self):","old":null,"new":791},{"t":"+","c":"        self.env = staging_env()","old":null,"new":792},{"t":"+","c":"        self.cfg = _no_sql_testing_config()","old":null,"new":793},{"t":"+","c":"","old":null,"new":794},{"t":"+","c":"    def tearDown(self):","old":null,"new":795},{"t":"+","c":"        clear_staging_env()","old":null,"new":796},{"t":"+","c":"","old":null,"new":797},{"t":"+","c":"    def test_default_revision_map_class(self):","old":null,"new":798},{"t":"+","c":"        from alembic.script.revision import RevisionMap","old":null,"new":799},{"t":"+","c":"","old":null,"new":800},{"t":"+","c":"        script = ScriptDirectory.from_config(self.cfg)","old":null,"new":801},{"t":"+","c":"        assert type(script.revision_map) is RevisionMap","old":null,"new":802},{"t":"+","c":"","old":null,"new":803},{"t":"+","c":"    def test_custom_class_via_constructor(self):","old":null,"new":804},{"t":"+","c":"        from alembic.script.revision import RevisionMap","old":null,"new":805},{"t":"+","c":"","old":null,"new":806},{"t":"+","c":"        class CustomRevisionMap(RevisionMap):","old":null,"new":807},{"t":"+","c":"            pass","old":null,"new":808},{"t":"+","c":"","old":null,"new":809},{"t":"+","c":"        script = ScriptDirectory(","old":null,"new":810},{"t":"+","c":"            self.cfg.get_main_option(\"script_location\"),","old":null,"new":811},{"t":"+","c":"            revision_map_class=CustomRevisionMap,","old":null,"new":812},{"t":"+","c":"        )","old":null,"new":813},{"t":"+","c":"        assert type(script.revision_map) is CustomRevisionMap","old":null,"new":814},{"t":"+","c":"","old":null,"new":815},{"t":"+","c":"    def test_custom_class_from_config(self):","old":null,"new":816},{"t":"+","c":"        self.cfg.set_main_option(","old":null,"new":817},{"t":"+","c":"            \"revision_map_class\",","old":null,"new":818},{"t":"+","c":"            \"alembic.script.revision:RevisionMap\",","old":null,"new":819},{"t":"+","c":"        )","old":null,"new":820},{"t":"+","c":"        script = ScriptDirectory.from_config(self.cfg)","old":null,"new":821},{"t":"+","c":"        from alembic.script.revision import RevisionMap","old":null,"new":822},{"t":"+","c":"","old":null,"new":823},{"t":"+","c":"        assert type(script.revision_map) is RevisionMap","old":null,"new":824},{"t":"+","c":"","old":null,"new":825},{"t":"+","c":"    def test_invalid_not_a_subclass(self):","old":null,"new":826},{"t":"+","c":"        self.cfg.set_main_option(","old":null,"new":827},{"t":"+","c":"            \"revision_map_class\",","old":null,"new":828},{"t":"+","c":"            \"collections:OrderedDict\",","old":null,"new":829},{"t":"+","c":"        )","old":null,"new":830},{"t":"+","c":"        with expect_raises_message(","old":null,"new":831},{"t":"+","c":"            util.CommandError,","old":null,"new":832},{"t":"+","c":"            r\"revision_map_class.*must be a subclass of \"","old":null,"new":833},{"t":"+","c":"            r\"alembic.script.revision.RevisionMap\",","old":null,"new":834},{"t":"+","c":"        ):","old":null,"new":835},{"t":"+","c":"            ScriptDirectory.from_config(self.cfg)","old":null,"new":836},{"t":"+","c":"","old":null,"new":837},{"t":"+","c":"    def test_invalid_unresolvable_module(self):","old":null,"new":838},{"t":"+","c":"        self.cfg.set_main_option(","old":null,"new":839},{"t":"+","c":"            \"revision_map_class\",","old":null,"new":840},{"t":"+","c":"            \"nonexistent.module:FakeClass\",","old":null,"new":841},{"t":"+","c":"        )","old":null,"new":842},{"t":"+","c":"        with expect_raises_message(","old":null,"new":843},{"t":"+","c":"            util.CommandError,","old":null,"new":844},{"t":"+","c":"            r\"Could not import module 'nonexistent.module'\",","old":null,"new":845},{"t":"+","c":"        ):","old":null,"new":846},{"t":"+","c":"            ScriptDirectory.from_config(self.cfg)","old":null,"new":847},{"t":"+","c":"","old":null,"new":848},{"t":"+","c":"    def test_invalid_unresolvable_attr(self):","old":null,"new":849},{"t":"+","c":"        self.cfg.set_main_option(","old":null,"new":850},{"t":"+","c":"            \"revision_map_class\",","old":null,"new":851},{"t":"+","c":"            \"alembic.script.revision:NoSuchClass\",","old":null,"new":852},{"t":"+","c":"        )","old":null,"new":853},{"t":"+","c":"        with expect_raises_message(","old":null,"new":854},{"t":"+","c":"            util.CommandError,","old":null,"new":855},{"t":"+","c":"            r\"has no attribute 'NoSuchClass'\",","old":null,"new":856},{"t":"+","c":"        ):","old":null,"new":857},{"t":"+","c":"            ScriptDirectory.from_config(self.cfg)","old":null,"new":858},{"t":"+","c":"","old":null,"new":859},{"t":"+","c":"    def test_revision_map_exported_from_script_package(self):","old":null,"new":860},{"t":"+","c":"        from alembic.script import RevisionMap","old":null,"new":861},{"t":"+","c":"        from alembic.script.revision import RevisionMap as DirectRevisionMap","old":null,"new":862},{"t":"+","c":"","old":null,"new":863},{"t":"+","c":"        assert RevisionMap is DirectRevisionMap","old":null,"new":864},{"t":"+","c":"","old":null,"new":865},{"t":"+","c":"","old":null,"new":866},{"t":" ","c":"class CommandLineTest(TestBase):","old":755,"new":867},{"t":" ","c":"    def test_register_command(self):","old":756,"new":868},{"t":" ","c":"        cli = config.CommandLine()","old":757,"new":869}],"truncated":false,"change_kind":"new_logic","significance":"supporting"}}}</script>
+<script id="precis-model" type="application/json">{"schema_version":"1.2","source":{"kind":"github_pr","title":"Add configurable revision_map_class option","identifier":"#1805","url":"https://github.com/sqlalchemy/alembic/pull/1805","repo":"sqlalchemy/alembic","author":"jasonwbarnett","base":{"ref":"main","sha":"02d72c21d97c0f62b43d4856b60767524f17a00f"},"head":{"ref":"add-configurable-revision-map-class","sha":"e70c62d9d31517ade6c7e249a776c4fb1f325bb4"},"commits":[{"sha":"e70c62d","subject":"Add configurable revision_map_class option to ScriptDirectory"}],"linked_issues":[{"id":"#1804","title":"Allow custom RevisionMap subclass for pluggable revision ordering","url":"https://github.com/sqlalchemy/alembic/issues/1804"}],"description":"Closes #1804\n\n## Summary\n\n- Adds a `revision_map_class` configuration option to `ScriptDirectory`, allowing a custom `RevisionMap` subclass to be specified via `alembic.ini` or `pyproject.toml` using a dotted Python path (e.g. `mypackage.custom:CustomRevisionMap`)\n- Adds a `resolve_dotted_name()` utility for resolving `\"module:ClassName\"` strings to Python objects, with clear error messages for import/attribute failures\n- Exports `RevisionMap` from the `alembic.script` package for convenient subclassing\n\n## Motivation\n\nSee #1804 for full context. In short: there is currently no way to customize how Alembic orders concurrent, unrelated migrations (multiple heads) without monkey-patching. This small change (one new keyword argument with a `None` default, entirely opt-in) opens up an extension point for external packages to implement custom ordering — such as git-history-based ordering — by subclassing `RevisionMap` and overriding `_topological_sort()`.\n\n## Changes\n\n- **`alembic/util/pyfiles.py`**: New `resolve_dotted_name()` utility\n- **`alembic/script/base.py`**: New `revision_map_class` parameter on `ScriptDirectory.__init__()` and `from_config()`, with subclass validation\n- **`alembic/script/__init__.py`**: Export `RevisionMap` for convenient subclassing\n- **Templates**: Commented-out `revision_map_class` option in all ini/toml templates\n- **Tests**: 12 new tests for the utility function, config integration, and validation\n- **Changelog**: `docs/build/unreleased/revision_map_class.rst`\n\n## Test plan\n\n- [x] `resolve_dotted_name()` tests (colon format, dot format, error cases)\n- [x] `revision_map_class` via constructor and via `from_config()`\n- [x] Validation rejects non-subclasses, unresolvable modules/attributes\n- [x] `RevisionMap` properly exported from `alembic.script`\n- [x] Full `test_config.py` suite passes (75 tests)","generated_by":"precis 0.1.0","generated_at":"2026-08-09T10:20:00Z"},"coverage":{"tier":"full","hunks_read":16,"files_read":11,"note":"Every hunk read in full. Callers and the override target resolved against the checkout at the PR head.","limitations":["No packaged `RevisionMap` subclass exists to read; the new extension point is exercised only by the tests here."],"hunks_total":16,"files_total":11},"stats":{"signal_ratio":0.31,"changed_lines_by_kind":{"new_logic":147,"modified_logic":31,"content":38},"files_changed":11,"additions":214,"deletions":2,"hunks":16,"changed_lines_by_role":{"docs":13,"persistence":91,"tests":112}},"story":{"headline":"`ScriptDirectory` will build a `RevisionMap` subclass named in config instead of the built-in one.","beats":[{"label":"Need","text":"The order of unrelated concurrent heads came from `RevisionMap`, with no way in but a patch."},{"label":"Now","text":"`revision_map_class` takes a dotted name, resolved and checked before it is used."},{"label":"Next","text":"Nothing subclasses it here. The ordering itself is unchanged; only who decides it can move."}],"shape":"feature","tests":{"state":"partial","note":"`test_config.py` pins reading and the subclass check; nothing runs a command with a custom map."},"confidence":"high","evidence":["pr_description","commit_messages","code"],"caveat":null,"intent_delta":{"stated":"This small change (one new keyword argument with a `None` default, entirely opt-in) opens up an extension point for external packages.","also_does":[{"summary":"Adds `resolve_dotted_name`, a general utility exported from `alembic.util`, not scoped to this option.","where":["alembic/util/pyfiles.py","alembic/util/__init__.py"],"hunk_ids":["h12","h13"],"kind":"incidental"},{"summary":"It accepts `module.Class` as well as the `module:Class` form the templates and changelog document.","where":["alembic/util/pyfiles.py"],"hunk_ids":["h13"],"kind":"incidental"}],"not_done":[]}},"change_map":{"summary":"One new utility, one parameter threaded through two constructors, and the same comment block in five scaffolds.","graph":{"nodes":[{"id":"n1","label":"command.upgrade()","kind":"entrypoint","emphasis":"unchanged","hunk_ids":[],"note":"One of fifteen commands that reach `from_config`, at command.py:252 and below."},{"id":"n2","label":"ScriptDirectory.from_config()","kind":"function","emphasis":"changed","path":"alembic/script/base.py","hunk_ids":["h5","h6"],"note":"Reads the option, resolves it, and rejects anything that is not a subclass."},{"id":"n3","label":"ScriptDirectory.__init__()","kind":"function","emphasis":"changed","path":"alembic/script/base.py","hunk_ids":["h3","h4"],"note":"Takes the class as a keyword argument and instantiates whatever it is given."},{"id":"n4","label":"resolve_dotted_name()","kind":"function","emphasis":"added","path":"alembic/util/pyfiles.py","hunk_ids":["h13"],"note":"Imports the module, returns the attribute, raises `CommandError` on failure."},{"id":"n5","label":"get_alembic_option()","kind":"config","emphasis":"unchanged","hunk_ids":[],"note":"Searches the ini section first and `[tool.alembic]` in pyproject.toml second."},{"id":"n6","label":"revision.RevisionMap","kind":"type","emphasis":"unchanged","hunk_ids":[],"note":"Still the default, and now also the base class the resolved name has to satisfy."},{"id":"n7","label":"_topological_sort()","kind":"function","emphasis":"unchanged","hunk_ids":[],"note":"The method the description names as the reason for the extension point."}],"edges":[{"from":"n1","to":"n2","kind":"calls","emphasis":"unchanged","evidence":{"ref":"alembic/command.py:252"}},{"from":"n2","to":"n5","kind":"reads","emphasis":"added","label":"the option","evidence":{"hunk_ids":["h5"]}},{"from":"n2","to":"n4","kind":"calls","emphasis":"added","evidence":{"hunk_ids":["h5"]}},{"from":"n2","to":"n6","kind":"reads","emphasis":"added","label":"issubclass","evidence":{"hunk_ids":["h5"]}},{"from":"n2","to":"n3","kind":"calls","emphasis":"changed","label":"revision_map_class","evidence":{"hunk_ids":["h6"]}},{"from":"n3","to":"n6","kind":"calls","emphasis":"changed","label":"or the subclass","evidence":{"hunk_ids":["h4"]}},{"from":"n6","to":"n7","kind":"calls","emphasis":"unchanged","evidence":{"ref":"alembic/script/revision.py:822"}}]},"groups":[{"id":"g-core","role":"domain","label":"The option and its plumbing","narrative":"`resolve_dotted_name` is new in `util.pyfiles`, and `ScriptDirectory` uses it to build whatever class `revision_map_class` names in config, in place of the hard-coded `RevisionMap(...)` - the one removed line in the change. Two `__init__` edits make the pieces reachable: the resolver is re-exported, and `RevisionMap` joins `__all__` so subclassing needs no private import.","files":[{"path":"alembic/util/pyfiles.py","status":"modified","change_kind":"new_logic","significance":"core","additions":35,"deletions":0,"hunk_ids":["h13"],"note":"One new function. `importlib` and `Any` were already imported, so nothing else moved."},{"path":"alembic/script/base.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":26,"deletions":1,"hunk_ids":["h2","h3","h4","h5","h6"],"note":"The only line removed in the whole change is the hard-coded `RevisionMap(...)` at line 98."},{"path":"alembic/util/__init__.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":1,"deletions":0,"hunk_ids":["h12"],"note":"Re-export, which is what makes `util.resolve_dotted_name` work in `base.py`."},{"path":"alembic/script/__init__.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":2,"deletions":1,"hunk_ids":["h1"],"note":"`RevisionMap` joins `__all__`, so subclassing needs no private import."}]},{"id":"g-templates","role":"config","label":"Scaffold templates","narrative":"Every project template alembic can generate gains the same commented example of the new setting, five lines each. The ini and toml variants differ only in quoting.","files":[{"path":"alembic/templates/generic/alembic.ini.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h8"],"note":"Four comment lines and a commented setting, placed after `recursive_version_locations`."},{"path":"alembic/templates/async/alembic.ini.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h7"]},{"path":"alembic/templates/multidb/alembic.ini.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h9"]},{"path":"alembic/templates/pyproject/pyproject.toml.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h10"],"note":"Same block, with the value quoted for toml."},{"path":"alembic/templates/pyproject_async/pyproject.toml.mako","status":"modified","change_kind":"content","significance":"mechanical","additions":5,"deletions":0,"hunk_ids":["h11"]}]},{"id":"g-tests","role":"tests","label":"Config tests","narrative":"Two new classes in `test_config.py`, half the changed lines in the pull request: one exercises the resolver against both failure paths, the other drives the option end to end through both config formats.","files":[{"path":"tests/test_config.py","status":"modified","change_kind":"new_logic","significance":"supporting","additions":112,"deletions":0,"hunk_ids":["h15","h16"],"note":"Half the changed lines in the pull request. Both failure paths and both formats are covered."}]},{"id":"g-docs","role":"docs","label":"Changelog entry","narrative":"The unreleased-notes file that becomes a line in the release notes, tagged `usecase, scripts`, with no ticket number filled in. Nothing else in the docs tree moves.","files":[{"path":"docs/build/unreleased/revision_map_class.rst","status":"added","change_kind":"content","significance":"mechanical","additions":13,"deletions":0,"hunk_ids":["h14"],"note":"Tagged `usecase, scripts`, with no ticket number filled in."}]}]},"contracts":[{"id":"c1","kind":"config","name":"revision_map_class","before":null,"after":"dotted path to a RevisionMap subclass (default alembic.script.revision.RevisionMap)","note":"Read in `from_config()`; a value that is not a RevisionMap subclass raises CommandError.","hunk_ids":["h5"]},{"id":"c2","kind":"api","name":"ScriptDirectory(revision_map_class=...)","before":"ScriptDirectory(...) always builds revision.RevisionMap","after":"optional revision_map_class keyword; None keeps the built-in map","hunk_ids":["h2","h3","h4"]}],"behavior":{"changed":true,"note":null,"summary":"With the option unset the built object is what it was. With it set, `from_config` resolves the dotted name, refuses a class that is not a `RevisionMap`, and passes it on.","before":{"kind":"flow","title":"Before","nodes":[{"id":"b1","label":"alembic upgrade head","kind":"start","emphasis":"unchanged"},{"id":"b2","label":"ScriptDirectory.from_config()","kind":"process","emphasis":"unchanged"},{"id":"b3","label":"ScriptDirectory.__init__()","kind":"process","emphasis":"unchanged"},{"id":"b4","label":"revision.RevisionMap(self._load_revisions)","kind":"end","emphasis":"unchanged"}],"edges":[{"from":"b1","to":"b2","kind":"call","emphasis":"unchanged"},{"from":"b2","to":"b3","kind":"call","emphasis":"unchanged"},{"from":"b3","to":"b4","kind":"call","emphasis":"unchanged","label":"always"}]},"after":{"kind":"flow","title":"After","nodes":[{"id":"a1","label":"alembic upgrade head","kind":"start","emphasis":"unchanged"},{"id":"a2","label":"ScriptDirectory.from_config()","kind":"process","emphasis":"unchanged"},{"id":"a3","label":"revision_map_class set?","kind":"decision","emphasis":"added"},{"id":"a4","label":"resolve_dotted_name()","kind":"process","emphasis":"added"},{"id":"a5","label":"subclass of RevisionMap?","kind":"decision","emphasis":"added"},{"id":"a6","label":"CommandError","kind":"end","emphasis":"added"},{"id":"a7","label":"ScriptDirectory.__init__()","kind":"process","emphasis":"unchanged"},{"id":"a8","label":"revision.RevisionMap(self._load_revisions)","kind":"end","emphasis":"unchanged"},{"id":"a9","label":"revision_map_cls(self._load_revisions)","kind":"end","emphasis":"added"}],"edges":[{"from":"a1","to":"a2","kind":"call","emphasis":"unchanged"},{"from":"a2","to":"a3","kind":"call","emphasis":"added","hunk_ids":["h5"]},{"from":"a3","to":"a7","kind":"call","emphasis":"unchanged","label":"no"},{"from":"a3","to":"a4","kind":"call","emphasis":"added","label":"yes","hunk_ids":["h5"]},{"from":"a4","to":"a5","kind":"call","emphasis":"added","hunk_ids":["h5"]},{"from":"a5","to":"a6","kind":"error","emphasis":"added","label":"no","hunk_ids":["h5"]},{"from":"a5","to":"a7","kind":"call","emphasis":"added","label":"yes","hunk_ids":["h6"]},{"from":"a7","to":"a8","kind":"call","emphasis":"unchanged","label":"default"},{"from":"a7","to":"a9","kind":"call","emphasis":"added","label":"configured","hunk_ids":["h4"]}]},"deltas":[{"summary":"`from_config` gains a resolve-and-check step before it builds anything.","hunk_ids":["h5"]},{"summary":"`__init__` picks the class instead of naming it.","hunk_ids":["h4"]},{"summary":"A misconfigured name now fails the command rather than the migration.","hunk_ids":["h5","h13"]}]},"review_pass":{"estimated_minutes":8,"steps":[{"n":1,"title":"The resolver","why":"Everything else depends on what this accepts and what it raises. It is the only genuinely new code.","path":"alembic/util/pyfiles.py","hunk_ids":["h13"],"annotations":[{"hunk_id":"h13","new_line":34,"text":"The second form is `rpartition`, so `a.b.C` splits at the last dot. The templates and the changelog document only the colon form."},{"hunk_id":"h13","new_line":43,"text":"`import_module` runs the target module at this point, which is inside every alembic command, not inside a migration."}]},{"n":2,"title":"The keyword argument","why":"The constructor is the direct entry point, and it is where the default is decided.","path":"alembic/script/base.py","hunk_ids":["h2","h3","h4"],"annotations":[{"hunk_id":"h4","new_line":102,"text":"The one removed line in the change was here: `self.revision_map = revision.RevisionMap(self._load_revisions)`."},{"hunk_id":"h4","new_line":107,"text":"Whatever arrived is called. This path performs no subclass check of its own."}]},{"n":3,"title":"Reading and checking the option","why":"The config path is the one users reach, and the only one that validates.","path":"alembic/script/base.py","hunk_ids":["h5","h6"],"annotations":[{"hunk_id":"h5","new_line":197,"text":"`get_alembic_option` reads the ini section first and `[tool.alembic]` in pyproject.toml second, so an ini value wins."},{"hunk_id":"h5","new_line":204,"text":"`CommandError` is what alembic prints as a message rather than a traceback, so this surfaces as a command failure."},{"hunk_id":"h6","new_line":225,"text":"The keyword is passed last, alongside the other options `from_config` collects."}]},{"n":4,"title":"The two exports","why":"One line each in two `__init__` files, both load-bearing: `util.resolve_dotted_name` in step 3, and `RevisionMap` for subclassing.","path":"alembic/script/__init__.py","hunk_ids":["h1","h12"],"annotations":[]},{"n":5,"title":"What the tests pin","why":"Half the changed lines. They state the accepted formats, both failure messages, and that the default is untouched.","path":"tests/test_config.py","hunk_ids":["h15","h16"],"annotations":[{"hunk_id":"h16","new_line":795,"text":"`type(script.revision_map) is RevisionMap` rather than isinstance, so a subclass would fail this."},{"hunk_id":"h16","new_line":806,"text":"The constructor path is tested with a subclass, and the config path with a rejection. Neither test sets a subclass through config."}]}],"checks":[{"kind":"public_api","title":"Only the config path checks the subclass","why":"`from_config` raises `CommandError` at base.py:204 for a class that is not a `RevisionMap`. `ScriptDirectory(...)` called directly instantiates whatever it is handed.","question":"Do you build `ScriptDirectory` directly anywhere, where that check does not run?","path":"alembic/script/base.py","hunk_ids":["h4","h5"]},{"kind":"dependency_surface","title":"A dotted name is imported during every command","why":"`resolve_dotted_name` calls `importlib.import_module` inside `from_config`, which runs for all fifteen commands in `alembic/command.py`.","question":"Is the module holding your subclass importable in every environment that runs an alembic command, including CI and containers?","path":"alembic/util/pyfiles.py","hunk_ids":["h13"]},{"kind":"config_surface","title":"The same key can be set in two files","why":"`get_alembic_option` searches the configparser section before the toml one, so a value in `alembic.ini` takes precedence over `[tool.alembic]`.","question":"Do any of your environments carry both an `alembic.ini` and a `[tool.alembic]` block?","path":"alembic/script/base.py","hunk_ids":["h5"]},{"kind":"behavioral","title":"`_topological_sort` decides the order migrations run in","why":"It is called from `iterate_revisions` at revision.py:822, which is the walk behind upgrade and downgrade. The description names it as the method a subclass would override.","question":"Would a different ordering of concurrent unrelated heads be safe to apply in your deployments?","path":"alembic/script/base.py","hunk_ids":["h4"]}],"skippable":[{"label":"Scaffold templates","reason":"The same five commented lines in each of the five project templates, differing only in toml quoting. They run no code.","confidence":"high","file_count":5,"additions":25,"deletions":0,"group_ids":["g-templates"],"files":["alembic/templates/async/alembic.ini.mako","alembic/templates/generic/alembic.ini.mako","alembic/templates/multidb/alembic.ini.mako","alembic/templates/pyproject/pyproject.toml.mako","alembic/templates/pyproject_async/pyproject.toml.mako"]},{"label":"Changelog entry","reason":"Restates the option for the release notes. The wording matches the comment block in the templates and the docstring in step 1.","confidence":"high","file_count":1,"additions":13,"deletions":0,"group_ids":["g-docs"],"files":["docs/build/unreleased/revision_map_class.rst"]}]},"seams":{"detected":false,"note":null},"hunks":{"h1":{"id":"h1","path":"alembic/script/__init__.py","old_path":null,"language":"python","header":"@@ -1,4 +1,5 @@","old_start":1,"old_lines":4,"new_start":1,"new_lines":5,"section":null,"lines":[{"t":" ","c":"from .base import Script","old":1,"new":1},{"t":" ","c":"from .base import ScriptDirectory","old":2,"new":2},{"t":"+","c":"from .revision import RevisionMap","old":null,"new":3},{"t":" ","c":"","old":3,"new":4},{"t":"-","c":"__all__ = [\"ScriptDirectory\", \"Script\"]","old":4,"new":null},{"t":"+","c":"__all__ = [\"ScriptDirectory\", \"Script\", \"RevisionMap\"]","old":null,"new":5}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h2":{"id":"h2","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -16,6 +16,7 @@","old_start":16,"old_lines":6,"new_start":16,"new_lines":7,"section":null,"lines":[{"t":" ","c":"from typing import Sequence","old":16,"new":16},{"t":" ","c":"from typing import Set","old":17,"new":17},{"t":" ","c":"from typing import Tuple","old":18,"new":18},{"t":"+","c":"from typing import Type","old":null,"new":19},{"t":" ","c":"from typing import TYPE_CHECKING","old":19,"new":20},{"t":" ","c":"from typing import Union","old":20,"new":21},{"t":" ","c":"","old":21,"new":22}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h3":{"id":"h3","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -86,6 +87,9 @@","old_start":86,"old_lines":6,"new_start":87,"new_lines":9,"section":"def __init__(","lines":[{"t":" ","c":"        messaging_opts: MessagingOptions = cast(","old":86,"new":87},{"t":" ","c":"            \"MessagingOptions\", util.EMPTY_DICT","old":87,"new":88},{"t":" ","c":"        ),","old":88,"new":89},{"t":"+","c":"        revision_map_class: Optional[","old":null,"new":90},{"t":"+","c":"            Type[revision.RevisionMap]","old":null,"new":91},{"t":"+","c":"        ] = None,","old":null,"new":92},{"t":" ","c":"    ) -> None:","old":89,"new":93},{"t":" ","c":"        self.dir = _preserving_path_as_str(dir)","old":90,"new":94},{"t":" ","c":"        self.version_locations = [","old":91,"new":95}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h4":{"id":"h4","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -95,7 +99,12 @@","old_start":95,"old_lines":7,"new_start":99,"new_lines":12,"section":"def __init__(","lines":[{"t":" ","c":"        self.truncate_slug_length = truncate_slug_length or 40","old":95,"new":99},{"t":" ","c":"        self.sourceless = sourceless","old":96,"new":100},{"t":" ","c":"        self.output_encoding = output_encoding","old":97,"new":101},{"t":"-","c":"        self.revision_map = revision.RevisionMap(self._load_revisions)","old":98,"new":null},{"t":"+","c":"        revision_map_cls = (","old":null,"new":102},{"t":"+","c":"            revision_map_class","old":null,"new":103},{"t":"+","c":"            if revision_map_class is not None","old":null,"new":104},{"t":"+","c":"            else revision.RevisionMap","old":null,"new":105},{"t":"+","c":"        )","old":null,"new":106},{"t":"+","c":"        self.revision_map = revision_map_cls(self._load_revisions)","old":null,"new":107},{"t":" ","c":"        self.timezone = timezone","old":99,"new":108},{"t":" ","c":"        self.hooks = hooks","old":100,"new":109},{"t":" ","c":"        self.recursive_version_locations = recursive_version_locations","old":101,"new":110}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h5":{"id":"h5","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -183,6 +192,21 @@","old_start":183,"old_lines":6,"new_start":192,"new_lines":21,"section":"def from_config(cls, config: Config) -> ScriptDirectory:","lines":[{"t":" ","c":"            sys.path[:0] = prepend_sys_path","old":183,"new":192},{"t":" ","c":"","old":184,"new":193},{"t":" ","c":"        rvl = config.get_alembic_boolean_option(\"recursive_version_locations\")","old":185,"new":194},{"t":"+","c":"","old":null,"new":195},{"t":"+","c":"        revision_map_class: Optional[Type[revision.RevisionMap]] = None","old":null,"new":196},{"t":"+","c":"        rmc = config.get_alembic_option(\"revision_map_class\")","old":null,"new":197},{"t":"+","c":"        if rmc is not None:","old":null,"new":198},{"t":"+","c":"            resolved = util.resolve_dotted_name(rmc)","old":null,"new":199},{"t":"+","c":"            if not (","old":null,"new":200},{"t":"+","c":"                isinstance(resolved, type)","old":null,"new":201},{"t":"+","c":"                and issubclass(resolved, revision.RevisionMap)","old":null,"new":202},{"t":"+","c":"            ):","old":null,"new":203},{"t":"+","c":"                raise util.CommandError(","old":null,"new":204},{"t":"+","c":"                    f\"revision_map_class {rmc!r} must be a subclass of \"","old":null,"new":205},{"t":"+","c":"                    \"alembic.script.revision.RevisionMap\"","old":null,"new":206},{"t":"+","c":"                )","old":null,"new":207},{"t":"+","c":"            revision_map_class = resolved","old":null,"new":208},{"t":"+","c":"","old":null,"new":209},{"t":" ","c":"        return ScriptDirectory(","old":186,"new":210},{"t":" ","c":"            util.coerce_resource_to_filename(script_location),","old":187,"new":211},{"t":" ","c":"            file_template=config.get_alembic_option(","old":188,"new":212}],"truncated":false,"change_kind":"new_logic","significance":"core"},"h6":{"id":"h6","path":"alembic/script/base.py","old_path":null,"language":"python","header":"@@ -198,6 +222,7 @@","old_start":198,"old_lines":6,"new_start":222,"new_lines":7,"section":"def from_config(cls, config: Config) -> ScriptDirectory:","lines":[{"t":" ","c":"            hooks=config.get_hooks_list(),","old":198,"new":222},{"t":" ","c":"            recursive_version_locations=rvl,","old":199,"new":223},{"t":" ","c":"            messaging_opts=config.messaging_opts,","old":200,"new":224},{"t":"+","c":"            revision_map_class=revision_map_class,","old":null,"new":225},{"t":" ","c":"        )","old":201,"new":226},{"t":" ","c":"","old":202,"new":227},{"t":" ","c":"    @contextmanager","old":203,"new":228}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h7":{"id":"h7","path":"alembic/templates/async/alembic.ini.mako","old_path":null,"language":null,"header":"@@ -79,6 +79,11 @@","old_start":79,"old_lines":6,"new_start":79,"new_lines":11,"section":"path_separator = os","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":79,"new":79},{"t":" ","c":"# recursive_version_locations = false","old":80,"new":80},{"t":" ","c":"","old":81,"new":81},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":82},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":83},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":84},{"t":"+","c":"# revision_map_class = mypackage.custom:CustomRevisionMap","old":null,"new":85},{"t":"+","c":"","old":null,"new":86},{"t":" ","c":"# the output encoding used when revision files","old":82,"new":87},{"t":" ","c":"# are written from script.py.mako","old":83,"new":88},{"t":" ","c":"# output_encoding = utf-8","old":84,"new":89}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h8":{"id":"h8","path":"alembic/templates/generic/alembic.ini.mako","old_path":null,"language":null,"header":"@@ -79,6 +79,11 @@","old_start":79,"old_lines":6,"new_start":79,"new_lines":11,"section":"path_separator = os","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":79,"new":79},{"t":" ","c":"# recursive_version_locations = false","old":80,"new":80},{"t":" ","c":"","old":81,"new":81},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":82},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":83},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":84},{"t":"+","c":"# revision_map_class = mypackage.custom:CustomRevisionMap","old":null,"new":85},{"t":"+","c":"","old":null,"new":86},{"t":" ","c":"# the output encoding used when revision files","old":82,"new":87},{"t":" ","c":"# are written from script.py.mako","old":83,"new":88},{"t":" ","c":"# output_encoding = utf-8","old":84,"new":89}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h9":{"id":"h9","path":"alembic/templates/multidb/alembic.ini.mako","old_path":null,"language":null,"header":"@@ -78,6 +78,11 @@","old_start":78,"old_lines":6,"new_start":78,"new_lines":11,"section":"path_separator = os","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":78,"new":78},{"t":" ","c":"# recursive_version_locations = false","old":79,"new":79},{"t":" ","c":"","old":80,"new":80},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":81},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":82},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":83},{"t":"+","c":"# revision_map_class = mypackage.custom:CustomRevisionMap","old":null,"new":84},{"t":"+","c":"","old":null,"new":85},{"t":" ","c":"# the output encoding used when revision files","old":81,"new":86},{"t":" ","c":"# are written from script.py.mako","old":82,"new":87},{"t":" ","c":"# output_encoding = utf-8","old":83,"new":88}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h10":{"id":"h10","path":"alembic/templates/pyproject/pyproject.toml.mako","old_path":null,"language":null,"header":"@@ -53,6 +53,11 @@","old_start":53,"old_lines":6,"new_start":53,"new_lines":11,"section":"prepend_sys_path = [","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":53,"new":53},{"t":" ","c":"# recursive_version_locations = false","old":54,"new":54},{"t":" ","c":"","old":55,"new":55},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":56},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":57},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":58},{"t":"+","c":"# revision_map_class = \"mypackage.custom:CustomRevisionMap\"","old":null,"new":59},{"t":"+","c":"","old":null,"new":60},{"t":" ","c":"# the output encoding used when revision files","old":56,"new":61},{"t":" ","c":"# are written from script.py.mako","old":57,"new":62},{"t":" ","c":"# output_encoding = \"utf-8\"","old":58,"new":63}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h11":{"id":"h11","path":"alembic/templates/pyproject_async/pyproject.toml.mako","old_path":null,"language":null,"header":"@@ -53,6 +53,11 @@","old_start":53,"old_lines":6,"new_start":53,"new_lines":11,"section":"prepend_sys_path = [","lines":[{"t":" ","c":"# new in Alembic version 1.10","old":53,"new":53},{"t":" ","c":"# recursive_version_locations = false","old":54,"new":54},{"t":" ","c":"","old":55,"new":55},{"t":"+","c":"# specify a custom RevisionMap subclass for custom revision ordering logic.","old":null,"new":56},{"t":"+","c":"# the value is a dotted Python path in \"module:ClassName\" format.","old":null,"new":57},{"t":"+","c":"# the class must be a subclass of alembic.script.revision.RevisionMap.","old":null,"new":58},{"t":"+","c":"# revision_map_class = \"mypackage.custom:CustomRevisionMap\"","old":null,"new":59},{"t":"+","c":"","old":null,"new":60},{"t":" ","c":"# the output encoding used when revision files","old":56,"new":61},{"t":" ","c":"# are written from script.py.mako","old":57,"new":62},{"t":" ","c":"# output_encoding = \"utf-8\"","old":58,"new":63}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h12":{"id":"h12","path":"alembic/util/__init__.py","old_path":null,"language":"python","header":"@@ -29,5 +29,6 @@","old_start":29,"old_lines":5,"new_start":29,"new_lines":6,"section":null,"lines":[{"t":" ","c":"from .pyfiles import coerce_resource_to_filename as coerce_resource_to_filename","old":29,"new":29},{"t":" ","c":"from .pyfiles import load_python_file as load_python_file","old":30,"new":30},{"t":" ","c":"from .pyfiles import pyc_file_from_path as pyc_file_from_path","old":31,"new":31},{"t":"+","c":"from .pyfiles import resolve_dotted_name as resolve_dotted_name","old":null,"new":32},{"t":" ","c":"from .pyfiles import template_to_file as template_to_file","old":32,"new":33},{"t":" ","c":"from .sqla_compat import sqla_2 as sqla_2","old":33,"new":34}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h13":{"id":"h13","path":"alembic/util/pyfiles.py","old_path":null,"language":"python","header":"@@ -21,6 +21,41 @@","old_start":21,"old_lines":6,"new_start":21,"new_lines":41,"section":null,"lines":[{"t":" ","c":"from .exc import CommandError","old":21,"new":21},{"t":" ","c":"","old":22,"new":22},{"t":" ","c":"","old":23,"new":23},{"t":"+","c":"def resolve_dotted_name(dotted_name: str) -> Any:","old":null,"new":24},{"t":"+","c":"    \"\"\"Resolve a dotted name string to a Python object.","old":null,"new":25},{"t":"+","c":"","old":null,"new":26},{"t":"+","c":"    Accepts either ``\"package.module:AttributeName\"`` format (preferred,","old":null,"new":27},{"t":"+","c":"    following setuptools entry point conventions) or","old":null,"new":28},{"t":"+","c":"    ``\"package.module.AttributeName\"`` format.","old":null,"new":29},{"t":"+","c":"","old":null,"new":30},{"t":"+","c":"    \"\"\"","old":null,"new":31},{"t":"+","c":"    if \":\" in dotted_name:","old":null,"new":32},{"t":"+","c":"        module_part, _, attr_part = dotted_name.partition(\":\")","old":null,"new":33},{"t":"+","c":"    elif \".\" in dotted_name:","old":null,"new":34},{"t":"+","c":"        module_part, _, attr_part = dotted_name.rpartition(\".\")","old":null,"new":35},{"t":"+","c":"    else:","old":null,"new":36},{"t":"+","c":"        raise CommandError(","old":null,"new":37},{"t":"+","c":"            f\"Could not resolve dotted name '{dotted_name}'; expected \"","old":null,"new":38},{"t":"+","c":"            \"format 'package.module:ClassName' or 'package.module.ClassName'\"","old":null,"new":39},{"t":"+","c":"        )","old":null,"new":40},{"t":"+","c":"","old":null,"new":41},{"t":"+","c":"    try:","old":null,"new":42},{"t":"+","c":"        module = importlib.import_module(module_part)","old":null,"new":43},{"t":"+","c":"    except ImportError as ie:","old":null,"new":44},{"t":"+","c":"        raise CommandError(","old":null,"new":45},{"t":"+","c":"            f\"Could not import module '{module_part}' \"","old":null,"new":46},{"t":"+","c":"            f\"from dotted name '{dotted_name}'\"","old":null,"new":47},{"t":"+","c":"        ) from ie","old":null,"new":48},{"t":"+","c":"","old":null,"new":49},{"t":"+","c":"    try:","old":null,"new":50},{"t":"+","c":"        return getattr(module, attr_part)","old":null,"new":51},{"t":"+","c":"    except AttributeError as ae:","old":null,"new":52},{"t":"+","c":"        raise CommandError(","old":null,"new":53},{"t":"+","c":"            f\"Module '{module_part}' has no attribute '{attr_part}' \"","old":null,"new":54},{"t":"+","c":"            f\"(from dotted name '{dotted_name}')\"","old":null,"new":55},{"t":"+","c":"        ) from ae","old":null,"new":56},{"t":"+","c":"","old":null,"new":57},{"t":"+","c":"","old":null,"new":58},{"t":" ","c":"def template_to_file(","old":24,"new":59},{"t":" ","c":"    template_file: Union[str, os.PathLike[str]],","old":25,"new":60},{"t":" ","c":"    dest: Union[str, os.PathLike[str]],","old":26,"new":61}],"truncated":false,"change_kind":"new_logic","significance":"core"},"h14":{"id":"h14","path":"docs/build/unreleased/revision_map_class.rst","old_path":null,"language":"rst","header":"@@ -0,0 +1,13 @@","old_start":0,"old_lines":0,"new_start":1,"new_lines":13,"section":null,"lines":[{"t":"+","c":".. change::","old":null,"new":1},{"t":"+","c":"    :tags: usecase, scripts","old":null,"new":2},{"t":"+","c":"    :tickets:","old":null,"new":3},{"t":"+","c":"","old":null,"new":4},{"t":"+","c":"    Added a ``revision_map_class`` configuration option to","old":null,"new":5},{"t":"+","c":"    :class:`.ScriptDirectory`, allowing a custom subclass of","old":null,"new":6},{"t":"+","c":"    :class:`.RevisionMap` to be specified.  This enables external packages to","old":null,"new":7},{"t":"+","c":"    implement custom revision ordering logic, such as ordering based on git","old":null,"new":8},{"t":"+","c":"    history, without changes to Alembic core.  The option can be set in","old":null,"new":9},{"t":"+","c":"    ``alembic.ini`` or ``pyproject.toml`` using a dotted Python path in","old":null,"new":10},{"t":"+","c":"    ``\"module:ClassName\"`` format.  :class:`.RevisionMap` is now also exported","old":null,"new":11},{"t":"+","c":"    from the ``alembic.script`` package for convenient subclassing.","old":null,"new":12},{"t":"+","c":"","old":null,"new":13}],"truncated":false,"change_kind":"content","significance":"mechanical"},"h15":{"id":"h15","path":"tests/test_config.py","old_path":null,"language":"python","header":"@@ -46,6 +46,41 @@","old_start":46,"old_lines":6,"new_start":46,"new_lines":41,"section":"def tearDown(self):","lines":[{"t":" ","c":"        clear_staging_env()","old":46,"new":46},{"t":" ","c":"","old":47,"new":47},{"t":" ","c":"","old":48,"new":48},{"t":"+","c":"class ResolveDottedNameTest(TestBase):","old":null,"new":49},{"t":"+","c":"    def test_colon_format(self):","old":null,"new":50},{"t":"+","c":"        result = util.resolve_dotted_name(\"collections:OrderedDict\")","old":null,"new":51},{"t":"+","c":"        from collections import OrderedDict","old":null,"new":52},{"t":"+","c":"","old":null,"new":53},{"t":"+","c":"        assert result is OrderedDict","old":null,"new":54},{"t":"+","c":"","old":null,"new":55},{"t":"+","c":"    def test_dot_format(self):","old":null,"new":56},{"t":"+","c":"        result = util.resolve_dotted_name(\"collections.OrderedDict\")","old":null,"new":57},{"t":"+","c":"        from collections import OrderedDict","old":null,"new":58},{"t":"+","c":"","old":null,"new":59},{"t":"+","c":"        assert result is OrderedDict","old":null,"new":60},{"t":"+","c":"","old":null,"new":61},{"t":"+","c":"    def test_invalid_no_separator(self):","old":null,"new":62},{"t":"+","c":"        with expect_raises_message(","old":null,"new":63},{"t":"+","c":"            util.CommandError,","old":null,"new":64},{"t":"+","c":"            r\"Could not resolve dotted name\",","old":null,"new":65},{"t":"+","c":"        ):","old":null,"new":66},{"t":"+","c":"            util.resolve_dotted_name(\"justaplainname\")","old":null,"new":67},{"t":"+","c":"","old":null,"new":68},{"t":"+","c":"    def test_bad_module(self):","old":null,"new":69},{"t":"+","c":"        with expect_raises_message(","old":null,"new":70},{"t":"+","c":"            util.CommandError,","old":null,"new":71},{"t":"+","c":"            r\"Could not import module\",","old":null,"new":72},{"t":"+","c":"        ):","old":null,"new":73},{"t":"+","c":"            util.resolve_dotted_name(\"nonexistent.module:Foo\")","old":null,"new":74},{"t":"+","c":"","old":null,"new":75},{"t":"+","c":"    def test_bad_attr(self):","old":null,"new":76},{"t":"+","c":"        with expect_raises_message(","old":null,"new":77},{"t":"+","c":"            util.CommandError,","old":null,"new":78},{"t":"+","c":"            r\"has no attribute\",","old":null,"new":79},{"t":"+","c":"        ):","old":null,"new":80},{"t":"+","c":"            util.resolve_dotted_name(\"collections:NoSuchThing\")","old":null,"new":81},{"t":"+","c":"","old":null,"new":82},{"t":"+","c":"","old":null,"new":83},{"t":" ","c":"class ConfigTest(TestBase):","old":49,"new":84},{"t":" ","c":"    def test_config_logging_with_file(self):","old":50,"new":85},{"t":" ","c":"        buf = io.StringIO()","old":51,"new":86}],"truncated":false,"change_kind":"new_logic","significance":"supporting"},"h16":{"id":"h16","path":"tests/test_config.py","old_path":null,"language":"python","header":"@@ -752,6 +787,83 @@","old_start":752,"old_lines":6,"new_start":787,"new_lines":83,"section":"def test_setting(self):","lines":[{"t":" ","c":"        eq_(script.output_encoding, \"latin-1\")","old":752,"new":787},{"t":" ","c":"","old":753,"new":788},{"t":" ","c":"","old":754,"new":789},{"t":"+","c":"class RevisionMapClassTest(TestBase):","old":null,"new":790},{"t":"+","c":"    def setUp(self):","old":null,"new":791},{"t":"+","c":"        self.env = staging_env()","old":null,"new":792},{"t":"+","c":"        self.cfg = _no_sql_testing_config()","old":null,"new":793},{"t":"+","c":"","old":null,"new":794},{"t":"+","c":"    def tearDown(self):","old":null,"new":795},{"t":"+","c":"        clear_staging_env()","old":null,"new":796},{"t":"+","c":"","old":null,"new":797},{"t":"+","c":"    def test_default_revision_map_class(self):","old":null,"new":798},{"t":"+","c":"        from alembic.script.revision import RevisionMap","old":null,"new":799},{"t":"+","c":"","old":null,"new":800},{"t":"+","c":"        script = ScriptDirectory.from_config(self.cfg)","old":null,"new":801},{"t":"+","c":"        assert type(script.revision_map) is RevisionMap","old":null,"new":802},{"t":"+","c":"","old":null,"new":803},{"t":"+","c":"    def test_custom_class_via_constructor(self):","old":null,"new":804},{"t":"+","c":"        from alembic.script.revision import RevisionMap","old":null,"new":805},{"t":"+","c":"","old":null,"new":806},{"t":"+","c":"        class CustomRevisionMap(RevisionMap):","old":null,"new":807},{"t":"+","c":"            pass","old":null,"new":808},{"t":"+","c":"","old":null,"new":809},{"t":"+","c":"        script = ScriptDirectory(","old":null,"new":810},{"t":"+","c":"            self.cfg.get_main_option(\"script_location\"),","old":null,"new":811},{"t":"+","c":"            revision_map_class=CustomRevisionMap,","old":null,"new":812},{"t":"+","c":"        )","old":null,"new":813},{"t":"+","c":"        assert type(script.revision_map) is CustomRevisionMap","old":null,"new":814},{"t":"+","c":"","old":null,"new":815},{"t":"+","c":"    def test_custom_class_from_config(self):","old":null,"new":816},{"t":"+","c":"        self.cfg.set_main_option(","old":null,"new":817},{"t":"+","c":"            \"revision_map_class\",","old":null,"new":818},{"t":"+","c":"            \"alembic.script.revision:RevisionMap\",","old":null,"new":819},{"t":"+","c":"        )","old":null,"new":820},{"t":"+","c":"        script = ScriptDirectory.from_config(self.cfg)","old":null,"new":821},{"t":"+","c":"        from alembic.script.revision import RevisionMap","old":null,"new":822},{"t":"+","c":"","old":null,"new":823},{"t":"+","c":"        assert type(script.revision_map) is RevisionMap","old":null,"new":824},{"t":"+","c":"","old":null,"new":825},{"t":"+","c":"    def test_invalid_not_a_subclass(self):","old":null,"new":826},{"t":"+","c":"        self.cfg.set_main_option(","old":null,"new":827},{"t":"+","c":"            \"revision_map_class\",","old":null,"new":828},{"t":"+","c":"            \"collections:OrderedDict\",","old":null,"new":829},{"t":"+","c":"        )","old":null,"new":830},{"t":"+","c":"        with expect_raises_message(","old":null,"new":831},{"t":"+","c":"            util.CommandError,","old":null,"new":832},{"t":"+","c":"            r\"revision_map_class.*must be a subclass of \"","old":null,"new":833},{"t":"+","c":"            r\"alembic.script.revision.RevisionMap\",","old":null,"new":834},{"t":"+","c":"        ):","old":null,"new":835},{"t":"+","c":"            ScriptDirectory.from_config(self.cfg)","old":null,"new":836},{"t":"+","c":"","old":null,"new":837},{"t":"+","c":"    def test_invalid_unresolvable_module(self):","old":null,"new":838},{"t":"+","c":"        self.cfg.set_main_option(","old":null,"new":839},{"t":"+","c":"            \"revision_map_class\",","old":null,"new":840},{"t":"+","c":"            \"nonexistent.module:FakeClass\",","old":null,"new":841},{"t":"+","c":"        )","old":null,"new":842},{"t":"+","c":"        with expect_raises_message(","old":null,"new":843},{"t":"+","c":"            util.CommandError,","old":null,"new":844},{"t":"+","c":"            r\"Could not import module 'nonexistent.module'\",","old":null,"new":845},{"t":"+","c":"        ):","old":null,"new":846},{"t":"+","c":"            ScriptDirectory.from_config(self.cfg)","old":null,"new":847},{"t":"+","c":"","old":null,"new":848},{"t":"+","c":"    def test_invalid_unresolvable_attr(self):","old":null,"new":849},{"t":"+","c":"        self.cfg.set_main_option(","old":null,"new":850},{"t":"+","c":"            \"revision_map_class\",","old":null,"new":851},{"t":"+","c":"            \"alembic.script.revision:NoSuchClass\",","old":null,"new":852},{"t":"+","c":"        )","old":null,"new":853},{"t":"+","c":"        with expect_raises_message(","old":null,"new":854},{"t":"+","c":"            util.CommandError,","old":null,"new":855},{"t":"+","c":"            r\"has no attribute 'NoSuchClass'\",","old":null,"new":856},{"t":"+","c":"        ):","old":null,"new":857},{"t":"+","c":"            ScriptDirectory.from_config(self.cfg)","old":null,"new":858},{"t":"+","c":"","old":null,"new":859},{"t":"+","c":"    def test_revision_map_exported_from_script_package(self):","old":null,"new":860},{"t":"+","c":"        from alembic.script import RevisionMap","old":null,"new":861},{"t":"+","c":"        from alembic.script.revision import RevisionMap as DirectRevisionMap","old":null,"new":862},{"t":"+","c":"","old":null,"new":863},{"t":"+","c":"        assert RevisionMap is DirectRevisionMap","old":null,"new":864},{"t":"+","c":"","old":null,"new":865},{"t":"+","c":"","old":null,"new":866},{"t":" ","c":"class CommandLineTest(TestBase):","old":755,"new":867},{"t":" ","c":"    def test_register_command(self):","old":756,"new":868},{"t":" ","c":"        cli = config.CommandLine()","old":757,"new":869}],"truncated":false,"change_kind":"new_logic","significance":"supporting"}}}</script>
 <script>
 "use strict";
 /* =========================================================================
@@ -592,7 +624,7 @@ function refsLine(ids, label) {
    the reading, and the three answers a reviewer settles before opening a file.
    Confidence and evidence are provenance about the report rather than facts
    about the change, so they wait in the footer. */
-function masthead() {
+function masthead(chapters) {
   const src = M.source || {};
   const story = M.story || {};
 
@@ -618,9 +650,20 @@ function masthead() {
       story.caveat ? h("p", { class: "caveat" }, prose(story.caveat)) : null,
       triageSentence(),
       answers(),
-      intentBlock()
+      intentBlock(),
+      contentsLine(chapters)
     )
   );
+}
+
+/* The reader's map: one plain line naming the chapters that actually rendered
+   for this change, each an anchor. Absent chapters never appear, so the
+   numbering the reader sees here is the numbering on the page. */
+function contentsLine(chapters) {
+  const row = h("p", { class: "contents" });
+  chapters.forEach((c, i) => add(row, [i ? " · " : null,
+    h("a", { href: "#" + c.id, text: c.n + " " + c.short })]));
+  return row;
 }
 
 /* The number, the bar and the key were one sentence pretending to be a
@@ -745,19 +788,43 @@ function intentBlock() {
   return block;
 }
 
-/* =============================================================== sections */
-function section(id, title, lead, ...body) {
-  return h("section", { class: "sec", id },
-    h("h2", {}, typeof title === "string" ? prose(title) : title),
+/* =============================================================== chapters */
+/* The page is numbered chapters built from one list. A chapter with nothing
+   to say for this change is omitted, and the numbering closes over the gap,
+   so neither the contents line nor the kickers ever count a hole. */
+const CHAPTERS = [
+  { id: "behavior", short: "Behaviour", title: "Behaviour: before and after", build: behaviorSection },
+  { id: "map", short: "Structure", title: "What calls what", build: mapSection },
+  { id: "layers", short: "Layer by layer", title: "The change, layer by layer", build: layersSection },
+  { id: "reading", short: "The reading", title: "The reading", build: readingSection },
+  { id: "decide", short: "Decide", title: "Decide", build: decideSection }
+];
+
+function buildChapters() {
+  const chapters = [{ id: "top", short: "Overview", n: 1, node: null }];
+  for (const def of CHAPTERS) {
+    const node = def.build();
+    if (!node) continue;
+    const n = chapters.length + 1;
+    node.prepend(chapterHead(n, def));
+    chapters.push({ id: def.id, short: def.short, n, node });
+  }
+  return chapters;
+}
+
+function chapterHead(n, def) {
+  return h("header", { class: "chaphead" },
+    h("p", { class: "kicker", text: String(n).padStart(2, "0") + " · " + def.short }),
+    h("h2", {}, prose(def.title)));
+}
+
+function section(id, lead, ...body) {
+  return h("section", { class: "chap", id },
     lead ? h("p", { class: "lead" }, typeof lead === "string" ? prose(lead) : lead) : null,
     body);
 }
 
-/* ============================================================== the areas */
-/* Every file, every reading step, every question sits inside the area of the
-   codebase it belongs to. A reviewer works one area at a time instead of
-   hopping between a reading list and a file list. */
-
+/* ================================================================ the pass */
 /* The ticks live in localStorage under the head SHA, so a reload resumes and a
    new head starts clean. Nothing else about a ticked step changes: it is a
    record of what was read, not a piece of choreography. */
@@ -795,36 +862,29 @@ function refreshCount() {
   node.textContent = total ? `${TICKS.size} of ${total} done` : "";
 }
 
-function areasSection() {
-  const skips = PASS.skippable || [];
-  const total = STEPS.length + CHECKS.length;
+/* ==================================================== chapter: the layers */
+/* A prose-first map of the change: one subsection per layer, in the model's
+   own order, which is the flow of a request through the system. Narrative
+   first, the contracts that changed here under it, the inventory one quiet
+   fold away. This chapter is a map, not a task list; the pass lives in the
+   two chapters after it. */
+function layersSection() {
+  if (!GROUPS.length) return null;
 
-  /* Wire each step, check, contract and skip group to the area that owns its
-     file. Anything with no file to point at spans the change, and says so. */
-  const stepsOf = new Map(), checksOf = new Map(), skipsOf = new Map(), contractsOf = new Map();
-  const crossChecks = [], crossSkips = [], crossContracts = [];
+  /* Wire each contract and skip group to the layer that owns its file.
+     Anything no single layer owns closes the chapter instead. */
+  const contractsOf = new Map(), skipsOf = new Map();
+  const crossContracts = [], crossSkips = [];
   const claim = (map, gid, item) => {
     if (!map.has(gid)) map.set(gid, []);
     map.get(gid).push(item);
   };
-  for (const step of STEPS) {
-    const g = groupOfPath(step.path) ||
-              groupOfPath(((HUNKS[step.hunk_ids[0]] || {}).path));
-    if (g) claim(stepsOf, g.id, step);
-  }
   for (const c of CONTRACTS) {
     const g = groupOfPath(((HUNKS[(c.hunk_ids || [])[0]] || {}).path));
     if (g) claim(contractsOf, g.id, c);
     else crossContracts.push(c);
   }
-  CHECKS.forEach((check, i) => {
-    const n = STEPS.length + i + 1;
-    const g = groupOfPath(check.path) ||
-              groupOfPath(((HUNKS[(check.hunk_ids || [])[0]] || {}).path));
-    if (g) claim(checksOf, g.id, { check, n });
-    else crossChecks.push({ check, n });
-  });
-  for (const sk of skips) {
+  for (const sk of PASS.skippable || []) {
     let gid = (sk.group_ids || [])[0];
     if (!gid) {
       const owners = new Set((sk.files || [])
@@ -835,35 +895,16 @@ function areasSection() {
     else crossSkips.push(sk);
   }
 
-  /* Areas appear in the order the reading starts: the area holding step 1
-     leads, and areas with nothing to read keep the model's own order. */
-  const firstStep = g => {
-    const list = stepsOf.get(g.id);
-    return list ? list[0].n : Infinity;
-  };
-  const ordered = GROUPS.map((g, i) => [g, i])
-    .sort((a, b) => (firstStep(a[0]) - firstStep(b[0])) || (a[1] - b[1]))
-    .map(pair => pair[0]);
-
-  const cards = ordered.map(g =>
-    areaCard(g, stepsOf.get(g.id) || [], checksOf.get(g.id) || [],
-             skipsOf.get(g.id) || [], contractsOf.get(g.id) || []));
-  if (crossChecks.length || crossSkips.length || crossContracts.length) {
-    cards.push(crossCard(crossChecks, crossSkips, crossContracts));
-  }
-
-  const node = section("change", "The change, by area",
-    `${plural(total, "thing")} to read or decide, sorted into the parts of the `
-    + "codebase they belong to. Tick as you go; the page remembers.",
-    h("p", { class: "counter", id: "count" }), cards);
-  requestAnimationFrame(refreshCount);
-  return node;
+  return section("layers", null,
+    GROUPS.map(g => layerNode(g, contractsOf.get(g.id) || [],
+                              skipsOf.get(g.id) || [])),
+    crossContracts.length || crossSkips.length
+      ? crossLayer(crossContracts, crossSkips) : null,
+    seamsBlock());
 }
 
-function areaCard(g, steps, checks, skips, contracts) {
-  const lines = g.files.reduce((a, f) => a + (f.additions || 0) + (f.deletions || 0), 0);
+function layerNode(g, contracts, skips) {
   const body = h("div", {});
-  if (steps.length) body.append(walkBlock(steps));
   if (contracts.length) {
     body.append(h("h4", { class: "block",
       text: contracts.length === 1 ? "Changed contract" : "Changed contracts" }));
@@ -871,54 +912,107 @@ function areaCard(g, steps, checks, skips, contracts) {
       text: "a shape someone outside this diff depends on" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  if (checks.length) {
-    body.append(h("h4", { class: "block", text: "Decide" }));
-    body.append(h("p", { class: "sub", text: "yours to judge; precis has no opinion" }));
-    for (const c of checks) body.append(checkItem(c.check, c.n));
-  }
-  for (const sk of skips) body.append(skipRow(sk));
-  body.append(filesBlock(g, !steps.length && !skips.length));
-
-  return h("section", { class: "area", id: "area-" + g.id },
+  body.append(inventoryFold(g, skips));
+  return h("section", { class: "layer", id: "layer-" + g.id },
     h("h3", {}, prose(g.label)),
-    g.summary ? h("p", { class: "asum" }, prose(g.summary)) : null,
-    g.order_note ? h("p", { class: "aorder" }, prose(g.order_note)) : null,
-    h("p", { class: "ameta",
-      text: `${plural(g.files.length, "file")} · ${lines.toLocaleString()} changed lines` }),
+    h("p", { class: "narrative prose" }, prose(g.narrative)),
     body);
 }
 
-/* Questions, skips, and contracts that no single area owns. */
-function crossCard(checks, skips, contracts) {
+/* Contracts and skip groups that no single layer owns close the chapter. */
+function crossLayer(contracts, skips) {
   const body = h("div", {});
-  if ((contracts || []).length) {
+  if (contracts.length) {
     body.append(h("h4", { class: "block", text: "Changed contracts" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  if (checks.length) {
-    body.append(h("h4", { class: "block", text: "Decide" }));
-    body.append(h("p", { class: "sub", text: "yours to judge; precis has no opinion" }));
-    for (const c of checks) body.append(checkItem(c.check, c.n));
-  }
   for (const sk of skips) body.append(skipRow(sk));
-  return h("section", { class: "area", id: "area-cross" },
-    h("h3", { text: "The change as a whole" }),
+  return h("section", { class: "layer", id: "layer-cross" },
+    h("h3", { text: "Across the change" }),
     body);
 }
 
-/* The guided walkthrough for one area, one fold away. The area above it already
-   says what this part of the codebase is and what changes shape in it; the code
-   opens when the reader is ready to read it. */
-function walkBlock(steps) {
-  const first = steps[0].n;
-  const label = steps.length === 1
-    ? `Read step ${first}`
-    : `Read steps ${first} to ${steps[steps.length - 1].n}`;
-  return h("details", { class: "walk" },
-    h("summary", { class: "link" },
-      h("span", { text: label }),
-      h("span", { class: "sub", text: steps.map(st => plain(st.title)).join(" · ") })),
-    steps.map(stepItem));
+/* The complete account of a layer's files, one quiet fold away: the ledger,
+   then the skip groups that live in this layer with their reasons. */
+function inventoryFold(g, skips) {
+  const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
+  const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
+  return h("details", { class: "inventory" },
+    h("summary", { class: "link", text:
+      `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this layer`
+      + ` · +${adds} −${dels}` }),
+    h("div", { class: "inner" },
+      filesTable(g),
+      skips.map(skipRow)));
+}
+
+function filesTable(g) {
+  return h("table", { class: "files" }, h("tbody", {},
+    g.files.map(f => {
+      const [dir, base] = splitPath(f.path);
+      return h("tr", {},
+        h("td", {},
+          h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
+          f.moved_from ? h("span", { class: "moved", text: "← " + f.moved_from }) : null,
+          f.note ? h("div", { class: "note" }, prose(f.note)) : null),
+        h("td", { class: "word",
+          text: KIND_SHOWN.has(f.change_kind) ? KIND_LABEL[f.change_kind] : "" }),
+        h("td", { class: "num" },
+          f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
+          f.deletions ? h("span", { class: "minus", text: "−" + f.deletions }) : null,
+          (!f.additions && !f.deletions)
+            ? h("span", { class: "faint", text: STATUS_LABEL[f.status] }) : null)
+      );
+    })));
+}
+
+/* Independent concerns are part of the map, so they close the layer chapter:
+   where the seams run, never advice to split. */
+function seamsBlock() {
+  const seams = M.seams || {};
+  if (!seams.detected) return null;
+  const clusters = seams.clusters || [];
+  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
+  return h("section", { class: "layer", id: "seams" },
+    h("h3", { text: "This reads as more than one change" }),
+    seams.note ? h("p", { class: "narrative prose" }, prose(seams.note)) : null,
+    clusters.map(c => h("div", { class: "seam" },
+      h("h4", {}, prose(c.label)),
+      h("p", {}, prose(c.summary)),
+      h("p", { class: "meta",
+        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
+      (c.independent_of || []).length
+        ? h("p", { class: "quiet", text: "Shares nothing with "
+            + listOf(c.independent_of.map(id => plain(nameOf.get(id) || id))) + "." })
+        : null)));
+}
+
+/* =================================================== chapter: the reading */
+/* The guided pass, strictly linear: steps 1 to N in numeric order, one
+   continuous flow. The by-layer view is the previous chapter's job; neither
+   pretends to be the other. The tick counter lives here, where the pass
+   starts. */
+function readingSection() {
+  if (!STEPS.length) return null;
+  const minutes = PASS.estimated_minutes;
+  const node = section("reading",
+    `${plural(STEPS.length, "step")}, in the order the change makes sense`
+    + `${minutes ? `, about ${plural(minutes, "minute")}` : ""}. `
+    + "Tick as you go; the page remembers.",
+    h("p", { class: "counter", id: "count" }),
+    STEPS.map(stepItem));
+  requestAnimationFrame(refreshCount);
+  return node;
+}
+
+/* Without an area wrapper, each step names its own bearings: the layer it
+   belongs to and the file it reads, one quiet line above the title. */
+function stepEyebrow(step) {
+  const path = step.path || ((HUNKS[step.hunk_ids[0]] || {}).path);
+  const g = groupOfPath(path);
+  const text = [g ? plain(g.label) : null, path ? basename(path) : null]
+    .filter(Boolean).join(" · ");
+  return text ? h("p", { class: "eyebrow", text }) : null;
 }
 
 function stepItem(step) {
@@ -933,28 +1027,31 @@ function stepItem(step) {
     if (snip) body.append(snip);
   }
   for (const a of anns.filter(a => a.new_line == null && a.old_line == null)) {
-    body.append(h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
-      h("div", { class: "txt" }, prose(a.text))));
+    body.append(noteNode(a));
   }
   const total = step.hunk_ids.reduce((n, id) => n + ((HUNKS[id] || {}).lines || []).length, 0);
   body.append(h("details", { class: "fulldiff" },
     h("summary", { class: "link",
       text: `The full diff: ${plural(total, "line")} in ${plural(step.hunk_ids.length, "hunk")}` }),
-    step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id], []) : null)));
-
-  /* The snippet headers already name the file. Repeat the step path only when
-     the step spans more than the one file. */
-  const paths = new Set(step.hunk_ids.map(id => HUNKS[id] && HUNKS[id].path).filter(Boolean));
-  const showPath = step.path && !(paths.size === 1 && paths.has(step.path));
+    step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id]) : null)));
 
   return h("article", { class: "step", id: "step-" + step.n },
     h("div", { class: "head" },
       tickBox("s" + step.n, "Mark step " + step.n + " as read"),
       h("div", { style: "min-width:0" },
+        stepEyebrow(step),
         h("h4", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
-        h("p", { class: "why" }, prose(step.why)),
-        showPath ? h("p", { class: "path", text: step.path }) : null)),
+        h("p", { class: "why" }, prose(step.why)))),
     body);
+}
+
+/* ======================================================= chapter: decide */
+/* The questions only the reviewer can answer, numbered on from the steps so
+   the whole pass stays one sequence. */
+function decideSection() {
+  if (!CHECKS.length) return null;
+  return section("decide", "Yours to judge; precis has no opinion.",
+    CHECKS.map((check, i) => checkItem(check, STEPS.length + i + 1)));
 }
 
 /* A rule is quoted, never paraphrased and never re-rendered: `text` rather than
@@ -1042,63 +1139,21 @@ function skipRow(g) {
       sample ? h("div", {},
         h("p", { class: "samplelbl",
           text: "One representative hunk; the rest follow the same shape." }),
-        hunkNode(sample, [])) : null,
+        hunkNode(sample)) : null,
       h("div", { class: "filelist" }, (g.files || []).map(p => h("div", { text: p })))));
 }
 
-/* The complete account of an area's files, one fold away. The steps above it
-   already showed the ones worth reading. */
-function filesBlock(g, open) {
-  const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
-  const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
-  const table = h("table", { class: "files" }, h("tbody", {},
-    g.files.map(f => {
-      const [dir, base] = splitPath(f.path);
-      return h("tr", {},
-        h("td", {},
-          h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
-          f.moved_from ? h("span", { class: "moved", text: "← " + f.moved_from }) : null,
-          f.note ? h("div", { class: "note" }, prose(f.note)) : null),
-        h("td", { class: "word",
-          text: KIND_SHOWN.has(f.change_kind) ? KIND_LABEL[f.change_kind] : "" }),
-        h("td", { class: "num" },
-          f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
-          f.deletions ? h("span", { class: "minus", text: "−" + f.deletions }) : null,
-          (!f.additions && !f.deletions)
-            ? h("span", { class: "faint", text: STATUS_LABEL[f.status] }) : null)
-      );
-    })));
-  return h("details", { class: "areafiles", open: open || null },
-    h("summary", { class: "link", text:
-      `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this area`
-      + ` · +${adds} −${dels}` }),
-    table);
-}
-
 /* --------------------------------------------------------------- hunks */
-function hunkNode(hunk, annotations) {
+/* The full diff of one hunk, plain. Annotations belong to the snippets; a
+   full hunk behind its fold is only ever the code itself. */
+function hunkNode(hunk) {
   const body = h("div", { class: "hbody" });
   const lines = hunk.lines || [];
   /* A file that is entirely new has no old-side numbers; do not spend a column
      on an empty gutter, especially on a phone. */
   const hasOld = lines.some(l => l.old != null);
   const hasNew = lines.some(l => l.new != null);
-  const byLine = new Map();
-  for (const a of annotations || []) {
-    const key = a.new_line != null ? "n" + a.new_line : a.old_line != null ? "o" + a.old_line : null;
-    if (key === null) continue;
-    if (!byLine.has(key)) byLine.set(key, []);
-    byLine.get(key).push(a);
-  }
-  for (const a of (annotations || []).filter(a => a.new_line == null && a.old_line == null)) {
-    body.append(noteNode(a));
-  }
-  for (const line of lines) {
-    body.append(lineNode(line, hasOld, hasNew));
-    const notes = (line.new != null ? byLine.get("n" + line.new) || [] : [])
-      .concat(line.old != null ? byLine.get("o" + line.old) || [] : []);
-    for (const a of notes) body.append(noteNode(a));
-  }
+  for (const line of lines) body.append(lineNode(line, hasOld, hasNew));
   if (hunk.truncated) {
     body.append(h("div", { class: "trunc",
       text: `Truncated: showing the first ${plural(lines.length, "line")} of this hunk.` }));
@@ -1133,16 +1188,21 @@ function lineNode(line, hasOld, hasNew) {
 }
 
 /* An annotation is the highest-value text on the page: precis pointing at one
-   line and saying what it does. */
-function noteNode(a) {
-  return h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
+   line and saying what it does. `inline` marks the copy that lives between
+   code rows, which the wide layout swaps for its margin twin. */
+function noteNode(a, inline) {
+  return h("div", { class: "hnote" + (inline ? " inline" : "") },
+    h("span", { class: "mk", text: "›" }),
     h("div", { class: "txt" }, prose(a.text)));
 }
 
-/* The annotated lines of one hunk, each with a line of context either side and
-   its annotation under it. This is what a step shows by default: the lines
-   precis wrote about, not the wall of diff around them. Returns null when
-   nothing in the hunk is anchored, and the caller falls back to the fold. */
+/* The annotated lines of one hunk, each with a line of context either side.
+   This is what a step shows by default: the lines precis wrote about, not the
+   wall of diff around them. Every anchored note is laid down twice - inline in
+   the code flow, and as a margin twin the wide layout positions beside its
+   line - and CSS shows exactly one of the two, so print and phones need no
+   script. Returns null when nothing in the hunk is anchored, and the caller
+   falls back to the fold. */
 function snippetNode(hunk, annotations) {
   const lines = hunk.lines || [];
   const anchored = [];
@@ -1168,14 +1228,75 @@ function snippetNode(hunk, annotations) {
   const body = h("div", { class: "hbody" });
   const hasOld = lines.some(l => l.old != null);
   const hasNew = lines.some(l => l.new != null);
+  const pairs = [];
   let prev = -2;
   for (const i of Array.from(keep).sort((a, b) => a - b)) {
     if (i > prev + 1) body.append(h("div", { class: "gapline", text: "· · ·" }));
-    body.append(lineNode(lines[i], hasOld, hasNew));
-    for (const a of notesAt.get(i) || []) body.append(noteNode(a));
+    const row = lineNode(lines[i], hasOld, hasNew);
+    const notes = notesAt.get(i) || [];
+    if (notes.length) row.className += " noted";
+    body.append(row);
+    for (const a of notes) {
+      body.append(noteNode(a, true));
+      pairs.push({ line: row, note: h("div", { class: "mnote" }, prose(a.text)) });
+    }
     prev = i;
   }
-  return h("div", { class: "hunk snippet" }, hunkHead(hunk, false), body);
+  const wrap = h("div", { class: "snipwrap" },
+    h("div", { class: "hunk snippet" }, hunkHead(hunk, false), body),
+    h("div", { class: "mnotes" }, pairs.map(p => p.note)));
+  wrap._pairs = pairs;
+  SNIPWRAPS.push(wrap);
+  return wrap;
+}
+
+/* ----------------------------------------------------------- margin notes */
+/* The wide layout moves each anchored note into the margin beside its line:
+   top-aligned with the line, pushed down when the note above needs the room,
+   and tied back by a hairline connector so a pushed note still names its
+   line. Everything here is geometry; the words were laid down at build time,
+   so a browser without any of this still shows the inline notes. */
+const SNIPWRAPS = [];
+const WIDE = matchMedia("(min-width: 1000px)");
+
+function placeMarginNotes(wrap) {
+  const pairs = wrap._pairs || [];
+  if (!pairs.length) return;
+  if (!WIDE.matches) {
+    wrap.style.minHeight = "";
+    if (wrap._conn) wrap._conn.replaceChildren();
+    return;
+  }
+  const box = wrap.getBoundingClientRect();
+  if (!box.height) return;                     /* inside a closed fold */
+  if (!wrap._conn) {
+    wrap._conn = s("svg", { class: "mconn", "aria-hidden": "true" });
+    wrap.append(wrap._conn);
+  }
+  const code = wrap.firstChild.getBoundingClientRect();
+  const x1 = code.right - box.left + 2;
+  const x2 = box.width - 308;
+  let flow = 0;
+  const ties = [];
+  for (const p of pairs) {
+    const lr = p.line.getBoundingClientRect();
+    const lineTop = lr.top - box.top;
+    const top = Math.max(lineTop, flow);
+    p.note.style.top = top + "px";
+    flow = top + p.note.offsetHeight + 12;
+    ties.push({ y1: lineTop + lr.height / 2, y2: top + 9 });
+  }
+  wrap.style.minHeight = Math.ceil(flow - 12) + "px";
+  const w = Math.ceil(box.width), hh = Math.ceil(Math.max(box.height, flow));
+  wrap._conn.setAttribute("viewBox", `0 0 ${w} ${hh}`);
+  wrap._conn.setAttribute("width", w);
+  wrap._conn.setAttribute("height", hh);
+  wrap._conn.replaceChildren(...ties.map(t => s("line", {
+    x1, y1: t.y1, x2, y2: t.y2, stroke: "var(--line)", "stroke-width": 1 })));
+}
+
+function placeAllMarginNotes() {
+  for (const wrap of SNIPWRAPS) placeMarginNotes(wrap);
 }
 
 /* ------------------------------------------------------------ call graph */
@@ -1193,7 +1314,7 @@ function mapSection() {
   const body = graphBranches(graph)
     ? h("div", { class: "graph" }, drawCallGraph(graph).node)
     : callTrace(graph);
-  return section("map", "What calls what", cm.summary || null, body, offGraphNote(graph));
+  return section("map", cm.summary || null, body, offGraphNote(graph));
 }
 
 /* A linear trace cannot misrepresent a chain. It can misrepresent a fan, so a
@@ -1365,7 +1486,7 @@ function behaviorSection() {
       h("span", { class: "mk", text: "▸" }), prose(d.summary),
       refsLine(d.hunk_ids)))) : null;
 
-  return section("behavior", "Behaviour: before and after", null, figure, deltas);
+  return section("behavior", null, figure, deltas);
 }
 
 function debounce(fn, ms) {
@@ -1721,24 +1842,6 @@ function wrapText(text, maxPx, size, maxLines) {
   return lines.slice(0, maxLines || 3);
 }
 
-/* ----------------------------------------------------------------- seams */
-function seamsSection() {
-  const seams = M.seams || {};
-  if (!seams.detected) return null;
-  const clusters = seams.clusters || [];
-  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
-  return section("seams", "This reads as more than one change", seams.note,
-    clusters.map(c => h("div", { class: "seam" },
-      h("h4", {}, prose(c.label)),
-      h("p", {}, prose(c.summary)),
-      h("p", { class: "meta",
-        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
-      (c.independent_of || []).length
-        ? h("p", { class: "quiet", text: "Shares nothing with "
-            + listOf(c.independent_of.map(id => plain(nameOf.get(id) || id))) + "." })
-        : null)));
-}
-
 /* ---------------------------------------------------------------- footer */
 /* Provenance: how this report was made, what it was read from, and what it did
    not read. None of it is a fact about the change, so none of it is upstairs. */
@@ -1798,26 +1901,36 @@ function footerNode() {
 /* ------------------------------------------------------------------ boot */
 function boot() {
   const app = document.getElementById("app");
+  const chapters = buildChapters();
+  app.append(masthead(chapters));
   const main = h("main", { class: "wrap" });
-  main.append(areasSection());
-  const map = mapSection();
-  if (map) main.append(map);
-  const behavior = behaviorSection();
-  if (behavior) main.append(behavior);
-  const seams = seamsSection();
-  if (seams) main.append(seams);
-
-  app.append(masthead());
+  for (const c of chapters) if (c.node) main.append(c.node);
   app.append(main);
   app.append(footerNode());
 
-  /* Printing must not silently drop the parts that happen to be collapsed. */
+  /* Margin notes track the layout: any reflow - a resize, a fold opening,
+     the fonts arriving - re-places them. */
+  WIDE.addEventListener("change", placeAllMarginNotes);
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(placeAllMarginNotes).observe(document.body);
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(placeAllMarginNotes);
+  }
+  requestAnimationFrame(placeAllMarginNotes);
+
+  /* Printing must not silently drop the parts that happen to be collapsed,
+     and paper gets the inline notes, so the margin geometry comes off. */
   let reopened = [];
   addEventListener("beforeprint", () => {
     reopened = Array.from(document.querySelectorAll("details:not([open])"));
     for (const d of reopened) d.open = true;
+    for (const wrap of SNIPWRAPS) wrap.style.minHeight = "";
   });
-  addEventListener("afterprint", () => { for (const d of reopened) d.open = false; });
+  addEventListener("afterprint", () => {
+    for (const d of reopened) d.open = false;
+    placeAllMarginNotes();
+  });
 }
 
 boot();

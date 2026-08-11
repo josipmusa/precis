@@ -68,10 +68,12 @@ body {
   font: 15px/1.65 var(--text);
   font-variant-numeric: tabular-nums;
 }
+/* The scale is the hierarchy: masthead over chapter headline over layer
+   heading over item title over body, and nothing between competes. */
 h1, h2, h3, h4 { margin: 0; line-height: 1.25; letter-spacing: -.011em; }
-h1 { font: 500 clamp(26px, 4.2vw, 32px)/1.2 var(--text); }
-h2 { font: 500 24px/1.25 var(--text); }
-h3 { font: 600 19px/1.3 var(--text); }
+h1 { font: 500 clamp(28px, 4.6vw, 36px)/1.2 var(--text); }
+h2 { font: 500 clamp(25px, 4vw, 30px)/1.25 var(--text); }
+h3 { font: 500 22px/1.3 var(--text); }
 h4 { font: 600 15px/1.4 var(--text); }
 p { margin: 0; }
 a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: .06em; }
@@ -113,10 +115,25 @@ code { font: .88em/1.5 var(--mono); overflow-wrap: anywhere; }
   color: var(--ink-soft); border-left: 2px solid var(--line); padding-left: 14px;
   max-width: 84ch;
 }
+/* The reader's map of the rendered chapters: one plain line of anchors. */
+.contents { margin-top: 30px; font: 12.5px/1.9 var(--mono); color: var(--ink-faint); }
+.contents a { color: inherit; }
 
-/* -------------------------------------------------------------- sections */
-section.sec { padding: 54px 0 0; scroll-margin-top: 14px; }
-section.sec > h2 + .lead { margin-top: 8px; }
+/* -------------------------------------------------------------- chapters */
+/* A chapter boundary has to be unmistakable at a fast scroll: ninety pixels
+   of air, a numbered mono kicker over a short hairline, then a headline one
+   size below the masthead's. */
+section.chap { padding: 90px 0 0; scroll-margin-top: 14px; }
+.kicker {
+  font: 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.kicker::after {
+  content: ""; display: block; width: 34px; margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.chaphead h2 { margin-top: 14px; }
+.chap > .lead { margin-top: 10px; }
 .lead { color: var(--ink-soft); max-width: 72ch; }
 .counter { font: 12.5px/1.7 var(--mono); color: var(--ink-faint); margin-top: 10px; }
 
@@ -139,20 +156,22 @@ summary.link .sub {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--ink-faint);
 }
-details.walk[open] > summary.link .sub { display: none; }
 
-/* ----------------------------------------------------------- the areas */
-/* The backbone: the change grouped by what each part is for. A heading, a
-   sentence, and the reading that belongs to it. No panels. */
-.area { margin-top: 34px; padding-top: 30px; border-top: 1px solid var(--line); }
-.asum { margin-top: 8px; color: var(--ink-soft); max-width: 70ch; }
-.aorder { margin-top: 6px; color: var(--ink-faint); max-width: 70ch; font-size: 14px; }
-.ameta { font: 12px/1.7 var(--mono); color: var(--ink-faint); margin-top: 8px; }
+/* ---------------------------------------------------------- the layers */
+/* The map chapter's subsections: a heading, the narrative, the contracts that
+   changed here, the inventory one fold away. No panels. */
+.layer { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--line-soft); }
+.narrative { margin-top: 10px; }
+.inventory > .inner { margin: 14px 0 0 20px; }
 h4.block { margin: 30px 0 4px; }
 h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 
 /* --------------------------------------------------------------- steps */
-.step { margin-top: 24px; }
+.step { margin-top: 32px; }
+.eyebrow {
+  font: 11.5px/1.6 var(--mono); color: var(--ink-faint); margin-bottom: 3px;
+  word-break: break-all;
+}
 .step > .head { display: flex; gap: 11px; align-items: flex-start; }
 .tick { flex: none; width: 15px; height: 15px; margin: 6px 0 0; accent-color: var(--accent); }
 .step h4 { font-size: 17px; min-width: 0; }
@@ -263,6 +282,19 @@ table.files .note { color: var(--ink-soft); font-size: 13.5px; margin-top: 3px; 
 }
 .hnote .mk { color: var(--accent); flex: none; }
 .hnote .txt { max-width: 68ch; }
+/* The margin column an anchored note moves into on a wide screen. It only
+   exists there: narrow screens and paper keep the inline notes above. */
+.snipwrap { position: relative; }
+.mnotes, .mconn { display: none; }
+@media screen and (min-width: 1000px) {
+  .snipwrap > .hunk { margin-right: 322px; }
+  .snipwrap .hnote.inline { display: none; }
+  /* The annotated line's marker: a 2px accent tick, not a highlight bar. */
+  .snipwrap .hline.noted { box-shadow: inset 2px 0 0 var(--accent); }
+  .mnotes { display: block; position: absolute; top: 0; right: 0; width: 300px; height: 100%; }
+  .mnote { position: absolute; left: 0; width: 300px; font: 13.5px/1.55 var(--text); color: var(--ink); }
+  .mconn { display: block; position: absolute; inset: 0; pointer-events: none; }
+}
 .trunc {
   padding: 7px 12px; font: 11.5px/1.6 var(--mono); color: var(--ink-faint);
   border-top: 1px solid var(--line-soft); background: var(--panel-soft);
@@ -350,10 +382,10 @@ footer .creed { margin-top: 24px; color: var(--ink-faint); max-width: 64ch; }
   details > *:not(summary) { display: revert; }
   a { color: inherit; text-decoration: none; }
   .stepbody { margin-left: 0; }
-  section.sec { padding-top: 26px; }
+  section.chap { padding-top: 30px; }
   .hunk, .seam, .contract, .skip, .side { break-inside: avoid; }
-  .area { break-inside: auto; }
-  .step > .head, .step .why { break-inside: avoid; break-after: avoid; }
+  .layer { break-inside: auto; }
+  .chaphead, .step > .head, .step .why { break-inside: avoid; break-after: avoid; }
   h2, h3, h4 { break-after: avoid; }
 }
 </style>
@@ -361,7 +393,7 @@ footer .creed { margin-top: 24px; color: var(--ink-faint); max-width: 64ch; }
 <body>
 <div id="app"></div>
 
-<script id="precis-model" type="application/json">{"schema_version":"1.1","source":{"kind":"github_pr","title":"Enable ruff UP (pyupgrade) rule and fix all 56 violations","identifier":"#3768","url":"https://github.com/encode/httpx/pull/3768","repo":"encode/httpx","author":"Zephyr-Blessed","base":{"ref":"master","sha":"ae1b9f66238f75ced3ced5e4485408435de10768"},"head":{"ref":"enable-ruff-up-rules","sha":"d5e50795583ba159fc23372432b71dbcdb667d91"},"commits":[{"sha":"d5e5079","subject":"Enable ruff UP (pyupgrade) rule and fix all 56 violations"}],"linked_issues":[],"description":"## Summary\n\nEnables the ruff `UP` (pyupgrade) rule set and fixes all 56 existing violations across 17 files.\n\n## Changes\n\n| Rule | Description | Count |\n|------|-------------|-------|\n| UP006 | Use builtin `tuple`/`dict`/`list` instead of `typing.Tuple`/`Dict`/`List` | 29 |\n| UP012 | Remove unnecessary `.encode('utf-8')` calls | 10 |\n| UP028 | Replace `yield`-over-`for` with `yield from` | 6 |\n| UP035 | Import from `collections.abc` instead of `typing` | 5 |\n| UP032 | Use f-strings instead of `.format()` | 2 |\n| UP031 | Modernize percent string formatting | 2 |\n| UP015 | Remove redundant `open()` modes | 2 |\n\nThe `UP` rule is now enabled in `pyproject.toml` alongside the existing `E`, `F`, `I`, `B`, `PIE` rules to prevent regressions.\n\nAll existing ruff checks continue to pass.","generated_by":"precis 0.1.0","generated_at":"2026-08-09T10:40:00Z"},"coverage":{"tier":"full","hunks_read":33,"files_read":17,"note":"Every hunk read in full. The streaming chain around the six rewritten loops was resolved against the checkout.","limitations":["The 56 violation counts in the description are the author's; the diff was read as it stands, not re-linted."],"hunks_total":33,"files_total":17},"stats":{"signal_ratio":0.14,"changed_lines_by_kind":{"modified_logic":18,"formatting":103,"content":2},"files_changed":17,"additions":56,"deletions":67,"hunks":33,"changed_lines_by_role":{"build":2,"domain":80,"tests":41}},"story":{"headline":"One lint rule is switched on. The other sixteen files are what switching it on produced.","beats":[{"label":"Was","text":"`[tool.ruff.lint] select` listed five rule sets. `UP` was not among them."},{"label":"Now","text":"`UP` is listed, and the 56 pre-existing violations are rewritten across 16 files."},{"label":"Watch","text":"Six of those rewrites turn a `for`/`yield` loop into `yield from`, which delegates differently."}],"shape":"refactor","tests":{"state":"none","note":"The changed test files are pyupgrade output; none exercises the new `yield from` delegation."},"confidence":"high","evidence":["pr_description","commit_messages","code"],"caveat":null,"intent_delta":{"stated":"Enables the ruff `UP` (pyupgrade) rule set and fixes all 56 existing violations across 17 files.","also_does":[],"not_done":[]}},"change_map":{"summary":"One line of config, six loops that became delegations, and 50 rewrites with no runtime difference.","graph":{"nodes":[{"id":"n1","label":"Response.iter_raw()","kind":"entrypoint","emphasis":"unchanged","hunk_ids":[],"note":"Iterates `self.stream`, which is the bound stream, at _models.py:951."},{"id":"n2","label":"BoundSyncStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_client.py","hunk_ids":["h1"],"note":"Wraps whichever stream the transport returned, assigned at _client.py:1018."},{"id":"n3","label":"ResponseStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_transports/default.py","hunk_ids":["h9"],"note":"The delegation happens inside `with map_httpcore_exceptions():`."},{"id":"n4","label":"WSGIByteStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_transports/wsgi.py","hunk_ids":["h10"],"note":"Wraps the iterable the WSGI application returned, at wsgi.py:135."},{"id":"n5","label":"httpcore response stream","kind":"external","emphasis":"unchanged","hunk_ids":[],"note":"Another library's object. What its `close` does is not visible from here."},{"id":"n6","label":"Request.read()","kind":"entrypoint","emphasis":"unchanged","hunk_ids":[],"note":"`b\"\".join(self.stream)` at _models.py:474 iterates the request body stream."},{"id":"n7","label":"MultipartStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_multipart.py","hunk_ids":["h7"],"note":"Delegates to its own `iter_chunks()`, which is code in this file."},{"id":"n8","label":"IteratorByteStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_content.py","hunk_ids":["h3"],"note":"Delegates to the iterator the caller passed as request content."}],"edges":[{"from":"n1","to":"n2","kind":"calls","emphasis":"unchanged","evidence":{"ref":"httpx/_models.py:951"}},{"from":"n2","to":"n3","kind":"calls","emphasis":"changed","label":"yield from","evidence":{"hunk_ids":["h1"]}},{"from":"n2","to":"n4","kind":"calls","emphasis":"changed","label":"yield from","evidence":{"hunk_ids":["h1"]}},{"from":"n3","to":"n5","kind":"calls","emphasis":"changed","label":"yield from","evidence":{"hunk_ids":["h9"]}},{"from":"n6","to":"n7","kind":"calls","emphasis":"unchanged","evidence":{"ref":"httpx/_models.py:474"}},{"from":"n6","to":"n8","kind":"calls","emphasis":"unchanged","evidence":{"ref":"httpx/_models.py:474"}}]},"groups":[{"id":"g-config","role":"build","label":"The rule","summary":"The decision. Every other file in this diff follows from it.","files":[{"path":"pyproject.toml","status":"modified","change_kind":"content","significance":"core","additions":1,"deletions":1,"hunk_ids":["h15"],"note":"`UP` joins `E`, `F`, `I`, `B`, `PIE` in `select`. `ignore` is untouched."}]},{"id":"g-streams","role":"domain","label":"Loops that became delegations","summary":"The five library rewrites where the two forms are not interchangeable.","files":[{"path":"httpx/_client.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":1,"deletions":2,"hunk_ids":["h1"],"note":"The stream every response goes through, whichever transport produced it."},{"path":"httpx/_transports/default.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":4,"deletions":5,"hunk_ids":["h8","h9"],"note":"One `yield from` inside an exception-mapping block, and `SOCKET_OPTION` rewritten."},{"path":"httpx/_transports/wsgi.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":1,"deletions":2,"hunk_ids":["h10"],"note":"The iterable here comes from the WSGI application under test, not from httpx."},{"path":"httpx/_content.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":2,"deletions":7,"hunk_ids":["h2","h3"],"note":"One `yield from` over a caller-supplied iterator, plus six imports moved to `collections.abc`."},{"path":"httpx/_multipart.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":4,"deletions":5,"hunk_ids":["h5","h6","h7"],"note":"One `yield from` over an internal generator, one f-string, and one `%` that became `.format`."}]},{"id":"g-types","role":"domain","label":"Type expressions","summary":"Aliases that are evaluated at import, not stored as annotation strings.","files":[{"path":"httpx/_types.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":20,"deletions":21,"hunk_ids":["h11","h12","h13","h14"],"note":"The public alias module: `QueryParamTypes`, `HeaderTypes`, `CookieTypes` and the rest."},{"path":"httpx/_main.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":3,"deletions":3,"hunk_ids":["h4"],"note":"Three private aliases for the shape of a peer certificate dict."}]},{"id":"g-tests","role":"tests","label":"Test files","summary":"One rewritten loop, and 18 rewrites with no runtime difference.","files":[{"path":"tests/test_wsgi.py","status":"modified","change_kind":"modified_logic","significance":"supporting","additions":1,"deletions":2,"hunk_ids":["h33"],"note":"The sixth `yield from`, in the WSGI application the transport tests run against."},{"path":"tests/models/test_headers.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":4,"deletions":4,"hunk_ids":["h21","h22","h23","h24"],"note":"`\"…\".encode(\"utf-8\")` to `\"…\".encode()`, whose default is utf-8."},{"path":"tests/models/test_responses.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":4,"deletions":4,"hunk_ids":["h25","h26","h27","h28"]},{"path":"tests/client/test_auth.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":3,"deletions":3,"hunk_ids":["h16","h17","h18"]},{"path":"tests/conftest.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":3,"deletions":3,"hunk_ids":["h20"],"note":"`typing.Dict` to `dict` in the ASGI type aliases the test app is annotated with."},{"path":"tests/test_auth.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":2,"deletions":2,"hunk_ids":["h30","h31"]},{"path":"tests/client/test_redirects.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":1,"deletions":1,"hunk_ids":["h19"]},{"path":"tests/models/test_whatwg.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":1,"deletions":1,"hunk_ids":["h29"],"note":"`open(..., \"r\", ...)` loses its mode argument; `r` is what `open` uses anyway."},{"path":"tests/test_main.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":1,"deletions":1,"hunk_ids":["h32"]}]}]},"contracts":[{"id":"c1","kind":"config","name":"tool.ruff.lint.select","before":"[\"E\", \"F\", \"I\", \"B\", \"PIE\"]","after":"[\"E\", \"F\", \"I\", \"B\", \"PIE\", \"UP\"]","note":"The one decision in the diff; every other file follows from it.","hunk_ids":["h15"]}],"behavior":{"changed":true,"note":null,"summary":"Iterating any of these streams yields the same bytes. What differs is what reaches the inner iterator when a consumer closes or throws into the outer generator.","before":{"kind":"flow","title":"Before: for part in self._stream","nodes":[{"id":"b1","label":"consumer calls gen.close()","kind":"start","emphasis":"unchanged"},{"id":"b2","label":"GeneratorExit raised at the yield","kind":"process","emphasis":"unchanged"},{"id":"b3","label":"the for loop is abandoned","kind":"process","emphasis":"removed"},{"id":"b4","label":"self._stream.close() not called","kind":"end","emphasis":"removed"}],"edges":[{"from":"b1","to":"b2","kind":"call","emphasis":"unchanged"},{"from":"b2","to":"b3","kind":"call","emphasis":"unchanged"},{"from":"b3","to":"b4","kind":"call","emphasis":"removed"}]},"after":{"kind":"flow","title":"After: yield from self._stream","nodes":[{"id":"a1","label":"consumer calls gen.close()","kind":"start","emphasis":"unchanged"},{"id":"a2","label":"delegation forwards it inward","kind":"process","emphasis":"added"},{"id":"a3","label":"self._stream.close(), if it has one","kind":"process","emphasis":"added"},{"id":"a4","label":"then the outer generator ends","kind":"end","emphasis":"unchanged"}],"edges":[{"from":"a1","to":"a2","kind":"call","emphasis":"added","hunk_ids":["h1"]},{"from":"a2","to":"a3","kind":"call","emphasis":"added","hunk_ids":["h1"]},{"from":"a3","to":"a4","kind":"return","emphasis":"unchanged"}]},"deltas":[{"summary":"`close()` and `throw()` on the outer generator now reach the inner iterator.","hunk_ids":["h1","h3","h7","h9","h10"]},{"summary":"Every other rewrite yields identical bytes and identical types.","hunk_ids":["h11","h21"]}]},"review_pass":{"estimated_minutes":9,"steps":[{"n":1,"title":"The line that caused the other sixteen files","why":"One rule set added to `select`. Reading it first turns the rest of the diff into a consequence rather than a list.","path":"pyproject.toml","hunk_ids":["h15"],"annotations":[{"hunk_id":"h15","new_line":99,"text":"`ignore` is unchanged, so no `UP` rule is exempted. Future contributions are held to this too."}]},{"n":2,"title":"The six loops that became delegations","why":"The only rewrites in the diff where the two forms are not interchangeable, so they are the ones worth reading as code.","path":"httpx/_client.py","hunk_ids":["h1","h3","h7","h9","h10","h33"],"annotations":[{"hunk_id":"h1","new_line":153,"text":"`yield from` forwards `close()`, `throw()` and `send()` to the iterator it delegates to. The `for` loop did not."},{"hunk_id":"h9","new_line":127,"text":"This one delegates inside `with map_httpcore_exceptions():`, so the block is what an exception from the inner iterator still passes through."},{"hunk_id":"h10","new_line":36,"text":"The iterable here is whatever the WSGI application returned, and PEP 3333 gives it an optional `close`."},{"hunk_id":"h3","new_line":59,"text":"`self._stream` here is the iterator a caller passed as request content."}]},{"n":3,"title":"Type aliases, which are evaluated and not annotations","why":"These lines run at import rather than being stored as strings, so the builtin generics must be subscriptable. `requires-python` is `>=3.9`.","path":"httpx/_types.py","hunk_ids":["h11","h12","h13","h14","h4","h8"],"annotations":[{"hunk_id":"h11","new_line":5,"text":"Six names move from `typing` to `collections.abc`. Both are re-exported by this module's `Union` aliases below."},{"hunk_id":"h13","new_line":52,"text":"`CookieTypes` and its neighbours are what a caller passes to `httpx.Client`, so these are the annotations users see."}]},{"n":4,"title":"The two string rewrites","why":"The only places where the produced string is built differently rather than typed differently.","path":"httpx/_multipart.py","hunk_ids":["h5","h6","h2"],"annotations":[{"hunk_id":"h6","new_line":239,"text":"`%s` became `.format(...)` rather than an f-string, so the wrapped call stays where it was."}]}],"checks":[{"kind":"behavioral","title":"Closing a response now reaches the transport's iterator","why":"`yield from` forwards `close()` inward, so a consumer abandoning a streamed response can now close an httpcore stream or a WSGI application's output.","question":"Do any of your custom transports return an iterable whose `close()` does more than release a connection?","path":"httpx/_client.py","hunk_ids":["h1","h9","h10"]},{"kind":"public_api","title":"`_types.py` is where user-facing annotations are declared","why":"`QueryParamTypes`, `HeaderTypes` and `CookieTypes` are evaluated at import and used in the signatures callers type against. A tool reading them sees `list[...]`.","question":"Does anything you run inspect these aliases at runtime, such as a docs builder or a settings library?","path":"httpx/_types.py","hunk_ids":["h11","h12","h13","h14"]},{"kind":"dependency_surface","title":"The rule applies to every future pull request","why":"`UP` stays in `select` after this merges, so ruff will reject the older spellings in contributions from now on, not only in these 17 files.","question":"Is holding contributors to pyupgrade's rewrites the standard you want for incoming pull requests?","path":"pyproject.toml","hunk_ids":["h15"]}],"skippable":[{"label":"Encoding and mode rewrites in tests","reason":"Eight test files where `.encode(\"utf-8\")` loses its argument, `open(..., \"r\")` loses its mode, and `typing.Dict` becomes `dict`.","confidence":"high","file_count":8,"additions":19,"deletions":19,"group_ids":["g-tests"],"files":["tests/client/test_auth.py","tests/client/test_redirects.py","tests/conftest.py","tests/models/test_headers.py","tests/models/test_responses.py","tests/models/test_whatwg.py","tests/test_auth.py","tests/test_main.py"]}]},"seams":{"detected":false,"note":null},"hunks":{"h1":{"id":"h1","path":"httpx/_client.py","old_path":null,"language":"python","header":"@@ -150,8 +150,7 @@","old_start":150,"old_lines":8,"new_start":150,"new_lines":7,"section":"def __init__(","lines":[{"t":" ","c":"        self._start = start","old":150,"new":150},{"t":" ","c":"","old":151,"new":151},{"t":" ","c":"    def __iter__(self) -> typing.Iterator[bytes]:","old":152,"new":152},{"t":"-","c":"        for chunk in self._stream:","old":153,"new":null},{"t":"-","c":"            yield chunk","old":154,"new":null},{"t":"+","c":"        yield from self._stream","old":null,"new":153},{"t":" ","c":"","old":155,"new":154},{"t":" ","c":"    def close(self) -> None:","old":156,"new":155},{"t":" ","c":"        elapsed = time.perf_counter() - self._start","old":157,"new":156}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h2":{"id":"h2","path":"httpx/_content.py","old_path":null,"language":"python","header":"@@ -2,14 +2,10 @@","old_start":2,"old_lines":14,"new_start":2,"new_lines":10,"section":null,"lines":[{"t":" ","c":"","old":2,"new":2},{"t":" ","c":"import inspect","old":3,"new":3},{"t":" ","c":"import warnings","old":4,"new":4},{"t":"+","c":"from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping","old":null,"new":5},{"t":" ","c":"from json import dumps as json_dumps","old":5,"new":6},{"t":" ","c":"from typing import (","old":6,"new":7},{"t":" ","c":"    Any,","old":7,"new":8},{"t":"-","c":"    AsyncIterable,","old":8,"new":null},{"t":"-","c":"    AsyncIterator,","old":9,"new":null},{"t":"-","c":"    Iterable,","old":10,"new":null},{"t":"-","c":"    Iterator,","old":11,"new":null},{"t":"-","c":"    Mapping,","old":12,"new":null},{"t":" ","c":")","old":13,"new":9},{"t":" ","c":"from urllib.parse import urlencode","old":14,"new":10},{"t":" ","c":"","old":15,"new":11}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h3":{"id":"h3","path":"httpx/_content.py","old_path":null,"language":"python","header":"@@ -60,8 +56,7 @@","old_start":60,"old_lines":8,"new_start":56,"new_lines":7,"section":"def __iter__(self) -> Iterator[bytes]:","lines":[{"t":" ","c":"                chunk = self._stream.read(self.CHUNK_SIZE)","old":60,"new":56},{"t":" ","c":"        else:","old":61,"new":57},{"t":" ","c":"            # Otherwise iterate.","old":62,"new":58},{"t":"-","c":"            for part in self._stream:","old":63,"new":null},{"t":"-","c":"                yield part","old":64,"new":null},{"t":"+","c":"            yield from self._stream","old":null,"new":59},{"t":" ","c":"","old":65,"new":60},{"t":" ","c":"","old":66,"new":61},{"t":" ","c":"class AsyncIteratorByteStream(AsyncByteStream):","old":67,"new":62}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h4":{"id":"h4","path":"httpx/_main.py","old_path":null,"language":"python","header":"@@ -186,9 +186,9 @@","old_start":186,"old_lines":9,"new_start":186,"new_lines":9,"section":"def print_response(response: Response) -> None:","lines":[{"t":" ","c":"        console.print(f\"\u003c{len(response.content)} bytes of binary data>\")","old":186,"new":186},{"t":" ","c":"","old":187,"new":187},{"t":" ","c":"","old":188,"new":188},{"t":"-","c":"_PCTRTT = typing.Tuple[typing.Tuple[str, str], ...]","old":189,"new":null},{"t":"-","c":"_PCTRTTT = typing.Tuple[_PCTRTT, ...]","old":190,"new":null},{"t":"-","c":"_PeerCertRetDictType = typing.Dict[str, typing.Union[str, _PCTRTTT, _PCTRTT]]","old":191,"new":null},{"t":"+","c":"_PCTRTT = tuple[tuple[str, str], ...]","old":null,"new":189},{"t":"+","c":"_PCTRTTT = tuple[_PCTRTT, ...]","old":null,"new":190},{"t":"+","c":"_PeerCertRetDictType = dict[str, typing.Union[str, _PCTRTTT, _PCTRTT]]","old":null,"new":191},{"t":" ","c":"","old":192,"new":192},{"t":" ","c":"","old":193,"new":193},{"t":" ","c":"def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover","old":194,"new":194}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h5":{"id":"h5","path":"httpx/_multipart.py","old_path":null,"language":"python","header":"@@ -23,7 +23,7 @@","old_start":23,"old_lines":7,"new_start":23,"new_lines":7,"section":null,"lines":[{"t":" ","c":"","old":23,"new":23},{"t":" ","c":"_HTML5_FORM_ENCODING_REPLACEMENTS = {'\"': \"%22\", \"\\\\\": \"\\\\\\\\\"}","old":24,"new":24},{"t":" ","c":"_HTML5_FORM_ENCODING_REPLACEMENTS.update(","old":25,"new":25},{"t":"-","c":"    {chr(c): \"%{:02X}\".format(c) for c in range(0x1F + 1) if c != 0x1B}","old":26,"new":null},{"t":"+","c":"    {chr(c): f\"%{c:02X}\" for c in range(0x1F + 1) if c != 0x1B}","old":null,"new":26},{"t":" ","c":")","old":27,"new":27},{"t":" ","c":"_HTML5_FORM_ENCODING_RE = re.compile(","old":28,"new":28},{"t":" ","c":"    r\"|\".join([re.escape(c) for c in _HTML5_FORM_ENCODING_REPLACEMENTS.keys()])","old":29,"new":29}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h6":{"id":"h6","path":"httpx/_multipart.py","old_path":null,"language":"python","header":"@@ -236,9 +236,9 @@","old_start":236,"old_lines":9,"new_start":236,"new_lines":9,"section":"def __init__(","lines":[{"t":" ","c":"            boundary = os.urandom(16).hex().encode(\"ascii\")","old":236,"new":236},{"t":" ","c":"","old":237,"new":237},{"t":" ","c":"        self.boundary = boundary","old":238,"new":238},{"t":"-","c":"        self.content_type = \"multipart/form-data; boundary=%s\" % boundary.decode(","old":239,"new":null},{"t":"+","c":"        self.content_type = \"multipart/form-data; boundary={}\".format(boundary.decode(","old":null,"new":239},{"t":" ","c":"            \"ascii\"","old":240,"new":240},{"t":"-","c":"        )","old":241,"new":null},{"t":"+","c":"        ))","old":null,"new":241},{"t":" ","c":"        self.fields = list(self._iter_fields(data, files))","old":242,"new":242},{"t":" ","c":"","old":243,"new":243},{"t":" ","c":"    def _iter_fields(","old":244,"new":244}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h7":{"id":"h7","path":"httpx/_multipart.py","old_path":null,"language":"python","header":"@@ -292,8 +292,7 @@","old_start":292,"old_lines":8,"new_start":292,"new_lines":7,"section":"def get_headers(self) -> dict[str, str]:","lines":[{"t":" ","c":"        return {\"Content-Length\": str(content_length), \"Content-Type\": content_type}","old":292,"new":292},{"t":" ","c":"","old":293,"new":293},{"t":" ","c":"    def __iter__(self) -> typing.Iterator[bytes]:","old":294,"new":294},{"t":"-","c":"        for chunk in self.iter_chunks():","old":295,"new":null},{"t":"-","c":"            yield chunk","old":296,"new":null},{"t":"+","c":"        yield from self.iter_chunks()","old":null,"new":295},{"t":" ","c":"","old":297,"new":296},{"t":" ","c":"    async def __aiter__(self) -> typing.AsyncIterator[bytes]:","old":298,"new":297},{"t":" ","c":"        for chunk in self.iter_chunks():","old":299,"new":298}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h8":{"id":"h8","path":"httpx/_transports/default.py","old_path":null,"language":"python","header":"@@ -61,9 +61,9 @@","old_start":61,"old_lines":9,"new_start":61,"new_lines":9,"section":null,"lines":[{"t":" ","c":"A = typing.TypeVar(\"A\", bound=\"AsyncHTTPTransport\")","old":61,"new":61},{"t":" ","c":"","old":62,"new":62},{"t":" ","c":"SOCKET_OPTION = typing.Union[","old":63,"new":63},{"t":"-","c":"    typing.Tuple[int, int, int],","old":64,"new":null},{"t":"-","c":"    typing.Tuple[int, int, typing.Union[bytes, bytearray]],","old":65,"new":null},{"t":"-","c":"    typing.Tuple[int, int, None, int],","old":66,"new":null},{"t":"+","c":"    tuple[int, int, int],","old":null,"new":64},{"t":"+","c":"    tuple[int, int, typing.Union[bytes, bytearray]],","old":null,"new":65},{"t":"+","c":"    tuple[int, int, None, int],","old":null,"new":66},{"t":" ","c":"]","old":67,"new":67},{"t":" ","c":"","old":68,"new":68},{"t":" ","c":"__all__ = [\"AsyncHTTPTransport\", \"HTTPTransport\"]","old":69,"new":69}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h9":{"id":"h9","path":"httpx/_transports/default.py","old_path":null,"language":"python","header":"@@ -124,8 +124,7 @@","old_start":124,"old_lines":8,"new_start":124,"new_lines":7,"section":"def __init__(self, httpcore_stream: typing.Iterable[bytes]) -> None:","lines":[{"t":" ","c":"","old":124,"new":124},{"t":" ","c":"    def __iter__(self) -> typing.Iterator[bytes]:","old":125,"new":125},{"t":" ","c":"        with map_httpcore_exceptions():","old":126,"new":126},{"t":"-","c":"            for part in self._httpcore_stream:","old":127,"new":null},{"t":"-","c":"                yield part","old":128,"new":null},{"t":"+","c":"            yield from self._httpcore_stream","old":null,"new":127},{"t":" ","c":"","old":129,"new":128},{"t":" ","c":"    def close(self) -> None:","old":130,"new":129},{"t":" ","c":"        if hasattr(self._httpcore_stream, \"close\"):","old":131,"new":130}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h10":{"id":"h10","path":"httpx/_transports/wsgi.py","old_path":null,"language":"python","header":"@@ -33,8 +33,7 @@","old_start":33,"old_lines":8,"new_start":33,"new_lines":7,"section":"def __init__(self, result: typing.Iterable[bytes]) -> None:","lines":[{"t":" ","c":"        self._result = _skip_leading_empty_chunks(result)","old":33,"new":33},{"t":" ","c":"","old":34,"new":34},{"t":" ","c":"    def __iter__(self) -> typing.Iterator[bytes]:","old":35,"new":35},{"t":"-","c":"        for part in self._result:","old":36,"new":null},{"t":"-","c":"            yield part","old":37,"new":null},{"t":"+","c":"        yield from self._result","old":null,"new":36},{"t":" ","c":"","old":38,"new":37},{"t":" ","c":"    def close(self) -> None:","old":39,"new":38},{"t":" ","c":"        if self._close is not None:","old":40,"new":39}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h11":{"id":"h11","path":"httpx/_types.py","old_path":null,"language":"python","header":"@@ -2,22 +2,21 @@","old_start":2,"old_lines":22,"new_start":2,"new_lines":21,"section":null,"lines":[{"t":" ","c":"Type definitions for type checking purposes.","old":2,"new":2},{"t":" ","c":"\"\"\"","old":3,"new":3},{"t":" ","c":"","old":4,"new":4},{"t":"+","c":"from collections.abc import (","old":null,"new":5},{"t":"+","c":"    AsyncIterable,","old":null,"new":6},{"t":"+","c":"    AsyncIterator,","old":null,"new":7},{"t":"+","c":"    Iterable,","old":null,"new":8},{"t":"+","c":"    Iterator,","old":null,"new":9},{"t":"+","c":"    Mapping,","old":null,"new":10},{"t":"+","c":"    Sequence,","old":null,"new":11},{"t":"+","c":")","old":null,"new":12},{"t":" ","c":"from http.cookiejar import CookieJar","old":5,"new":13},{"t":" ","c":"from typing import (","old":6,"new":14},{"t":" ","c":"    IO,","old":7,"new":15},{"t":" ","c":"    TYPE_CHECKING,","old":8,"new":16},{"t":" ","c":"    Any,","old":9,"new":17},{"t":"-","c":"    AsyncIterable,","old":10,"new":null},{"t":"-","c":"    AsyncIterator,","old":11,"new":null},{"t":" ","c":"    Callable,","old":12,"new":18},{"t":"-","c":"    Dict,","old":13,"new":null},{"t":"-","c":"    Iterable,","old":14,"new":null},{"t":"-","c":"    Iterator,","old":15,"new":null},{"t":"-","c":"    List,","old":16,"new":null},{"t":"-","c":"    Mapping,","old":17,"new":null},{"t":" ","c":"    Optional,","old":18,"new":19},{"t":"-","c":"    Sequence,","old":19,"new":null},{"t":"-","c":"    Tuple,","old":20,"new":null},{"t":" ","c":"    Union,","old":21,"new":20},{"t":" ","c":")","old":22,"new":21},{"t":" ","c":"","old":23,"new":22}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h12":{"id":"h12","path":"httpx/_types.py","old_path":null,"language":"python","header":"@@ -35,8 +34,8 @@","old_start":35,"old_lines":8,"new_start":34,"new_lines":8,"section":null,"lines":[{"t":" ","c":"QueryParamTypes = Union[","old":35,"new":34},{"t":" ","c":"    \"QueryParams\",","old":36,"new":35},{"t":" ","c":"    Mapping[str, Union[PrimitiveData, Sequence[PrimitiveData]]],","old":37,"new":36},{"t":"-","c":"    List[Tuple[str, PrimitiveData]],","old":38,"new":null},{"t":"-","c":"    Tuple[Tuple[str, PrimitiveData], ...],","old":39,"new":null},{"t":"+","c":"    list[tuple[str, PrimitiveData]],","old":null,"new":37},{"t":"+","c":"    tuple[tuple[str, PrimitiveData], ...],","old":null,"new":38},{"t":" ","c":"    str,","old":40,"new":39},{"t":" ","c":"    bytes,","old":41,"new":40},{"t":" ","c":"]","old":42,"new":41}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h13":{"id":"h13","path":"httpx/_types.py","old_path":null,"language":"python","header":"@@ -45,22 +44,22 @@","old_start":45,"old_lines":22,"new_start":44,"new_lines":22,"section":null,"lines":[{"t":" ","c":"    \"Headers\",","old":45,"new":44},{"t":" ","c":"    Mapping[str, str],","old":46,"new":45},{"t":" ","c":"    Mapping[bytes, bytes],","old":47,"new":46},{"t":"-","c":"    Sequence[Tuple[str, str]],","old":48,"new":null},{"t":"-","c":"    Sequence[Tuple[bytes, bytes]],","old":49,"new":null},{"t":"+","c":"    Sequence[tuple[str, str]],","old":null,"new":47},{"t":"+","c":"    Sequence[tuple[bytes, bytes]],","old":null,"new":48},{"t":" ","c":"]","old":50,"new":49},{"t":" ","c":"","old":51,"new":50},{"t":"-","c":"CookieTypes = Union[\"Cookies\", CookieJar, Dict[str, str], List[Tuple[str, str]]]","old":52,"new":null},{"t":"+","c":"CookieTypes = Union[\"Cookies\", CookieJar, dict[str, str], list[tuple[str, str]]]","old":null,"new":51},{"t":" ","c":"","old":53,"new":52},{"t":" ","c":"TimeoutTypes = Union[","old":54,"new":53},{"t":" ","c":"    Optional[float],","old":55,"new":54},{"t":"-","c":"    Tuple[Optional[float], Optional[float], Optional[float], Optional[float]],","old":56,"new":null},{"t":"+","c":"    tuple[Optional[float], Optional[float], Optional[float], Optional[float]],","old":null,"new":55},{"t":" ","c":"    \"Timeout\",","old":57,"new":56},{"t":" ","c":"]","old":58,"new":57},{"t":" ","c":"ProxyTypes = Union[\"URL\", str, \"Proxy\"]","old":59,"new":58},{"t":"-","c":"CertTypes = Union[str, Tuple[str, str], Tuple[str, str, str]]","old":60,"new":null},{"t":"+","c":"CertTypes = Union[str, tuple[str, str], tuple[str, str, str]]","old":null,"new":59},{"t":" ","c":"","old":61,"new":60},{"t":" ","c":"AuthTypes = Union[","old":62,"new":61},{"t":"-","c":"    Tuple[Union[str, bytes], Union[str, bytes]],","old":63,"new":null},{"t":"+","c":"    tuple[Union[str, bytes], Union[str, bytes]],","old":null,"new":62},{"t":" ","c":"    Callable[[\"Request\"], \"Request\"],","old":64,"new":63},{"t":" ","c":"    \"Auth\",","old":65,"new":64},{"t":" ","c":"]","old":66,"new":65}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h14":{"id":"h14","path":"httpx/_types.py","old_path":null,"language":"python","header":"@@ -76,13 +75,13 @@","old_start":76,"old_lines":13,"new_start":75,"new_lines":13,"section":null,"lines":[{"t":" ","c":"    # file (or bytes)","old":76,"new":75},{"t":" ","c":"    FileContent,","old":77,"new":76},{"t":" ","c":"    # (filename, file (or bytes))","old":78,"new":77},{"t":"-","c":"    Tuple[Optional[str], FileContent],","old":79,"new":null},{"t":"+","c":"    tuple[Optional[str], FileContent],","old":null,"new":78},{"t":" ","c":"    # (filename, file (or bytes), content_type)","old":80,"new":79},{"t":"-","c":"    Tuple[Optional[str], FileContent, Optional[str]],","old":81,"new":null},{"t":"+","c":"    tuple[Optional[str], FileContent, Optional[str]],","old":null,"new":80},{"t":" ","c":"    # (filename, file (or bytes), content_type, headers)","old":82,"new":81},{"t":"-","c":"    Tuple[Optional[str], FileContent, Optional[str], Mapping[str, str]],","old":83,"new":null},{"t":"+","c":"    tuple[Optional[str], FileContent, Optional[str], Mapping[str, str]],","old":null,"new":82},{"t":" ","c":"]","old":84,"new":83},{"t":"-","c":"RequestFiles = Union[Mapping[str, FileTypes], Sequence[Tuple[str, FileTypes]]]","old":85,"new":null},{"t":"+","c":"RequestFiles = Union[Mapping[str, FileTypes], Sequence[tuple[str, FileTypes]]]","old":null,"new":84},{"t":" ","c":"","old":86,"new":85},{"t":" ","c":"RequestExtensions = Mapping[str, Any]","old":87,"new":86},{"t":" ","c":"","old":88,"new":87}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h15":{"id":"h15","path":"pyproject.toml","old_path":null,"language":"toml","header":"@@ -96,7 +96,7 @@","old_start":96,"old_lines":7,"new_start":96,"new_lines":7,"section":"pattern = 'src=\"(docs/img/.*?)\"'","lines":[{"t":" ","c":"replacement = 'src=\"https://raw.githubusercontent.com/encode/httpx/master/\\1\"'","old":96,"new":96},{"t":" ","c":"","old":97,"new":97},{"t":" ","c":"[tool.ruff.lint]","old":98,"new":98},{"t":"-","c":"select = [\"E\", \"F\", \"I\", \"B\", \"PIE\"]","old":99,"new":null},{"t":"+","c":"select = [\"E\", \"F\", \"I\", \"B\", \"PIE\", \"UP\"]","old":null,"new":99},{"t":" ","c":"ignore = [\"B904\", \"B028\"]","old":100,"new":100},{"t":" ","c":"","old":101,"new":101},{"t":" ","c":"[tool.ruff.lint.isort]","old":102,"new":102}],"truncated":false,"change_kind":"content","significance":"core"},"h16":{"id":"h16","path":"tests/client/test_auth.py","old_path":null,"language":"python","header":"@@ -73,7 +73,7 @@","old_start":73,"old_lines":7,"new_start":73,"new_lines":7,"section":"def challenge_send(self, request: httpx.Request) -> httpx.Response:","lines":[{"t":" ","c":"            \"stale\": \"FALSE\",","old":73,"new":73},{"t":" ","c":"        }","old":74,"new":74},{"t":" ","c":"        challenge_str = \", \".join(","old":75,"new":75},{"t":"-","c":"            '{}=\"{}\"'.format(key, value)","old":76,"new":null},{"t":"+","c":"            f'{key}=\"{value}\"'","old":null,"new":76},{"t":" ","c":"            for key, value in challenge_data.items()","old":77,"new":77},{"t":" ","c":"            if value","old":78,"new":78},{"t":" ","c":"        )","old":79,"new":79}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h17":{"id":"h17","path":"tests/client/test_auth.py","old_path":null,"language":"python","header":"@@ -437,7 +437,7 @@","old_start":437,"old_lines":7,"new_start":437,"new_lines":7,"section":"async def test_digest_auth(","lines":[{"t":" ","c":"    assert response.status_code == 200","old":437,"new":437},{"t":" ","c":"    assert len(response.history) == 1","old":438,"new":438},{"t":" ","c":"","old":439,"new":439},{"t":"-","c":"    authorization = typing.cast(typing.Dict[str, typing.Any], response.json())[\"auth\"]","old":440,"new":null},{"t":"+","c":"    authorization = typing.cast(dict[str, typing.Any], response.json())[\"auth\"]","old":null,"new":440},{"t":" ","c":"    scheme, _, fields = authorization.partition(\" \")","old":441,"new":441},{"t":" ","c":"    assert scheme == \"Digest\"","old":442,"new":442},{"t":" ","c":"","old":443,"new":443}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h18":{"id":"h18","path":"tests/client/test_auth.py","old_path":null,"language":"python","header":"@@ -468,7 +468,7 @@","old_start":468,"old_lines":7,"new_start":468,"new_lines":7,"section":"async def test_digest_auth_no_specified_qop() -> None:","lines":[{"t":" ","c":"    assert response.status_code == 200","old":468,"new":468},{"t":" ","c":"    assert len(response.history) == 1","old":469,"new":469},{"t":" ","c":"","old":470,"new":470},{"t":"-","c":"    authorization = typing.cast(typing.Dict[str, typing.Any], response.json())[\"auth\"]","old":471,"new":null},{"t":"+","c":"    authorization = typing.cast(dict[str, typing.Any], response.json())[\"auth\"]","old":null,"new":471},{"t":" ","c":"    scheme, _, fields = authorization.partition(\" \")","old":472,"new":472},{"t":" ","c":"    assert scheme == \"Digest\"","old":473,"new":473},{"t":" ","c":"","old":474,"new":474}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h19":{"id":"h19","path":"tests/client/test_redirects.py","old_path":null,"language":"python","header":"@@ -37,7 +37,7 @@","old_start":37,"old_lines":7,"new_start":37,"new_lines":7,"section":"def redirects(request: httpx.Request) -> httpx.Response:","lines":[{"t":" ","c":"","old":37,"new":37},{"t":" ","c":"    elif request.url.path == \"/invalid_redirect\":","old":38,"new":38},{"t":" ","c":"        status_code = httpx.codes.SEE_OTHER","old":39,"new":39},{"t":"-","c":"        raw_headers = [(b\"location\", \"https://😇/\".encode(\"utf-8\"))]","old":40,"new":null},{"t":"+","c":"        raw_headers = [(b\"location\", \"https://😇/\".encode())]","old":null,"new":40},{"t":" ","c":"        return httpx.Response(status_code, headers=raw_headers)","old":41,"new":41},{"t":" ","c":"","old":42,"new":42},{"t":" ","c":"    elif request.url.path == \"/no_scheme_redirect\":","old":43,"new":43}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h20":{"id":"h20","path":"tests/conftest.py","old_path":null,"language":"python","header":"@@ -48,12 +48,12 @@","old_start":48,"old_lines":12,"new_start":48,"new_lines":12,"section":"def clean_environ():","lines":[{"t":" ","c":"    os.environ.update(original_environ)","old":48,"new":48},{"t":" ","c":"","old":49,"new":49},{"t":" ","c":"","old":50,"new":50},{"t":"-","c":"Message = typing.Dict[str, typing.Any]","old":51,"new":null},{"t":"+","c":"Message = dict[str, typing.Any]","old":null,"new":51},{"t":" ","c":"Receive = typing.Callable[[], typing.Awaitable[Message]]","old":52,"new":52},{"t":" ","c":"Send = typing.Callable[","old":53,"new":53},{"t":"-","c":"    [typing.Dict[str, typing.Any]], typing.Coroutine[None, None, None]","old":54,"new":null},{"t":"+","c":"    [dict[str, typing.Any]], typing.Coroutine[None, None, None]","old":null,"new":54},{"t":" ","c":"]","old":55,"new":55},{"t":"-","c":"Scope = typing.Dict[str, typing.Any]","old":56,"new":null},{"t":"+","c":"Scope = dict[str, typing.Any]","old":null,"new":56},{"t":" ","c":"","old":57,"new":57},{"t":" ","c":"","old":58,"new":58},{"t":" ","c":"async def app(scope: Scope, receive: Receive, send: Send) -> None:","old":59,"new":59}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h21":{"id":"h21","path":"tests/models/test_headers.py","old_path":null,"language":"python","header":"@@ -99,7 +99,7 @@","old_start":99,"old_lines":7,"new_start":99,"new_lines":7,"section":"def test_headers_encoding_in_repr():","lines":[{"t":" ","c":"    \"\"\"","old":99,"new":99},{"t":" ","c":"    Headers should display an encoding in the repr if required.","old":100,"new":100},{"t":" ","c":"    \"\"\"","old":101,"new":101},{"t":"-","c":"    headers = httpx.Headers({b\"custom\": \"example ☃\".encode(\"utf-8\")})","old":102,"new":null},{"t":"+","c":"    headers = httpx.Headers({b\"custom\": \"example ☃\".encode()})","old":null,"new":102},{"t":" ","c":"    assert repr(headers) == \"Headers({'custom': 'example ☃'}, encoding='utf-8')\"","old":103,"new":103},{"t":" ","c":"","old":104,"new":104},{"t":" ","c":"","old":105,"new":105}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h22":{"id":"h22","path":"tests/models/test_headers.py","old_path":null,"language":"python","header":"@@ -127,7 +127,7 @@","old_start":127,"old_lines":7,"new_start":127,"new_lines":7,"section":"def test_headers_decode_utf_8():","lines":[{"t":" ","c":"    \"\"\"","old":127,"new":127},{"t":" ","c":"    Headers containing non-ascii codepoints should default to decoding as utf-8.","old":128,"new":128},{"t":" ","c":"    \"\"\"","old":129,"new":129},{"t":"-","c":"    raw_headers = [(b\"Custom\", \"Code point: ☃\".encode(\"utf-8\"))]","old":130,"new":null},{"t":"+","c":"    raw_headers = [(b\"Custom\", \"Code point: ☃\".encode())]","old":null,"new":130},{"t":" ","c":"    headers = httpx.Headers(raw_headers)","old":131,"new":131},{"t":" ","c":"    assert dict(headers) == {\"custom\": \"Code point: ☃\"}","old":132,"new":132},{"t":" ","c":"    assert headers.encoding == \"utf-8\"","old":133,"new":133}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h23":{"id":"h23","path":"tests/models/test_headers.py","old_path":null,"language":"python","header":"@@ -148,7 +148,7 @@","old_start":148,"old_lines":7,"new_start":148,"new_lines":7,"section":"def test_headers_decode_explicit_encoding():","lines":[{"t":" ","c":"    An explicit encoding may be set on headers in order to force a","old":148,"new":148},{"t":" ","c":"    particular decoding.","old":149,"new":149},{"t":" ","c":"    \"\"\"","old":150,"new":150},{"t":"-","c":"    raw_headers = [(b\"Custom\", \"Code point: ☃\".encode(\"utf-8\"))]","old":151,"new":null},{"t":"+","c":"    raw_headers = [(b\"Custom\", \"Code point: ☃\".encode())]","old":null,"new":151},{"t":" ","c":"    headers = httpx.Headers(raw_headers)","old":152,"new":152},{"t":" ","c":"    headers.encoding = \"iso-8859-1\"","old":153,"new":153},{"t":" ","c":"    assert dict(headers) == {\"custom\": \"Code point: â\\x98\\x83\"}","old":154,"new":154}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h24":{"id":"h24","path":"tests/models/test_headers.py","old_path":null,"language":"python","header":"@@ -173,7 +173,7 @@","old_start":173,"old_lines":7,"new_start":173,"new_lines":7,"section":"def test_sensitive_headers(header):","lines":[{"t":" ","c":"    \"\"\"","old":173,"new":173},{"t":" ","c":"    value = \"s3kr3t\"","old":174,"new":174},{"t":" ","c":"    h = httpx.Headers({header: value})","old":175,"new":175},{"t":"-","c":"    assert repr(h) == \"Headers({'%s': '[secure]'})\" % header","old":176,"new":null},{"t":"+","c":"    assert repr(h) == f\"Headers({{'{header}': '[secure]'}})\"","old":null,"new":176},{"t":" ","c":"","old":177,"new":177},{"t":" ","c":"","old":178,"new":178},{"t":" ","c":"@pytest.mark.parametrize(","old":179,"new":179}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h25":{"id":"h25","path":"tests/models/test_responses.py","old_path":null,"language":"python","header":"@@ -173,7 +173,7 @@","old_start":173,"old_lines":7,"new_start":173,"new_lines":7,"section":"def test_response_default_to_utf8_encoding():","lines":[{"t":" ","c":"    \"\"\"","old":173,"new":173},{"t":" ","c":"    Default to utf-8 encoding if there is no Content-Type header.","old":174,"new":174},{"t":" ","c":"    \"\"\"","old":175,"new":175},{"t":"-","c":"    content = \"おはようございます。\".encode(\"utf-8\")","old":176,"new":null},{"t":"+","c":"    content = \"おはようございます。\".encode()","old":null,"new":176},{"t":" ","c":"    response = httpx.Response(","old":177,"new":177},{"t":" ","c":"        200,","old":178,"new":178},{"t":" ","c":"        content=content,","old":179,"new":179}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h26":{"id":"h26","path":"tests/models/test_responses.py","old_path":null,"language":"python","header":"@@ -187,7 +187,7 @@","old_start":187,"old_lines":7,"new_start":187,"new_lines":7,"section":"def test_response_fallback_to_utf8_encoding():","lines":[{"t":" ","c":"    Fallback to utf-8 if we get an invalid charset in the Content-Type header.","old":187,"new":187},{"t":" ","c":"    \"\"\"","old":188,"new":188},{"t":" ","c":"    headers = {\"Content-Type\": \"text-plain; charset=invalid-codec-name\"}","old":189,"new":189},{"t":"-","c":"    content = \"おはようございます。\".encode(\"utf-8\")","old":190,"new":null},{"t":"+","c":"    content = \"おはようございます。\".encode()","old":null,"new":190},{"t":" ","c":"    response = httpx.Response(","old":191,"new":191},{"t":" ","c":"        200,","old":192,"new":192},{"t":" ","c":"        content=content,","old":193,"new":193}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h27":{"id":"h27","path":"tests/models/test_responses.py","old_path":null,"language":"python","header":"@@ -219,7 +219,7 @@","old_start":219,"old_lines":7,"new_start":219,"new_lines":7,"section":"def test_response_no_charset_with_utf8_content():","lines":[{"t":" ","c":"    A response with UTF-8 encoded content should decode correctly,","old":219,"new":219},{"t":" ","c":"    even with no charset specified.","old":220,"new":220},{"t":" ","c":"    \"\"\"","old":221,"new":221},{"t":"-","c":"    content = \"Unicode Snowman: ☃\".encode(\"utf-8\")","old":222,"new":null},{"t":"+","c":"    content = \"Unicode Snowman: ☃\".encode()","old":null,"new":222},{"t":" ","c":"    headers = {\"Content-Type\": \"text/plain\"}","old":223,"new":223},{"t":" ","c":"    response = httpx.Response(","old":224,"new":224},{"t":" ","c":"        200,","old":225,"new":225}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h28":{"id":"h28","path":"tests/models/test_responses.py","old_path":null,"language":"python","header":"@@ -289,7 +289,7 @@","old_start":289,"old_lines":7,"new_start":289,"new_lines":7,"section":"def test_response_set_explicit_encoding():","lines":[{"t":" ","c":"def test_response_force_encoding():","old":289,"new":289},{"t":" ","c":"    response = httpx.Response(","old":290,"new":290},{"t":" ","c":"        200,","old":291,"new":291},{"t":"-","c":"        content=\"Snowman: ☃\".encode(\"utf-8\"),","old":292,"new":null},{"t":"+","c":"        content=\"Snowman: ☃\".encode(),","old":null,"new":292},{"t":" ","c":"    )","old":293,"new":293},{"t":" ","c":"    response.encoding = \"iso-8859-1\"","old":294,"new":294},{"t":" ","c":"    assert response.status_code == 200","old":295,"new":295}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h29":{"id":"h29","path":"tests/models/test_whatwg.py","old_path":null,"language":"python","header":"@@ -10,7 +10,7 @@","old_start":10,"old_lines":7,"new_start":10,"new_lines":7,"section":null,"lines":[{"t":" ","c":"","old":10,"new":10},{"t":" ","c":"# URL test cases from...","old":11,"new":11},{"t":" ","c":"# https://github.com/web-platform-tests/wpt/blob/master/url/resources/urltestdata.json","old":12,"new":12},{"t":"-","c":"with open(\"tests/models/whatwg.json\", \"r\", encoding=\"utf-8\") as input:","old":13,"new":null},{"t":"+","c":"with open(\"tests/models/whatwg.json\", encoding=\"utf-8\") as input:","old":null,"new":13},{"t":" ","c":"    test_cases = json.load(input)","old":14,"new":14},{"t":" ","c":"    test_cases = [","old":15,"new":15},{"t":" ","c":"        item","old":16,"new":16}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h30":{"id":"h30","path":"tests/test_auth.py","old_path":null,"language":"python","header":"@@ -192,7 +192,7 @@","old_start":192,"old_lines":7,"new_start":192,"new_lines":7,"section":"def test_digest_auth_rfc_7616_md5(monkeypatch):","lines":[{"t":" ","c":"    # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1","old":192,"new":192},{"t":" ","c":"","old":193,"new":193},{"t":" ","c":"    def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:","old":194,"new":194},{"t":"-","c":"        return \"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\".encode()","old":195,"new":null},{"t":"+","c":"        return b\"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\"","old":null,"new":195},{"t":" ","c":"","old":196,"new":196},{"t":" ","c":"    auth = httpx.DigestAuth(username=\"Mufasa\", password=\"Circle of Life\")","old":197,"new":197},{"t":" ","c":"    monkeypatch.setattr(auth, \"_get_client_nonce\", mock_get_client_nonce)","old":198,"new":198}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h31":{"id":"h31","path":"tests/test_auth.py","old_path":null,"language":"python","header":"@@ -252,7 +252,7 @@","old_start":252,"old_lines":7,"new_start":252,"new_lines":7,"section":"def test_digest_auth_rfc_7616_sha_256(monkeypatch):","lines":[{"t":" ","c":"    # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1","old":252,"new":252},{"t":" ","c":"","old":253,"new":253},{"t":" ","c":"    def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:","old":254,"new":254},{"t":"-","c":"        return \"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\".encode()","old":255,"new":null},{"t":"+","c":"        return b\"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\"","old":null,"new":255},{"t":" ","c":"","old":256,"new":256},{"t":" ","c":"    auth = httpx.DigestAuth(username=\"Mufasa\", password=\"Circle of Life\")","old":257,"new":257},{"t":" ","c":"    monkeypatch.setattr(auth, \"_get_client_nonce\", mock_get_client_nonce)","old":258,"new":258}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h32":{"id":"h32","path":"tests/test_main.py","old_path":null,"language":"python","header":"@@ -174,7 +174,7 @@","old_start":174,"old_lines":7,"new_start":174,"new_lines":7,"section":"def test_download(server):","lines":[{"t":" ","c":"    with runner.isolated_filesystem():","old":174,"new":174},{"t":" ","c":"        runner.invoke(httpx.main, [url, \"--download\", \"index.txt\"])","old":175,"new":175},{"t":" ","c":"        assert os.path.exists(\"index.txt\")","old":176,"new":176},{"t":"-","c":"        with open(\"index.txt\", \"r\") as input_file:","old":177,"new":null},{"t":"+","c":"        with open(\"index.txt\") as input_file:","old":null,"new":177},{"t":" ","c":"            assert input_file.read() == \"Hello, world!\"","old":178,"new":178},{"t":" ","c":"","old":179,"new":179},{"t":" ","c":"","old":180,"new":180}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h33":{"id":"h33","path":"tests/test_wsgi.py","old_path":null,"language":"python","header":"@@ -24,8 +24,7 @@","old_start":24,"old_lines":8,"new_start":24,"new_lines":7,"section":"def application(environ, start_response):","lines":[{"t":" ","c":"","old":24,"new":24},{"t":" ","c":"        start_response(status, response_headers)","old":25,"new":25},{"t":" ","c":"","old":26,"new":26},{"t":"-","c":"        for item in output:","old":27,"new":null},{"t":"-","c":"            yield item","old":28,"new":null},{"t":"+","c":"        yield from output","old":null,"new":27},{"t":" ","c":"","old":29,"new":28},{"t":" ","c":"    return wsgiref.validate.validator(application)","old":30,"new":29},{"t":" ","c":"","old":31,"new":30}],"truncated":false,"change_kind":"modified_logic","significance":"supporting"}}}</script>
+<script id="precis-model" type="application/json">{"schema_version":"1.2","source":{"kind":"github_pr","title":"Enable ruff UP (pyupgrade) rule and fix all 56 violations","identifier":"#3768","url":"https://github.com/encode/httpx/pull/3768","repo":"encode/httpx","author":"Zephyr-Blessed","base":{"ref":"master","sha":"ae1b9f66238f75ced3ced5e4485408435de10768"},"head":{"ref":"enable-ruff-up-rules","sha":"d5e50795583ba159fc23372432b71dbcdb667d91"},"commits":[{"sha":"d5e5079","subject":"Enable ruff UP (pyupgrade) rule and fix all 56 violations"}],"linked_issues":[],"description":"## Summary\n\nEnables the ruff `UP` (pyupgrade) rule set and fixes all 56 existing violations across 17 files.\n\n## Changes\n\n| Rule | Description | Count |\n|------|-------------|-------|\n| UP006 | Use builtin `tuple`/`dict`/`list` instead of `typing.Tuple`/`Dict`/`List` | 29 |\n| UP012 | Remove unnecessary `.encode('utf-8')` calls | 10 |\n| UP028 | Replace `yield`-over-`for` with `yield from` | 6 |\n| UP035 | Import from `collections.abc` instead of `typing` | 5 |\n| UP032 | Use f-strings instead of `.format()` | 2 |\n| UP031 | Modernize percent string formatting | 2 |\n| UP015 | Remove redundant `open()` modes | 2 |\n\nThe `UP` rule is now enabled in `pyproject.toml` alongside the existing `E`, `F`, `I`, `B`, `PIE` rules to prevent regressions.\n\nAll existing ruff checks continue to pass.","generated_by":"precis 0.1.0","generated_at":"2026-08-09T10:40:00Z"},"coverage":{"tier":"full","hunks_read":33,"files_read":17,"note":"Every hunk read in full. The streaming chain around the six rewritten loops was resolved against the checkout.","limitations":["The 56 violation counts in the description are the author's; the diff was read as it stands, not re-linted."],"hunks_total":33,"files_total":17},"stats":{"signal_ratio":0.14,"changed_lines_by_kind":{"modified_logic":18,"formatting":103,"content":2},"files_changed":17,"additions":56,"deletions":67,"hunks":33,"changed_lines_by_role":{"build":2,"domain":80,"tests":41}},"story":{"headline":"One lint rule is switched on. The other sixteen files are what switching it on produced.","beats":[{"label":"Was","text":"`[tool.ruff.lint] select` listed five rule sets. `UP` was not among them."},{"label":"Now","text":"`UP` is listed, and the 56 pre-existing violations are rewritten across 16 files."},{"label":"Watch","text":"Six of those rewrites turn a `for`/`yield` loop into `yield from`, which delegates differently."}],"shape":"refactor","tests":{"state":"none","note":"The changed test files are pyupgrade output; none exercises the new `yield from` delegation."},"confidence":"high","evidence":["pr_description","commit_messages","code"],"caveat":null,"intent_delta":{"stated":"Enables the ruff `UP` (pyupgrade) rule set and fixes all 56 existing violations across 17 files.","also_does":[],"not_done":[]}},"change_map":{"summary":"One line of config, six loops that became delegations, and 50 rewrites with no runtime difference.","graph":{"nodes":[{"id":"n1","label":"Response.iter_raw()","kind":"entrypoint","emphasis":"unchanged","hunk_ids":[],"note":"Iterates `self.stream`, which is the bound stream, at _models.py:951."},{"id":"n2","label":"BoundSyncStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_client.py","hunk_ids":["h1"],"note":"Wraps whichever stream the transport returned, assigned at _client.py:1018."},{"id":"n3","label":"ResponseStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_transports/default.py","hunk_ids":["h9"],"note":"The delegation happens inside `with map_httpcore_exceptions():`."},{"id":"n4","label":"WSGIByteStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_transports/wsgi.py","hunk_ids":["h10"],"note":"Wraps the iterable the WSGI application returned, at wsgi.py:135."},{"id":"n5","label":"httpcore response stream","kind":"external","emphasis":"unchanged","hunk_ids":[],"note":"Another library's object. What its `close` does is not visible from here."},{"id":"n6","label":"Request.read()","kind":"entrypoint","emphasis":"unchanged","hunk_ids":[],"note":"`b\"\".join(self.stream)` at _models.py:474 iterates the request body stream."},{"id":"n7","label":"MultipartStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_multipart.py","hunk_ids":["h7"],"note":"Delegates to its own `iter_chunks()`, which is code in this file."},{"id":"n8","label":"IteratorByteStream.__iter__","kind":"function","emphasis":"changed","path":"httpx/_content.py","hunk_ids":["h3"],"note":"Delegates to the iterator the caller passed as request content."}],"edges":[{"from":"n1","to":"n2","kind":"calls","emphasis":"unchanged","evidence":{"ref":"httpx/_models.py:951"}},{"from":"n2","to":"n3","kind":"calls","emphasis":"changed","label":"yield from","evidence":{"hunk_ids":["h1"]}},{"from":"n2","to":"n4","kind":"calls","emphasis":"changed","label":"yield from","evidence":{"hunk_ids":["h1"]}},{"from":"n3","to":"n5","kind":"calls","emphasis":"changed","label":"yield from","evidence":{"hunk_ids":["h9"]}},{"from":"n6","to":"n7","kind":"calls","emphasis":"unchanged","evidence":{"ref":"httpx/_models.py:474"}},{"from":"n6","to":"n8","kind":"calls","emphasis":"unchanged","evidence":{"ref":"httpx/_models.py:474"}}]},"groups":[{"id":"g-config","role":"build","label":"The rule","narrative":"`UP` joins the selected rule sets in `pyproject.toml`, and `ignore` is untouched: one changed line, and it is the decision. Every other file in this diff follows from it.","files":[{"path":"pyproject.toml","status":"modified","change_kind":"content","significance":"core","additions":1,"deletions":1,"hunk_ids":["h15"],"note":"`UP` joins `E`, `F`, `I`, `B`, `PIE` in `select`. `ignore` is untouched."}]},{"id":"g-streams","role":"domain","label":"Loops that became delegations","narrative":"Five rewrites where `yield from` and a `for` loop are not interchangeable: the stream every response passes through in `_client.py`, the WSGI iterable, and three delegations over caller-supplied or internal iterators. These are the lines where the rule reaches runtime behaviour rather than spelling.","files":[{"path":"httpx/_client.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":1,"deletions":2,"hunk_ids":["h1"],"note":"The stream every response goes through, whichever transport produced it."},{"path":"httpx/_transports/default.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":4,"deletions":5,"hunk_ids":["h8","h9"],"note":"One `yield from` inside an exception-mapping block, and `SOCKET_OPTION` rewritten."},{"path":"httpx/_transports/wsgi.py","status":"modified","change_kind":"modified_logic","significance":"core","additions":1,"deletions":2,"hunk_ids":["h10"],"note":"The iterable here comes from the WSGI application under test, not from httpx."},{"path":"httpx/_content.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":2,"deletions":7,"hunk_ids":["h2","h3"],"note":"One `yield from` over a caller-supplied iterator, plus six imports moved to `collections.abc`."},{"path":"httpx/_multipart.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":4,"deletions":5,"hunk_ids":["h5","h6","h7"],"note":"One `yield from` over an internal generator, one f-string, and one `%` that became `.format`."}]},{"id":"g-types","role":"domain","label":"Type expressions","narrative":"Type aliases move from annotation strings to expressions evaluated at import, in the public alias module and three private aliases in `_main.py`. Spelling changes only; every alias names the same shape it did.","files":[{"path":"httpx/_types.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":20,"deletions":21,"hunk_ids":["h11","h12","h13","h14"],"note":"The public alias module: `QueryParamTypes`, `HeaderTypes`, `CookieTypes` and the rest."},{"path":"httpx/_main.py","status":"modified","change_kind":"formatting","significance":"supporting","additions":3,"deletions":3,"hunk_ids":["h4"],"note":"Three private aliases for the shape of a peer certificate dict."}]},{"id":"g-tests","role":"tests","label":"Test files","narrative":"`test_wsgi.py` carries the sixth `yield from`, in the WSGI application the transport tests run against. The other eight files are spelling rewrites with no runtime difference: mode arguments dropped, `typing.Dict` to `dict`, encode calls losing their explicit utf-8.","files":[{"path":"tests/test_wsgi.py","status":"modified","change_kind":"modified_logic","significance":"supporting","additions":1,"deletions":2,"hunk_ids":["h33"],"note":"The sixth `yield from`, in the WSGI application the transport tests run against."},{"path":"tests/models/test_headers.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":4,"deletions":4,"hunk_ids":["h21","h22","h23","h24"],"note":"`\"…\".encode(\"utf-8\")` to `\"…\".encode()`, whose default is utf-8."},{"path":"tests/models/test_responses.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":4,"deletions":4,"hunk_ids":["h25","h26","h27","h28"]},{"path":"tests/client/test_auth.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":3,"deletions":3,"hunk_ids":["h16","h17","h18"]},{"path":"tests/conftest.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":3,"deletions":3,"hunk_ids":["h20"],"note":"`typing.Dict` to `dict` in the ASGI type aliases the test app is annotated with."},{"path":"tests/test_auth.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":2,"deletions":2,"hunk_ids":["h30","h31"]},{"path":"tests/client/test_redirects.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":1,"deletions":1,"hunk_ids":["h19"]},{"path":"tests/models/test_whatwg.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":1,"deletions":1,"hunk_ids":["h29"],"note":"`open(..., \"r\", ...)` loses its mode argument; `r` is what `open` uses anyway."},{"path":"tests/test_main.py","status":"modified","change_kind":"formatting","significance":"mechanical","additions":1,"deletions":1,"hunk_ids":["h32"]}]}]},"contracts":[{"id":"c1","kind":"config","name":"tool.ruff.lint.select","before":"[\"E\", \"F\", \"I\", \"B\", \"PIE\"]","after":"[\"E\", \"F\", \"I\", \"B\", \"PIE\", \"UP\"]","note":"The one decision in the diff; every other file follows from it.","hunk_ids":["h15"]}],"behavior":{"changed":true,"note":null,"summary":"Iterating any of these streams yields the same bytes. What differs is what reaches the inner iterator when a consumer closes or throws into the outer generator.","before":{"kind":"flow","title":"Before: for part in self._stream","nodes":[{"id":"b1","label":"consumer calls gen.close()","kind":"start","emphasis":"unchanged"},{"id":"b2","label":"GeneratorExit raised at the yield","kind":"process","emphasis":"unchanged"},{"id":"b3","label":"the for loop is abandoned","kind":"process","emphasis":"removed"},{"id":"b4","label":"self._stream.close() not called","kind":"end","emphasis":"removed"}],"edges":[{"from":"b1","to":"b2","kind":"call","emphasis":"unchanged"},{"from":"b2","to":"b3","kind":"call","emphasis":"unchanged"},{"from":"b3","to":"b4","kind":"call","emphasis":"removed"}]},"after":{"kind":"flow","title":"After: yield from self._stream","nodes":[{"id":"a1","label":"consumer calls gen.close()","kind":"start","emphasis":"unchanged"},{"id":"a2","label":"delegation forwards it inward","kind":"process","emphasis":"added"},{"id":"a3","label":"self._stream.close(), if it has one","kind":"process","emphasis":"added"},{"id":"a4","label":"then the outer generator ends","kind":"end","emphasis":"unchanged"}],"edges":[{"from":"a1","to":"a2","kind":"call","emphasis":"added","hunk_ids":["h1"]},{"from":"a2","to":"a3","kind":"call","emphasis":"added","hunk_ids":["h1"]},{"from":"a3","to":"a4","kind":"return","emphasis":"unchanged"}]},"deltas":[{"summary":"`close()` and `throw()` on the outer generator now reach the inner iterator.","hunk_ids":["h1","h3","h7","h9","h10"]},{"summary":"Every other rewrite yields identical bytes and identical types.","hunk_ids":["h11","h21"]}]},"review_pass":{"estimated_minutes":9,"steps":[{"n":1,"title":"The line that caused the other sixteen files","why":"One rule set added to `select`. Reading it first turns the rest of the diff into a consequence rather than a list.","path":"pyproject.toml","hunk_ids":["h15"],"annotations":[{"hunk_id":"h15","new_line":99,"text":"`ignore` is unchanged, so no `UP` rule is exempted. Future contributions are held to this too."}]},{"n":2,"title":"The six loops that became delegations","why":"The only rewrites in the diff where the two forms are not interchangeable, so they are the ones worth reading as code.","path":"httpx/_client.py","hunk_ids":["h1","h3","h7","h9","h10","h33"],"annotations":[{"hunk_id":"h1","new_line":153,"text":"`yield from` forwards `close()`, `throw()` and `send()` to the iterator it delegates to. The `for` loop did not."},{"hunk_id":"h9","new_line":127,"text":"This one delegates inside `with map_httpcore_exceptions():`, so the block is what an exception from the inner iterator still passes through."},{"hunk_id":"h10","new_line":36,"text":"The iterable here is whatever the WSGI application returned, and PEP 3333 gives it an optional `close`."},{"hunk_id":"h3","new_line":59,"text":"`self._stream` here is the iterator a caller passed as request content."}]},{"n":3,"title":"Type aliases, which are evaluated and not annotations","why":"These lines run at import rather than being stored as strings, so the builtin generics must be subscriptable. `requires-python` is `>=3.9`.","path":"httpx/_types.py","hunk_ids":["h11","h12","h13","h14","h4","h8"],"annotations":[{"hunk_id":"h11","new_line":5,"text":"Six names move from `typing` to `collections.abc`. Both are re-exported by this module's `Union` aliases below."},{"hunk_id":"h13","new_line":52,"text":"`CookieTypes` and its neighbours are what a caller passes to `httpx.Client`, so these are the annotations users see."}]},{"n":4,"title":"The two string rewrites","why":"The only places where the produced string is built differently rather than typed differently.","path":"httpx/_multipart.py","hunk_ids":["h5","h6","h2"],"annotations":[{"hunk_id":"h6","new_line":239,"text":"`%s` became `.format(...)` rather than an f-string, so the wrapped call stays where it was."}]}],"checks":[{"kind":"behavioral","title":"Closing a response now reaches the transport's iterator","why":"`yield from` forwards `close()` inward, so a consumer abandoning a streamed response can now close an httpcore stream or a WSGI application's output.","question":"Do any of your custom transports return an iterable whose `close()` does more than release a connection?","path":"httpx/_client.py","hunk_ids":["h1","h9","h10"]},{"kind":"public_api","title":"`_types.py` is where user-facing annotations are declared","why":"`QueryParamTypes`, `HeaderTypes` and `CookieTypes` are evaluated at import and used in the signatures callers type against. A tool reading them sees `list[...]`.","question":"Does anything you run inspect these aliases at runtime, such as a docs builder or a settings library?","path":"httpx/_types.py","hunk_ids":["h11","h12","h13","h14"]},{"kind":"dependency_surface","title":"The rule applies to every future pull request","why":"`UP` stays in `select` after this merges, so ruff will reject the older spellings in contributions from now on, not only in these 17 files.","question":"Is holding contributors to pyupgrade's rewrites the standard you want for incoming pull requests?","path":"pyproject.toml","hunk_ids":["h15"]}],"skippable":[{"label":"Encoding and mode rewrites in tests","reason":"Eight test files where `.encode(\"utf-8\")` loses its argument, `open(..., \"r\")` loses its mode, and `typing.Dict` becomes `dict`.","confidence":"high","file_count":8,"additions":19,"deletions":19,"group_ids":["g-tests"],"files":["tests/client/test_auth.py","tests/client/test_redirects.py","tests/conftest.py","tests/models/test_headers.py","tests/models/test_responses.py","tests/models/test_whatwg.py","tests/test_auth.py","tests/test_main.py"]}]},"seams":{"detected":false,"note":null},"hunks":{"h1":{"id":"h1","path":"httpx/_client.py","old_path":null,"language":"python","header":"@@ -150,8 +150,7 @@","old_start":150,"old_lines":8,"new_start":150,"new_lines":7,"section":"def __init__(","lines":[{"t":" ","c":"        self._start = start","old":150,"new":150},{"t":" ","c":"","old":151,"new":151},{"t":" ","c":"    def __iter__(self) -> typing.Iterator[bytes]:","old":152,"new":152},{"t":"-","c":"        for chunk in self._stream:","old":153,"new":null},{"t":"-","c":"            yield chunk","old":154,"new":null},{"t":"+","c":"        yield from self._stream","old":null,"new":153},{"t":" ","c":"","old":155,"new":154},{"t":" ","c":"    def close(self) -> None:","old":156,"new":155},{"t":" ","c":"        elapsed = time.perf_counter() - self._start","old":157,"new":156}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h2":{"id":"h2","path":"httpx/_content.py","old_path":null,"language":"python","header":"@@ -2,14 +2,10 @@","old_start":2,"old_lines":14,"new_start":2,"new_lines":10,"section":null,"lines":[{"t":" ","c":"","old":2,"new":2},{"t":" ","c":"import inspect","old":3,"new":3},{"t":" ","c":"import warnings","old":4,"new":4},{"t":"+","c":"from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping","old":null,"new":5},{"t":" ","c":"from json import dumps as json_dumps","old":5,"new":6},{"t":" ","c":"from typing import (","old":6,"new":7},{"t":" ","c":"    Any,","old":7,"new":8},{"t":"-","c":"    AsyncIterable,","old":8,"new":null},{"t":"-","c":"    AsyncIterator,","old":9,"new":null},{"t":"-","c":"    Iterable,","old":10,"new":null},{"t":"-","c":"    Iterator,","old":11,"new":null},{"t":"-","c":"    Mapping,","old":12,"new":null},{"t":" ","c":")","old":13,"new":9},{"t":" ","c":"from urllib.parse import urlencode","old":14,"new":10},{"t":" ","c":"","old":15,"new":11}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h3":{"id":"h3","path":"httpx/_content.py","old_path":null,"language":"python","header":"@@ -60,8 +56,7 @@","old_start":60,"old_lines":8,"new_start":56,"new_lines":7,"section":"def __iter__(self) -> Iterator[bytes]:","lines":[{"t":" ","c":"                chunk = self._stream.read(self.CHUNK_SIZE)","old":60,"new":56},{"t":" ","c":"        else:","old":61,"new":57},{"t":" ","c":"            # Otherwise iterate.","old":62,"new":58},{"t":"-","c":"            for part in self._stream:","old":63,"new":null},{"t":"-","c":"                yield part","old":64,"new":null},{"t":"+","c":"            yield from self._stream","old":null,"new":59},{"t":" ","c":"","old":65,"new":60},{"t":" ","c":"","old":66,"new":61},{"t":" ","c":"class AsyncIteratorByteStream(AsyncByteStream):","old":67,"new":62}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h4":{"id":"h4","path":"httpx/_main.py","old_path":null,"language":"python","header":"@@ -186,9 +186,9 @@","old_start":186,"old_lines":9,"new_start":186,"new_lines":9,"section":"def print_response(response: Response) -> None:","lines":[{"t":" ","c":"        console.print(f\"\u003c{len(response.content)} bytes of binary data>\")","old":186,"new":186},{"t":" ","c":"","old":187,"new":187},{"t":" ","c":"","old":188,"new":188},{"t":"-","c":"_PCTRTT = typing.Tuple[typing.Tuple[str, str], ...]","old":189,"new":null},{"t":"-","c":"_PCTRTTT = typing.Tuple[_PCTRTT, ...]","old":190,"new":null},{"t":"-","c":"_PeerCertRetDictType = typing.Dict[str, typing.Union[str, _PCTRTTT, _PCTRTT]]","old":191,"new":null},{"t":"+","c":"_PCTRTT = tuple[tuple[str, str], ...]","old":null,"new":189},{"t":"+","c":"_PCTRTTT = tuple[_PCTRTT, ...]","old":null,"new":190},{"t":"+","c":"_PeerCertRetDictType = dict[str, typing.Union[str, _PCTRTTT, _PCTRTT]]","old":null,"new":191},{"t":" ","c":"","old":192,"new":192},{"t":" ","c":"","old":193,"new":193},{"t":" ","c":"def format_certificate(cert: _PeerCertRetDictType) -> str:  # pragma: no cover","old":194,"new":194}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h5":{"id":"h5","path":"httpx/_multipart.py","old_path":null,"language":"python","header":"@@ -23,7 +23,7 @@","old_start":23,"old_lines":7,"new_start":23,"new_lines":7,"section":null,"lines":[{"t":" ","c":"","old":23,"new":23},{"t":" ","c":"_HTML5_FORM_ENCODING_REPLACEMENTS = {'\"': \"%22\", \"\\\\\": \"\\\\\\\\\"}","old":24,"new":24},{"t":" ","c":"_HTML5_FORM_ENCODING_REPLACEMENTS.update(","old":25,"new":25},{"t":"-","c":"    {chr(c): \"%{:02X}\".format(c) for c in range(0x1F + 1) if c != 0x1B}","old":26,"new":null},{"t":"+","c":"    {chr(c): f\"%{c:02X}\" for c in range(0x1F + 1) if c != 0x1B}","old":null,"new":26},{"t":" ","c":")","old":27,"new":27},{"t":" ","c":"_HTML5_FORM_ENCODING_RE = re.compile(","old":28,"new":28},{"t":" ","c":"    r\"|\".join([re.escape(c) for c in _HTML5_FORM_ENCODING_REPLACEMENTS.keys()])","old":29,"new":29}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h6":{"id":"h6","path":"httpx/_multipart.py","old_path":null,"language":"python","header":"@@ -236,9 +236,9 @@","old_start":236,"old_lines":9,"new_start":236,"new_lines":9,"section":"def __init__(","lines":[{"t":" ","c":"            boundary = os.urandom(16).hex().encode(\"ascii\")","old":236,"new":236},{"t":" ","c":"","old":237,"new":237},{"t":" ","c":"        self.boundary = boundary","old":238,"new":238},{"t":"-","c":"        self.content_type = \"multipart/form-data; boundary=%s\" % boundary.decode(","old":239,"new":null},{"t":"+","c":"        self.content_type = \"multipart/form-data; boundary={}\".format(boundary.decode(","old":null,"new":239},{"t":" ","c":"            \"ascii\"","old":240,"new":240},{"t":"-","c":"        )","old":241,"new":null},{"t":"+","c":"        ))","old":null,"new":241},{"t":" ","c":"        self.fields = list(self._iter_fields(data, files))","old":242,"new":242},{"t":" ","c":"","old":243,"new":243},{"t":" ","c":"    def _iter_fields(","old":244,"new":244}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h7":{"id":"h7","path":"httpx/_multipart.py","old_path":null,"language":"python","header":"@@ -292,8 +292,7 @@","old_start":292,"old_lines":8,"new_start":292,"new_lines":7,"section":"def get_headers(self) -> dict[str, str]:","lines":[{"t":" ","c":"        return {\"Content-Length\": str(content_length), \"Content-Type\": content_type}","old":292,"new":292},{"t":" ","c":"","old":293,"new":293},{"t":" ","c":"    def __iter__(self) -> typing.Iterator[bytes]:","old":294,"new":294},{"t":"-","c":"        for chunk in self.iter_chunks():","old":295,"new":null},{"t":"-","c":"            yield chunk","old":296,"new":null},{"t":"+","c":"        yield from self.iter_chunks()","old":null,"new":295},{"t":" ","c":"","old":297,"new":296},{"t":" ","c":"    async def __aiter__(self) -> typing.AsyncIterator[bytes]:","old":298,"new":297},{"t":" ","c":"        for chunk in self.iter_chunks():","old":299,"new":298}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h8":{"id":"h8","path":"httpx/_transports/default.py","old_path":null,"language":"python","header":"@@ -61,9 +61,9 @@","old_start":61,"old_lines":9,"new_start":61,"new_lines":9,"section":null,"lines":[{"t":" ","c":"A = typing.TypeVar(\"A\", bound=\"AsyncHTTPTransport\")","old":61,"new":61},{"t":" ","c":"","old":62,"new":62},{"t":" ","c":"SOCKET_OPTION = typing.Union[","old":63,"new":63},{"t":"-","c":"    typing.Tuple[int, int, int],","old":64,"new":null},{"t":"-","c":"    typing.Tuple[int, int, typing.Union[bytes, bytearray]],","old":65,"new":null},{"t":"-","c":"    typing.Tuple[int, int, None, int],","old":66,"new":null},{"t":"+","c":"    tuple[int, int, int],","old":null,"new":64},{"t":"+","c":"    tuple[int, int, typing.Union[bytes, bytearray]],","old":null,"new":65},{"t":"+","c":"    tuple[int, int, None, int],","old":null,"new":66},{"t":" ","c":"]","old":67,"new":67},{"t":" ","c":"","old":68,"new":68},{"t":" ","c":"__all__ = [\"AsyncHTTPTransport\", \"HTTPTransport\"]","old":69,"new":69}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h9":{"id":"h9","path":"httpx/_transports/default.py","old_path":null,"language":"python","header":"@@ -124,8 +124,7 @@","old_start":124,"old_lines":8,"new_start":124,"new_lines":7,"section":"def __init__(self, httpcore_stream: typing.Iterable[bytes]) -> None:","lines":[{"t":" ","c":"","old":124,"new":124},{"t":" ","c":"    def __iter__(self) -> typing.Iterator[bytes]:","old":125,"new":125},{"t":" ","c":"        with map_httpcore_exceptions():","old":126,"new":126},{"t":"-","c":"            for part in self._httpcore_stream:","old":127,"new":null},{"t":"-","c":"                yield part","old":128,"new":null},{"t":"+","c":"            yield from self._httpcore_stream","old":null,"new":127},{"t":" ","c":"","old":129,"new":128},{"t":" ","c":"    def close(self) -> None:","old":130,"new":129},{"t":" ","c":"        if hasattr(self._httpcore_stream, \"close\"):","old":131,"new":130}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h10":{"id":"h10","path":"httpx/_transports/wsgi.py","old_path":null,"language":"python","header":"@@ -33,8 +33,7 @@","old_start":33,"old_lines":8,"new_start":33,"new_lines":7,"section":"def __init__(self, result: typing.Iterable[bytes]) -> None:","lines":[{"t":" ","c":"        self._result = _skip_leading_empty_chunks(result)","old":33,"new":33},{"t":" ","c":"","old":34,"new":34},{"t":" ","c":"    def __iter__(self) -> typing.Iterator[bytes]:","old":35,"new":35},{"t":"-","c":"        for part in self._result:","old":36,"new":null},{"t":"-","c":"            yield part","old":37,"new":null},{"t":"+","c":"        yield from self._result","old":null,"new":36},{"t":" ","c":"","old":38,"new":37},{"t":" ","c":"    def close(self) -> None:","old":39,"new":38},{"t":" ","c":"        if self._close is not None:","old":40,"new":39}],"truncated":false,"change_kind":"modified_logic","significance":"core"},"h11":{"id":"h11","path":"httpx/_types.py","old_path":null,"language":"python","header":"@@ -2,22 +2,21 @@","old_start":2,"old_lines":22,"new_start":2,"new_lines":21,"section":null,"lines":[{"t":" ","c":"Type definitions for type checking purposes.","old":2,"new":2},{"t":" ","c":"\"\"\"","old":3,"new":3},{"t":" ","c":"","old":4,"new":4},{"t":"+","c":"from collections.abc import (","old":null,"new":5},{"t":"+","c":"    AsyncIterable,","old":null,"new":6},{"t":"+","c":"    AsyncIterator,","old":null,"new":7},{"t":"+","c":"    Iterable,","old":null,"new":8},{"t":"+","c":"    Iterator,","old":null,"new":9},{"t":"+","c":"    Mapping,","old":null,"new":10},{"t":"+","c":"    Sequence,","old":null,"new":11},{"t":"+","c":")","old":null,"new":12},{"t":" ","c":"from http.cookiejar import CookieJar","old":5,"new":13},{"t":" ","c":"from typing import (","old":6,"new":14},{"t":" ","c":"    IO,","old":7,"new":15},{"t":" ","c":"    TYPE_CHECKING,","old":8,"new":16},{"t":" ","c":"    Any,","old":9,"new":17},{"t":"-","c":"    AsyncIterable,","old":10,"new":null},{"t":"-","c":"    AsyncIterator,","old":11,"new":null},{"t":" ","c":"    Callable,","old":12,"new":18},{"t":"-","c":"    Dict,","old":13,"new":null},{"t":"-","c":"    Iterable,","old":14,"new":null},{"t":"-","c":"    Iterator,","old":15,"new":null},{"t":"-","c":"    List,","old":16,"new":null},{"t":"-","c":"    Mapping,","old":17,"new":null},{"t":" ","c":"    Optional,","old":18,"new":19},{"t":"-","c":"    Sequence,","old":19,"new":null},{"t":"-","c":"    Tuple,","old":20,"new":null},{"t":" ","c":"    Union,","old":21,"new":20},{"t":" ","c":")","old":22,"new":21},{"t":" ","c":"","old":23,"new":22}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h12":{"id":"h12","path":"httpx/_types.py","old_path":null,"language":"python","header":"@@ -35,8 +34,8 @@","old_start":35,"old_lines":8,"new_start":34,"new_lines":8,"section":null,"lines":[{"t":" ","c":"QueryParamTypes = Union[","old":35,"new":34},{"t":" ","c":"    \"QueryParams\",","old":36,"new":35},{"t":" ","c":"    Mapping[str, Union[PrimitiveData, Sequence[PrimitiveData]]],","old":37,"new":36},{"t":"-","c":"    List[Tuple[str, PrimitiveData]],","old":38,"new":null},{"t":"-","c":"    Tuple[Tuple[str, PrimitiveData], ...],","old":39,"new":null},{"t":"+","c":"    list[tuple[str, PrimitiveData]],","old":null,"new":37},{"t":"+","c":"    tuple[tuple[str, PrimitiveData], ...],","old":null,"new":38},{"t":" ","c":"    str,","old":40,"new":39},{"t":" ","c":"    bytes,","old":41,"new":40},{"t":" ","c":"]","old":42,"new":41}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h13":{"id":"h13","path":"httpx/_types.py","old_path":null,"language":"python","header":"@@ -45,22 +44,22 @@","old_start":45,"old_lines":22,"new_start":44,"new_lines":22,"section":null,"lines":[{"t":" ","c":"    \"Headers\",","old":45,"new":44},{"t":" ","c":"    Mapping[str, str],","old":46,"new":45},{"t":" ","c":"    Mapping[bytes, bytes],","old":47,"new":46},{"t":"-","c":"    Sequence[Tuple[str, str]],","old":48,"new":null},{"t":"-","c":"    Sequence[Tuple[bytes, bytes]],","old":49,"new":null},{"t":"+","c":"    Sequence[tuple[str, str]],","old":null,"new":47},{"t":"+","c":"    Sequence[tuple[bytes, bytes]],","old":null,"new":48},{"t":" ","c":"]","old":50,"new":49},{"t":" ","c":"","old":51,"new":50},{"t":"-","c":"CookieTypes = Union[\"Cookies\", CookieJar, Dict[str, str], List[Tuple[str, str]]]","old":52,"new":null},{"t":"+","c":"CookieTypes = Union[\"Cookies\", CookieJar, dict[str, str], list[tuple[str, str]]]","old":null,"new":51},{"t":" ","c":"","old":53,"new":52},{"t":" ","c":"TimeoutTypes = Union[","old":54,"new":53},{"t":" ","c":"    Optional[float],","old":55,"new":54},{"t":"-","c":"    Tuple[Optional[float], Optional[float], Optional[float], Optional[float]],","old":56,"new":null},{"t":"+","c":"    tuple[Optional[float], Optional[float], Optional[float], Optional[float]],","old":null,"new":55},{"t":" ","c":"    \"Timeout\",","old":57,"new":56},{"t":" ","c":"]","old":58,"new":57},{"t":" ","c":"ProxyTypes = Union[\"URL\", str, \"Proxy\"]","old":59,"new":58},{"t":"-","c":"CertTypes = Union[str, Tuple[str, str], Tuple[str, str, str]]","old":60,"new":null},{"t":"+","c":"CertTypes = Union[str, tuple[str, str], tuple[str, str, str]]","old":null,"new":59},{"t":" ","c":"","old":61,"new":60},{"t":" ","c":"AuthTypes = Union[","old":62,"new":61},{"t":"-","c":"    Tuple[Union[str, bytes], Union[str, bytes]],","old":63,"new":null},{"t":"+","c":"    tuple[Union[str, bytes], Union[str, bytes]],","old":null,"new":62},{"t":" ","c":"    Callable[[\"Request\"], \"Request\"],","old":64,"new":63},{"t":" ","c":"    \"Auth\",","old":65,"new":64},{"t":" ","c":"]","old":66,"new":65}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h14":{"id":"h14","path":"httpx/_types.py","old_path":null,"language":"python","header":"@@ -76,13 +75,13 @@","old_start":76,"old_lines":13,"new_start":75,"new_lines":13,"section":null,"lines":[{"t":" ","c":"    # file (or bytes)","old":76,"new":75},{"t":" ","c":"    FileContent,","old":77,"new":76},{"t":" ","c":"    # (filename, file (or bytes))","old":78,"new":77},{"t":"-","c":"    Tuple[Optional[str], FileContent],","old":79,"new":null},{"t":"+","c":"    tuple[Optional[str], FileContent],","old":null,"new":78},{"t":" ","c":"    # (filename, file (or bytes), content_type)","old":80,"new":79},{"t":"-","c":"    Tuple[Optional[str], FileContent, Optional[str]],","old":81,"new":null},{"t":"+","c":"    tuple[Optional[str], FileContent, Optional[str]],","old":null,"new":80},{"t":" ","c":"    # (filename, file (or bytes), content_type, headers)","old":82,"new":81},{"t":"-","c":"    Tuple[Optional[str], FileContent, Optional[str], Mapping[str, str]],","old":83,"new":null},{"t":"+","c":"    tuple[Optional[str], FileContent, Optional[str], Mapping[str, str]],","old":null,"new":82},{"t":" ","c":"]","old":84,"new":83},{"t":"-","c":"RequestFiles = Union[Mapping[str, FileTypes], Sequence[Tuple[str, FileTypes]]]","old":85,"new":null},{"t":"+","c":"RequestFiles = Union[Mapping[str, FileTypes], Sequence[tuple[str, FileTypes]]]","old":null,"new":84},{"t":" ","c":"","old":86,"new":85},{"t":" ","c":"RequestExtensions = Mapping[str, Any]","old":87,"new":86},{"t":" ","c":"","old":88,"new":87}],"truncated":false,"change_kind":"formatting","significance":"supporting"},"h15":{"id":"h15","path":"pyproject.toml","old_path":null,"language":"toml","header":"@@ -96,7 +96,7 @@","old_start":96,"old_lines":7,"new_start":96,"new_lines":7,"section":"pattern = 'src=\"(docs/img/.*?)\"'","lines":[{"t":" ","c":"replacement = 'src=\"https://raw.githubusercontent.com/encode/httpx/master/\\1\"'","old":96,"new":96},{"t":" ","c":"","old":97,"new":97},{"t":" ","c":"[tool.ruff.lint]","old":98,"new":98},{"t":"-","c":"select = [\"E\", \"F\", \"I\", \"B\", \"PIE\"]","old":99,"new":null},{"t":"+","c":"select = [\"E\", \"F\", \"I\", \"B\", \"PIE\", \"UP\"]","old":null,"new":99},{"t":" ","c":"ignore = [\"B904\", \"B028\"]","old":100,"new":100},{"t":" ","c":"","old":101,"new":101},{"t":" ","c":"[tool.ruff.lint.isort]","old":102,"new":102}],"truncated":false,"change_kind":"content","significance":"core"},"h16":{"id":"h16","path":"tests/client/test_auth.py","old_path":null,"language":"python","header":"@@ -73,7 +73,7 @@","old_start":73,"old_lines":7,"new_start":73,"new_lines":7,"section":"def challenge_send(self, request: httpx.Request) -> httpx.Response:","lines":[{"t":" ","c":"            \"stale\": \"FALSE\",","old":73,"new":73},{"t":" ","c":"        }","old":74,"new":74},{"t":" ","c":"        challenge_str = \", \".join(","old":75,"new":75},{"t":"-","c":"            '{}=\"{}\"'.format(key, value)","old":76,"new":null},{"t":"+","c":"            f'{key}=\"{value}\"'","old":null,"new":76},{"t":" ","c":"            for key, value in challenge_data.items()","old":77,"new":77},{"t":" ","c":"            if value","old":78,"new":78},{"t":" ","c":"        )","old":79,"new":79}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h17":{"id":"h17","path":"tests/client/test_auth.py","old_path":null,"language":"python","header":"@@ -437,7 +437,7 @@","old_start":437,"old_lines":7,"new_start":437,"new_lines":7,"section":"async def test_digest_auth(","lines":[{"t":" ","c":"    assert response.status_code == 200","old":437,"new":437},{"t":" ","c":"    assert len(response.history) == 1","old":438,"new":438},{"t":" ","c":"","old":439,"new":439},{"t":"-","c":"    authorization = typing.cast(typing.Dict[str, typing.Any], response.json())[\"auth\"]","old":440,"new":null},{"t":"+","c":"    authorization = typing.cast(dict[str, typing.Any], response.json())[\"auth\"]","old":null,"new":440},{"t":" ","c":"    scheme, _, fields = authorization.partition(\" \")","old":441,"new":441},{"t":" ","c":"    assert scheme == \"Digest\"","old":442,"new":442},{"t":" ","c":"","old":443,"new":443}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h18":{"id":"h18","path":"tests/client/test_auth.py","old_path":null,"language":"python","header":"@@ -468,7 +468,7 @@","old_start":468,"old_lines":7,"new_start":468,"new_lines":7,"section":"async def test_digest_auth_no_specified_qop() -> None:","lines":[{"t":" ","c":"    assert response.status_code == 200","old":468,"new":468},{"t":" ","c":"    assert len(response.history) == 1","old":469,"new":469},{"t":" ","c":"","old":470,"new":470},{"t":"-","c":"    authorization = typing.cast(typing.Dict[str, typing.Any], response.json())[\"auth\"]","old":471,"new":null},{"t":"+","c":"    authorization = typing.cast(dict[str, typing.Any], response.json())[\"auth\"]","old":null,"new":471},{"t":" ","c":"    scheme, _, fields = authorization.partition(\" \")","old":472,"new":472},{"t":" ","c":"    assert scheme == \"Digest\"","old":473,"new":473},{"t":" ","c":"","old":474,"new":474}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h19":{"id":"h19","path":"tests/client/test_redirects.py","old_path":null,"language":"python","header":"@@ -37,7 +37,7 @@","old_start":37,"old_lines":7,"new_start":37,"new_lines":7,"section":"def redirects(request: httpx.Request) -> httpx.Response:","lines":[{"t":" ","c":"","old":37,"new":37},{"t":" ","c":"    elif request.url.path == \"/invalid_redirect\":","old":38,"new":38},{"t":" ","c":"        status_code = httpx.codes.SEE_OTHER","old":39,"new":39},{"t":"-","c":"        raw_headers = [(b\"location\", \"https://😇/\".encode(\"utf-8\"))]","old":40,"new":null},{"t":"+","c":"        raw_headers = [(b\"location\", \"https://😇/\".encode())]","old":null,"new":40},{"t":" ","c":"        return httpx.Response(status_code, headers=raw_headers)","old":41,"new":41},{"t":" ","c":"","old":42,"new":42},{"t":" ","c":"    elif request.url.path == \"/no_scheme_redirect\":","old":43,"new":43}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h20":{"id":"h20","path":"tests/conftest.py","old_path":null,"language":"python","header":"@@ -48,12 +48,12 @@","old_start":48,"old_lines":12,"new_start":48,"new_lines":12,"section":"def clean_environ():","lines":[{"t":" ","c":"    os.environ.update(original_environ)","old":48,"new":48},{"t":" ","c":"","old":49,"new":49},{"t":" ","c":"","old":50,"new":50},{"t":"-","c":"Message = typing.Dict[str, typing.Any]","old":51,"new":null},{"t":"+","c":"Message = dict[str, typing.Any]","old":null,"new":51},{"t":" ","c":"Receive = typing.Callable[[], typing.Awaitable[Message]]","old":52,"new":52},{"t":" ","c":"Send = typing.Callable[","old":53,"new":53},{"t":"-","c":"    [typing.Dict[str, typing.Any]], typing.Coroutine[None, None, None]","old":54,"new":null},{"t":"+","c":"    [dict[str, typing.Any]], typing.Coroutine[None, None, None]","old":null,"new":54},{"t":" ","c":"]","old":55,"new":55},{"t":"-","c":"Scope = typing.Dict[str, typing.Any]","old":56,"new":null},{"t":"+","c":"Scope = dict[str, typing.Any]","old":null,"new":56},{"t":" ","c":"","old":57,"new":57},{"t":" ","c":"","old":58,"new":58},{"t":" ","c":"async def app(scope: Scope, receive: Receive, send: Send) -> None:","old":59,"new":59}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h21":{"id":"h21","path":"tests/models/test_headers.py","old_path":null,"language":"python","header":"@@ -99,7 +99,7 @@","old_start":99,"old_lines":7,"new_start":99,"new_lines":7,"section":"def test_headers_encoding_in_repr():","lines":[{"t":" ","c":"    \"\"\"","old":99,"new":99},{"t":" ","c":"    Headers should display an encoding in the repr if required.","old":100,"new":100},{"t":" ","c":"    \"\"\"","old":101,"new":101},{"t":"-","c":"    headers = httpx.Headers({b\"custom\": \"example ☃\".encode(\"utf-8\")})","old":102,"new":null},{"t":"+","c":"    headers = httpx.Headers({b\"custom\": \"example ☃\".encode()})","old":null,"new":102},{"t":" ","c":"    assert repr(headers) == \"Headers({'custom': 'example ☃'}, encoding='utf-8')\"","old":103,"new":103},{"t":" ","c":"","old":104,"new":104},{"t":" ","c":"","old":105,"new":105}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h22":{"id":"h22","path":"tests/models/test_headers.py","old_path":null,"language":"python","header":"@@ -127,7 +127,7 @@","old_start":127,"old_lines":7,"new_start":127,"new_lines":7,"section":"def test_headers_decode_utf_8():","lines":[{"t":" ","c":"    \"\"\"","old":127,"new":127},{"t":" ","c":"    Headers containing non-ascii codepoints should default to decoding as utf-8.","old":128,"new":128},{"t":" ","c":"    \"\"\"","old":129,"new":129},{"t":"-","c":"    raw_headers = [(b\"Custom\", \"Code point: ☃\".encode(\"utf-8\"))]","old":130,"new":null},{"t":"+","c":"    raw_headers = [(b\"Custom\", \"Code point: ☃\".encode())]","old":null,"new":130},{"t":" ","c":"    headers = httpx.Headers(raw_headers)","old":131,"new":131},{"t":" ","c":"    assert dict(headers) == {\"custom\": \"Code point: ☃\"}","old":132,"new":132},{"t":" ","c":"    assert headers.encoding == \"utf-8\"","old":133,"new":133}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h23":{"id":"h23","path":"tests/models/test_headers.py","old_path":null,"language":"python","header":"@@ -148,7 +148,7 @@","old_start":148,"old_lines":7,"new_start":148,"new_lines":7,"section":"def test_headers_decode_explicit_encoding():","lines":[{"t":" ","c":"    An explicit encoding may be set on headers in order to force a","old":148,"new":148},{"t":" ","c":"    particular decoding.","old":149,"new":149},{"t":" ","c":"    \"\"\"","old":150,"new":150},{"t":"-","c":"    raw_headers = [(b\"Custom\", \"Code point: ☃\".encode(\"utf-8\"))]","old":151,"new":null},{"t":"+","c":"    raw_headers = [(b\"Custom\", \"Code point: ☃\".encode())]","old":null,"new":151},{"t":" ","c":"    headers = httpx.Headers(raw_headers)","old":152,"new":152},{"t":" ","c":"    headers.encoding = \"iso-8859-1\"","old":153,"new":153},{"t":" ","c":"    assert dict(headers) == {\"custom\": \"Code point: â\\x98\\x83\"}","old":154,"new":154}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h24":{"id":"h24","path":"tests/models/test_headers.py","old_path":null,"language":"python","header":"@@ -173,7 +173,7 @@","old_start":173,"old_lines":7,"new_start":173,"new_lines":7,"section":"def test_sensitive_headers(header):","lines":[{"t":" ","c":"    \"\"\"","old":173,"new":173},{"t":" ","c":"    value = \"s3kr3t\"","old":174,"new":174},{"t":" ","c":"    h = httpx.Headers({header: value})","old":175,"new":175},{"t":"-","c":"    assert repr(h) == \"Headers({'%s': '[secure]'})\" % header","old":176,"new":null},{"t":"+","c":"    assert repr(h) == f\"Headers({{'{header}': '[secure]'}})\"","old":null,"new":176},{"t":" ","c":"","old":177,"new":177},{"t":" ","c":"","old":178,"new":178},{"t":" ","c":"@pytest.mark.parametrize(","old":179,"new":179}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h25":{"id":"h25","path":"tests/models/test_responses.py","old_path":null,"language":"python","header":"@@ -173,7 +173,7 @@","old_start":173,"old_lines":7,"new_start":173,"new_lines":7,"section":"def test_response_default_to_utf8_encoding():","lines":[{"t":" ","c":"    \"\"\"","old":173,"new":173},{"t":" ","c":"    Default to utf-8 encoding if there is no Content-Type header.","old":174,"new":174},{"t":" ","c":"    \"\"\"","old":175,"new":175},{"t":"-","c":"    content = \"おはようございます。\".encode(\"utf-8\")","old":176,"new":null},{"t":"+","c":"    content = \"おはようございます。\".encode()","old":null,"new":176},{"t":" ","c":"    response = httpx.Response(","old":177,"new":177},{"t":" ","c":"        200,","old":178,"new":178},{"t":" ","c":"        content=content,","old":179,"new":179}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h26":{"id":"h26","path":"tests/models/test_responses.py","old_path":null,"language":"python","header":"@@ -187,7 +187,7 @@","old_start":187,"old_lines":7,"new_start":187,"new_lines":7,"section":"def test_response_fallback_to_utf8_encoding():","lines":[{"t":" ","c":"    Fallback to utf-8 if we get an invalid charset in the Content-Type header.","old":187,"new":187},{"t":" ","c":"    \"\"\"","old":188,"new":188},{"t":" ","c":"    headers = {\"Content-Type\": \"text-plain; charset=invalid-codec-name\"}","old":189,"new":189},{"t":"-","c":"    content = \"おはようございます。\".encode(\"utf-8\")","old":190,"new":null},{"t":"+","c":"    content = \"おはようございます。\".encode()","old":null,"new":190},{"t":" ","c":"    response = httpx.Response(","old":191,"new":191},{"t":" ","c":"        200,","old":192,"new":192},{"t":" ","c":"        content=content,","old":193,"new":193}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h27":{"id":"h27","path":"tests/models/test_responses.py","old_path":null,"language":"python","header":"@@ -219,7 +219,7 @@","old_start":219,"old_lines":7,"new_start":219,"new_lines":7,"section":"def test_response_no_charset_with_utf8_content():","lines":[{"t":" ","c":"    A response with UTF-8 encoded content should decode correctly,","old":219,"new":219},{"t":" ","c":"    even with no charset specified.","old":220,"new":220},{"t":" ","c":"    \"\"\"","old":221,"new":221},{"t":"-","c":"    content = \"Unicode Snowman: ☃\".encode(\"utf-8\")","old":222,"new":null},{"t":"+","c":"    content = \"Unicode Snowman: ☃\".encode()","old":null,"new":222},{"t":" ","c":"    headers = {\"Content-Type\": \"text/plain\"}","old":223,"new":223},{"t":" ","c":"    response = httpx.Response(","old":224,"new":224},{"t":" ","c":"        200,","old":225,"new":225}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h28":{"id":"h28","path":"tests/models/test_responses.py","old_path":null,"language":"python","header":"@@ -289,7 +289,7 @@","old_start":289,"old_lines":7,"new_start":289,"new_lines":7,"section":"def test_response_set_explicit_encoding():","lines":[{"t":" ","c":"def test_response_force_encoding():","old":289,"new":289},{"t":" ","c":"    response = httpx.Response(","old":290,"new":290},{"t":" ","c":"        200,","old":291,"new":291},{"t":"-","c":"        content=\"Snowman: ☃\".encode(\"utf-8\"),","old":292,"new":null},{"t":"+","c":"        content=\"Snowman: ☃\".encode(),","old":null,"new":292},{"t":" ","c":"    )","old":293,"new":293},{"t":" ","c":"    response.encoding = \"iso-8859-1\"","old":294,"new":294},{"t":" ","c":"    assert response.status_code == 200","old":295,"new":295}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h29":{"id":"h29","path":"tests/models/test_whatwg.py","old_path":null,"language":"python","header":"@@ -10,7 +10,7 @@","old_start":10,"old_lines":7,"new_start":10,"new_lines":7,"section":null,"lines":[{"t":" ","c":"","old":10,"new":10},{"t":" ","c":"# URL test cases from...","old":11,"new":11},{"t":" ","c":"# https://github.com/web-platform-tests/wpt/blob/master/url/resources/urltestdata.json","old":12,"new":12},{"t":"-","c":"with open(\"tests/models/whatwg.json\", \"r\", encoding=\"utf-8\") as input:","old":13,"new":null},{"t":"+","c":"with open(\"tests/models/whatwg.json\", encoding=\"utf-8\") as input:","old":null,"new":13},{"t":" ","c":"    test_cases = json.load(input)","old":14,"new":14},{"t":" ","c":"    test_cases = [","old":15,"new":15},{"t":" ","c":"        item","old":16,"new":16}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h30":{"id":"h30","path":"tests/test_auth.py","old_path":null,"language":"python","header":"@@ -192,7 +192,7 @@","old_start":192,"old_lines":7,"new_start":192,"new_lines":7,"section":"def test_digest_auth_rfc_7616_md5(monkeypatch):","lines":[{"t":" ","c":"    # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1","old":192,"new":192},{"t":" ","c":"","old":193,"new":193},{"t":" ","c":"    def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:","old":194,"new":194},{"t":"-","c":"        return \"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\".encode()","old":195,"new":null},{"t":"+","c":"        return b\"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\"","old":null,"new":195},{"t":" ","c":"","old":196,"new":196},{"t":" ","c":"    auth = httpx.DigestAuth(username=\"Mufasa\", password=\"Circle of Life\")","old":197,"new":197},{"t":" ","c":"    monkeypatch.setattr(auth, \"_get_client_nonce\", mock_get_client_nonce)","old":198,"new":198}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h31":{"id":"h31","path":"tests/test_auth.py","old_path":null,"language":"python","header":"@@ -252,7 +252,7 @@","old_start":252,"old_lines":7,"new_start":252,"new_lines":7,"section":"def test_digest_auth_rfc_7616_sha_256(monkeypatch):","lines":[{"t":" ","c":"    # Example from https://datatracker.ietf.org/doc/html/rfc7616#section-3.9.1","old":252,"new":252},{"t":" ","c":"","old":253,"new":253},{"t":" ","c":"    def mock_get_client_nonce(nonce_count: int, nonce: bytes) -> bytes:","old":254,"new":254},{"t":"-","c":"        return \"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\".encode()","old":255,"new":null},{"t":"+","c":"        return b\"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\"","old":null,"new":255},{"t":" ","c":"","old":256,"new":256},{"t":" ","c":"    auth = httpx.DigestAuth(username=\"Mufasa\", password=\"Circle of Life\")","old":257,"new":257},{"t":" ","c":"    monkeypatch.setattr(auth, \"_get_client_nonce\", mock_get_client_nonce)","old":258,"new":258}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h32":{"id":"h32","path":"tests/test_main.py","old_path":null,"language":"python","header":"@@ -174,7 +174,7 @@","old_start":174,"old_lines":7,"new_start":174,"new_lines":7,"section":"def test_download(server):","lines":[{"t":" ","c":"    with runner.isolated_filesystem():","old":174,"new":174},{"t":" ","c":"        runner.invoke(httpx.main, [url, \"--download\", \"index.txt\"])","old":175,"new":175},{"t":" ","c":"        assert os.path.exists(\"index.txt\")","old":176,"new":176},{"t":"-","c":"        with open(\"index.txt\", \"r\") as input_file:","old":177,"new":null},{"t":"+","c":"        with open(\"index.txt\") as input_file:","old":null,"new":177},{"t":" ","c":"            assert input_file.read() == \"Hello, world!\"","old":178,"new":178},{"t":" ","c":"","old":179,"new":179},{"t":" ","c":"","old":180,"new":180}],"truncated":false,"change_kind":"formatting","significance":"mechanical"},"h33":{"id":"h33","path":"tests/test_wsgi.py","old_path":null,"language":"python","header":"@@ -24,8 +24,7 @@","old_start":24,"old_lines":8,"new_start":24,"new_lines":7,"section":"def application(environ, start_response):","lines":[{"t":" ","c":"","old":24,"new":24},{"t":" ","c":"        start_response(status, response_headers)","old":25,"new":25},{"t":" ","c":"","old":26,"new":26},{"t":"-","c":"        for item in output:","old":27,"new":null},{"t":"-","c":"            yield item","old":28,"new":null},{"t":"+","c":"        yield from output","old":null,"new":27},{"t":" ","c":"","old":29,"new":28},{"t":" ","c":"    return wsgiref.validate.validator(application)","old":30,"new":29},{"t":" ","c":"","old":31,"new":30}],"truncated":false,"change_kind":"modified_logic","significance":"supporting"}}}</script>
 <script>
 "use strict";
 /* =========================================================================
@@ -592,7 +624,7 @@ function refsLine(ids, label) {
    the reading, and the three answers a reviewer settles before opening a file.
    Confidence and evidence are provenance about the report rather than facts
    about the change, so they wait in the footer. */
-function masthead() {
+function masthead(chapters) {
   const src = M.source || {};
   const story = M.story || {};
 
@@ -618,9 +650,20 @@ function masthead() {
       story.caveat ? h("p", { class: "caveat" }, prose(story.caveat)) : null,
       triageSentence(),
       answers(),
-      intentBlock()
+      intentBlock(),
+      contentsLine(chapters)
     )
   );
+}
+
+/* The reader's map: one plain line naming the chapters that actually rendered
+   for this change, each an anchor. Absent chapters never appear, so the
+   numbering the reader sees here is the numbering on the page. */
+function contentsLine(chapters) {
+  const row = h("p", { class: "contents" });
+  chapters.forEach((c, i) => add(row, [i ? " · " : null,
+    h("a", { href: "#" + c.id, text: c.n + " " + c.short })]));
+  return row;
 }
 
 /* The number, the bar and the key were one sentence pretending to be a
@@ -745,19 +788,43 @@ function intentBlock() {
   return block;
 }
 
-/* =============================================================== sections */
-function section(id, title, lead, ...body) {
-  return h("section", { class: "sec", id },
-    h("h2", {}, typeof title === "string" ? prose(title) : title),
+/* =============================================================== chapters */
+/* The page is numbered chapters built from one list. A chapter with nothing
+   to say for this change is omitted, and the numbering closes over the gap,
+   so neither the contents line nor the kickers ever count a hole. */
+const CHAPTERS = [
+  { id: "behavior", short: "Behaviour", title: "Behaviour: before and after", build: behaviorSection },
+  { id: "map", short: "Structure", title: "What calls what", build: mapSection },
+  { id: "layers", short: "Layer by layer", title: "The change, layer by layer", build: layersSection },
+  { id: "reading", short: "The reading", title: "The reading", build: readingSection },
+  { id: "decide", short: "Decide", title: "Decide", build: decideSection }
+];
+
+function buildChapters() {
+  const chapters = [{ id: "top", short: "Overview", n: 1, node: null }];
+  for (const def of CHAPTERS) {
+    const node = def.build();
+    if (!node) continue;
+    const n = chapters.length + 1;
+    node.prepend(chapterHead(n, def));
+    chapters.push({ id: def.id, short: def.short, n, node });
+  }
+  return chapters;
+}
+
+function chapterHead(n, def) {
+  return h("header", { class: "chaphead" },
+    h("p", { class: "kicker", text: String(n).padStart(2, "0") + " · " + def.short }),
+    h("h2", {}, prose(def.title)));
+}
+
+function section(id, lead, ...body) {
+  return h("section", { class: "chap", id },
     lead ? h("p", { class: "lead" }, typeof lead === "string" ? prose(lead) : lead) : null,
     body);
 }
 
-/* ============================================================== the areas */
-/* Every file, every reading step, every question sits inside the area of the
-   codebase it belongs to. A reviewer works one area at a time instead of
-   hopping between a reading list and a file list. */
-
+/* ================================================================ the pass */
 /* The ticks live in localStorage under the head SHA, so a reload resumes and a
    new head starts clean. Nothing else about a ticked step changes: it is a
    record of what was read, not a piece of choreography. */
@@ -795,36 +862,29 @@ function refreshCount() {
   node.textContent = total ? `${TICKS.size} of ${total} done` : "";
 }
 
-function areasSection() {
-  const skips = PASS.skippable || [];
-  const total = STEPS.length + CHECKS.length;
+/* ==================================================== chapter: the layers */
+/* A prose-first map of the change: one subsection per layer, in the model's
+   own order, which is the flow of a request through the system. Narrative
+   first, the contracts that changed here under it, the inventory one quiet
+   fold away. This chapter is a map, not a task list; the pass lives in the
+   two chapters after it. */
+function layersSection() {
+  if (!GROUPS.length) return null;
 
-  /* Wire each step, check, contract and skip group to the area that owns its
-     file. Anything with no file to point at spans the change, and says so. */
-  const stepsOf = new Map(), checksOf = new Map(), skipsOf = new Map(), contractsOf = new Map();
-  const crossChecks = [], crossSkips = [], crossContracts = [];
+  /* Wire each contract and skip group to the layer that owns its file.
+     Anything no single layer owns closes the chapter instead. */
+  const contractsOf = new Map(), skipsOf = new Map();
+  const crossContracts = [], crossSkips = [];
   const claim = (map, gid, item) => {
     if (!map.has(gid)) map.set(gid, []);
     map.get(gid).push(item);
   };
-  for (const step of STEPS) {
-    const g = groupOfPath(step.path) ||
-              groupOfPath(((HUNKS[step.hunk_ids[0]] || {}).path));
-    if (g) claim(stepsOf, g.id, step);
-  }
   for (const c of CONTRACTS) {
     const g = groupOfPath(((HUNKS[(c.hunk_ids || [])[0]] || {}).path));
     if (g) claim(contractsOf, g.id, c);
     else crossContracts.push(c);
   }
-  CHECKS.forEach((check, i) => {
-    const n = STEPS.length + i + 1;
-    const g = groupOfPath(check.path) ||
-              groupOfPath(((HUNKS[(check.hunk_ids || [])[0]] || {}).path));
-    if (g) claim(checksOf, g.id, { check, n });
-    else crossChecks.push({ check, n });
-  });
-  for (const sk of skips) {
+  for (const sk of PASS.skippable || []) {
     let gid = (sk.group_ids || [])[0];
     if (!gid) {
       const owners = new Set((sk.files || [])
@@ -835,35 +895,16 @@ function areasSection() {
     else crossSkips.push(sk);
   }
 
-  /* Areas appear in the order the reading starts: the area holding step 1
-     leads, and areas with nothing to read keep the model's own order. */
-  const firstStep = g => {
-    const list = stepsOf.get(g.id);
-    return list ? list[0].n : Infinity;
-  };
-  const ordered = GROUPS.map((g, i) => [g, i])
-    .sort((a, b) => (firstStep(a[0]) - firstStep(b[0])) || (a[1] - b[1]))
-    .map(pair => pair[0]);
-
-  const cards = ordered.map(g =>
-    areaCard(g, stepsOf.get(g.id) || [], checksOf.get(g.id) || [],
-             skipsOf.get(g.id) || [], contractsOf.get(g.id) || []));
-  if (crossChecks.length || crossSkips.length || crossContracts.length) {
-    cards.push(crossCard(crossChecks, crossSkips, crossContracts));
-  }
-
-  const node = section("change", "The change, by area",
-    `${plural(total, "thing")} to read or decide, sorted into the parts of the `
-    + "codebase they belong to. Tick as you go; the page remembers.",
-    h("p", { class: "counter", id: "count" }), cards);
-  requestAnimationFrame(refreshCount);
-  return node;
+  return section("layers", null,
+    GROUPS.map(g => layerNode(g, contractsOf.get(g.id) || [],
+                              skipsOf.get(g.id) || [])),
+    crossContracts.length || crossSkips.length
+      ? crossLayer(crossContracts, crossSkips) : null,
+    seamsBlock());
 }
 
-function areaCard(g, steps, checks, skips, contracts) {
-  const lines = g.files.reduce((a, f) => a + (f.additions || 0) + (f.deletions || 0), 0);
+function layerNode(g, contracts, skips) {
   const body = h("div", {});
-  if (steps.length) body.append(walkBlock(steps));
   if (contracts.length) {
     body.append(h("h4", { class: "block",
       text: contracts.length === 1 ? "Changed contract" : "Changed contracts" }));
@@ -871,54 +912,107 @@ function areaCard(g, steps, checks, skips, contracts) {
       text: "a shape someone outside this diff depends on" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  if (checks.length) {
-    body.append(h("h4", { class: "block", text: "Decide" }));
-    body.append(h("p", { class: "sub", text: "yours to judge; precis has no opinion" }));
-    for (const c of checks) body.append(checkItem(c.check, c.n));
-  }
-  for (const sk of skips) body.append(skipRow(sk));
-  body.append(filesBlock(g, !steps.length && !skips.length));
-
-  return h("section", { class: "area", id: "area-" + g.id },
+  body.append(inventoryFold(g, skips));
+  return h("section", { class: "layer", id: "layer-" + g.id },
     h("h3", {}, prose(g.label)),
-    g.summary ? h("p", { class: "asum" }, prose(g.summary)) : null,
-    g.order_note ? h("p", { class: "aorder" }, prose(g.order_note)) : null,
-    h("p", { class: "ameta",
-      text: `${plural(g.files.length, "file")} · ${lines.toLocaleString()} changed lines` }),
+    h("p", { class: "narrative prose" }, prose(g.narrative)),
     body);
 }
 
-/* Questions, skips, and contracts that no single area owns. */
-function crossCard(checks, skips, contracts) {
+/* Contracts and skip groups that no single layer owns close the chapter. */
+function crossLayer(contracts, skips) {
   const body = h("div", {});
-  if ((contracts || []).length) {
+  if (contracts.length) {
     body.append(h("h4", { class: "block", text: "Changed contracts" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  if (checks.length) {
-    body.append(h("h4", { class: "block", text: "Decide" }));
-    body.append(h("p", { class: "sub", text: "yours to judge; precis has no opinion" }));
-    for (const c of checks) body.append(checkItem(c.check, c.n));
-  }
   for (const sk of skips) body.append(skipRow(sk));
-  return h("section", { class: "area", id: "area-cross" },
-    h("h3", { text: "The change as a whole" }),
+  return h("section", { class: "layer", id: "layer-cross" },
+    h("h3", { text: "Across the change" }),
     body);
 }
 
-/* The guided walkthrough for one area, one fold away. The area above it already
-   says what this part of the codebase is and what changes shape in it; the code
-   opens when the reader is ready to read it. */
-function walkBlock(steps) {
-  const first = steps[0].n;
-  const label = steps.length === 1
-    ? `Read step ${first}`
-    : `Read steps ${first} to ${steps[steps.length - 1].n}`;
-  return h("details", { class: "walk" },
-    h("summary", { class: "link" },
-      h("span", { text: label }),
-      h("span", { class: "sub", text: steps.map(st => plain(st.title)).join(" · ") })),
-    steps.map(stepItem));
+/* The complete account of a layer's files, one quiet fold away: the ledger,
+   then the skip groups that live in this layer with their reasons. */
+function inventoryFold(g, skips) {
+  const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
+  const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
+  return h("details", { class: "inventory" },
+    h("summary", { class: "link", text:
+      `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this layer`
+      + ` · +${adds} −${dels}` }),
+    h("div", { class: "inner" },
+      filesTable(g),
+      skips.map(skipRow)));
+}
+
+function filesTable(g) {
+  return h("table", { class: "files" }, h("tbody", {},
+    g.files.map(f => {
+      const [dir, base] = splitPath(f.path);
+      return h("tr", {},
+        h("td", {},
+          h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
+          f.moved_from ? h("span", { class: "moved", text: "← " + f.moved_from }) : null,
+          f.note ? h("div", { class: "note" }, prose(f.note)) : null),
+        h("td", { class: "word",
+          text: KIND_SHOWN.has(f.change_kind) ? KIND_LABEL[f.change_kind] : "" }),
+        h("td", { class: "num" },
+          f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
+          f.deletions ? h("span", { class: "minus", text: "−" + f.deletions }) : null,
+          (!f.additions && !f.deletions)
+            ? h("span", { class: "faint", text: STATUS_LABEL[f.status] }) : null)
+      );
+    })));
+}
+
+/* Independent concerns are part of the map, so they close the layer chapter:
+   where the seams run, never advice to split. */
+function seamsBlock() {
+  const seams = M.seams || {};
+  if (!seams.detected) return null;
+  const clusters = seams.clusters || [];
+  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
+  return h("section", { class: "layer", id: "seams" },
+    h("h3", { text: "This reads as more than one change" }),
+    seams.note ? h("p", { class: "narrative prose" }, prose(seams.note)) : null,
+    clusters.map(c => h("div", { class: "seam" },
+      h("h4", {}, prose(c.label)),
+      h("p", {}, prose(c.summary)),
+      h("p", { class: "meta",
+        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
+      (c.independent_of || []).length
+        ? h("p", { class: "quiet", text: "Shares nothing with "
+            + listOf(c.independent_of.map(id => plain(nameOf.get(id) || id))) + "." })
+        : null)));
+}
+
+/* =================================================== chapter: the reading */
+/* The guided pass, strictly linear: steps 1 to N in numeric order, one
+   continuous flow. The by-layer view is the previous chapter's job; neither
+   pretends to be the other. The tick counter lives here, where the pass
+   starts. */
+function readingSection() {
+  if (!STEPS.length) return null;
+  const minutes = PASS.estimated_minutes;
+  const node = section("reading",
+    `${plural(STEPS.length, "step")}, in the order the change makes sense`
+    + `${minutes ? `, about ${plural(minutes, "minute")}` : ""}. `
+    + "Tick as you go; the page remembers.",
+    h("p", { class: "counter", id: "count" }),
+    STEPS.map(stepItem));
+  requestAnimationFrame(refreshCount);
+  return node;
+}
+
+/* Without an area wrapper, each step names its own bearings: the layer it
+   belongs to and the file it reads, one quiet line above the title. */
+function stepEyebrow(step) {
+  const path = step.path || ((HUNKS[step.hunk_ids[0]] || {}).path);
+  const g = groupOfPath(path);
+  const text = [g ? plain(g.label) : null, path ? basename(path) : null]
+    .filter(Boolean).join(" · ");
+  return text ? h("p", { class: "eyebrow", text }) : null;
 }
 
 function stepItem(step) {
@@ -933,28 +1027,31 @@ function stepItem(step) {
     if (snip) body.append(snip);
   }
   for (const a of anns.filter(a => a.new_line == null && a.old_line == null)) {
-    body.append(h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
-      h("div", { class: "txt" }, prose(a.text))));
+    body.append(noteNode(a));
   }
   const total = step.hunk_ids.reduce((n, id) => n + ((HUNKS[id] || {}).lines || []).length, 0);
   body.append(h("details", { class: "fulldiff" },
     h("summary", { class: "link",
       text: `The full diff: ${plural(total, "line")} in ${plural(step.hunk_ids.length, "hunk")}` }),
-    step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id], []) : null)));
-
-  /* The snippet headers already name the file. Repeat the step path only when
-     the step spans more than the one file. */
-  const paths = new Set(step.hunk_ids.map(id => HUNKS[id] && HUNKS[id].path).filter(Boolean));
-  const showPath = step.path && !(paths.size === 1 && paths.has(step.path));
+    step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id]) : null)));
 
   return h("article", { class: "step", id: "step-" + step.n },
     h("div", { class: "head" },
       tickBox("s" + step.n, "Mark step " + step.n + " as read"),
       h("div", { style: "min-width:0" },
+        stepEyebrow(step),
         h("h4", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
-        h("p", { class: "why" }, prose(step.why)),
-        showPath ? h("p", { class: "path", text: step.path }) : null)),
+        h("p", { class: "why" }, prose(step.why)))),
     body);
+}
+
+/* ======================================================= chapter: decide */
+/* The questions only the reviewer can answer, numbered on from the steps so
+   the whole pass stays one sequence. */
+function decideSection() {
+  if (!CHECKS.length) return null;
+  return section("decide", "Yours to judge; precis has no opinion.",
+    CHECKS.map((check, i) => checkItem(check, STEPS.length + i + 1)));
 }
 
 /* A rule is quoted, never paraphrased and never re-rendered: `text` rather than
@@ -1042,63 +1139,21 @@ function skipRow(g) {
       sample ? h("div", {},
         h("p", { class: "samplelbl",
           text: "One representative hunk; the rest follow the same shape." }),
-        hunkNode(sample, [])) : null,
+        hunkNode(sample)) : null,
       h("div", { class: "filelist" }, (g.files || []).map(p => h("div", { text: p })))));
 }
 
-/* The complete account of an area's files, one fold away. The steps above it
-   already showed the ones worth reading. */
-function filesBlock(g, open) {
-  const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
-  const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
-  const table = h("table", { class: "files" }, h("tbody", {},
-    g.files.map(f => {
-      const [dir, base] = splitPath(f.path);
-      return h("tr", {},
-        h("td", {},
-          h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
-          f.moved_from ? h("span", { class: "moved", text: "← " + f.moved_from }) : null,
-          f.note ? h("div", { class: "note" }, prose(f.note)) : null),
-        h("td", { class: "word",
-          text: KIND_SHOWN.has(f.change_kind) ? KIND_LABEL[f.change_kind] : "" }),
-        h("td", { class: "num" },
-          f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
-          f.deletions ? h("span", { class: "minus", text: "−" + f.deletions }) : null,
-          (!f.additions && !f.deletions)
-            ? h("span", { class: "faint", text: STATUS_LABEL[f.status] }) : null)
-      );
-    })));
-  return h("details", { class: "areafiles", open: open || null },
-    h("summary", { class: "link", text:
-      `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this area`
-      + ` · +${adds} −${dels}` }),
-    table);
-}
-
 /* --------------------------------------------------------------- hunks */
-function hunkNode(hunk, annotations) {
+/* The full diff of one hunk, plain. Annotations belong to the snippets; a
+   full hunk behind its fold is only ever the code itself. */
+function hunkNode(hunk) {
   const body = h("div", { class: "hbody" });
   const lines = hunk.lines || [];
   /* A file that is entirely new has no old-side numbers; do not spend a column
      on an empty gutter, especially on a phone. */
   const hasOld = lines.some(l => l.old != null);
   const hasNew = lines.some(l => l.new != null);
-  const byLine = new Map();
-  for (const a of annotations || []) {
-    const key = a.new_line != null ? "n" + a.new_line : a.old_line != null ? "o" + a.old_line : null;
-    if (key === null) continue;
-    if (!byLine.has(key)) byLine.set(key, []);
-    byLine.get(key).push(a);
-  }
-  for (const a of (annotations || []).filter(a => a.new_line == null && a.old_line == null)) {
-    body.append(noteNode(a));
-  }
-  for (const line of lines) {
-    body.append(lineNode(line, hasOld, hasNew));
-    const notes = (line.new != null ? byLine.get("n" + line.new) || [] : [])
-      .concat(line.old != null ? byLine.get("o" + line.old) || [] : []);
-    for (const a of notes) body.append(noteNode(a));
-  }
+  for (const line of lines) body.append(lineNode(line, hasOld, hasNew));
   if (hunk.truncated) {
     body.append(h("div", { class: "trunc",
       text: `Truncated: showing the first ${plural(lines.length, "line")} of this hunk.` }));
@@ -1133,16 +1188,21 @@ function lineNode(line, hasOld, hasNew) {
 }
 
 /* An annotation is the highest-value text on the page: precis pointing at one
-   line and saying what it does. */
-function noteNode(a) {
-  return h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
+   line and saying what it does. `inline` marks the copy that lives between
+   code rows, which the wide layout swaps for its margin twin. */
+function noteNode(a, inline) {
+  return h("div", { class: "hnote" + (inline ? " inline" : "") },
+    h("span", { class: "mk", text: "›" }),
     h("div", { class: "txt" }, prose(a.text)));
 }
 
-/* The annotated lines of one hunk, each with a line of context either side and
-   its annotation under it. This is what a step shows by default: the lines
-   precis wrote about, not the wall of diff around them. Returns null when
-   nothing in the hunk is anchored, and the caller falls back to the fold. */
+/* The annotated lines of one hunk, each with a line of context either side.
+   This is what a step shows by default: the lines precis wrote about, not the
+   wall of diff around them. Every anchored note is laid down twice - inline in
+   the code flow, and as a margin twin the wide layout positions beside its
+   line - and CSS shows exactly one of the two, so print and phones need no
+   script. Returns null when nothing in the hunk is anchored, and the caller
+   falls back to the fold. */
 function snippetNode(hunk, annotations) {
   const lines = hunk.lines || [];
   const anchored = [];
@@ -1168,14 +1228,75 @@ function snippetNode(hunk, annotations) {
   const body = h("div", { class: "hbody" });
   const hasOld = lines.some(l => l.old != null);
   const hasNew = lines.some(l => l.new != null);
+  const pairs = [];
   let prev = -2;
   for (const i of Array.from(keep).sort((a, b) => a - b)) {
     if (i > prev + 1) body.append(h("div", { class: "gapline", text: "· · ·" }));
-    body.append(lineNode(lines[i], hasOld, hasNew));
-    for (const a of notesAt.get(i) || []) body.append(noteNode(a));
+    const row = lineNode(lines[i], hasOld, hasNew);
+    const notes = notesAt.get(i) || [];
+    if (notes.length) row.className += " noted";
+    body.append(row);
+    for (const a of notes) {
+      body.append(noteNode(a, true));
+      pairs.push({ line: row, note: h("div", { class: "mnote" }, prose(a.text)) });
+    }
     prev = i;
   }
-  return h("div", { class: "hunk snippet" }, hunkHead(hunk, false), body);
+  const wrap = h("div", { class: "snipwrap" },
+    h("div", { class: "hunk snippet" }, hunkHead(hunk, false), body),
+    h("div", { class: "mnotes" }, pairs.map(p => p.note)));
+  wrap._pairs = pairs;
+  SNIPWRAPS.push(wrap);
+  return wrap;
+}
+
+/* ----------------------------------------------------------- margin notes */
+/* The wide layout moves each anchored note into the margin beside its line:
+   top-aligned with the line, pushed down when the note above needs the room,
+   and tied back by a hairline connector so a pushed note still names its
+   line. Everything here is geometry; the words were laid down at build time,
+   so a browser without any of this still shows the inline notes. */
+const SNIPWRAPS = [];
+const WIDE = matchMedia("(min-width: 1000px)");
+
+function placeMarginNotes(wrap) {
+  const pairs = wrap._pairs || [];
+  if (!pairs.length) return;
+  if (!WIDE.matches) {
+    wrap.style.minHeight = "";
+    if (wrap._conn) wrap._conn.replaceChildren();
+    return;
+  }
+  const box = wrap.getBoundingClientRect();
+  if (!box.height) return;                     /* inside a closed fold */
+  if (!wrap._conn) {
+    wrap._conn = s("svg", { class: "mconn", "aria-hidden": "true" });
+    wrap.append(wrap._conn);
+  }
+  const code = wrap.firstChild.getBoundingClientRect();
+  const x1 = code.right - box.left + 2;
+  const x2 = box.width - 308;
+  let flow = 0;
+  const ties = [];
+  for (const p of pairs) {
+    const lr = p.line.getBoundingClientRect();
+    const lineTop = lr.top - box.top;
+    const top = Math.max(lineTop, flow);
+    p.note.style.top = top + "px";
+    flow = top + p.note.offsetHeight + 12;
+    ties.push({ y1: lineTop + lr.height / 2, y2: top + 9 });
+  }
+  wrap.style.minHeight = Math.ceil(flow - 12) + "px";
+  const w = Math.ceil(box.width), hh = Math.ceil(Math.max(box.height, flow));
+  wrap._conn.setAttribute("viewBox", `0 0 ${w} ${hh}`);
+  wrap._conn.setAttribute("width", w);
+  wrap._conn.setAttribute("height", hh);
+  wrap._conn.replaceChildren(...ties.map(t => s("line", {
+    x1, y1: t.y1, x2, y2: t.y2, stroke: "var(--line)", "stroke-width": 1 })));
+}
+
+function placeAllMarginNotes() {
+  for (const wrap of SNIPWRAPS) placeMarginNotes(wrap);
 }
 
 /* ------------------------------------------------------------ call graph */
@@ -1193,7 +1314,7 @@ function mapSection() {
   const body = graphBranches(graph)
     ? h("div", { class: "graph" }, drawCallGraph(graph).node)
     : callTrace(graph);
-  return section("map", "What calls what", cm.summary || null, body, offGraphNote(graph));
+  return section("map", cm.summary || null, body, offGraphNote(graph));
 }
 
 /* A linear trace cannot misrepresent a chain. It can misrepresent a fan, so a
@@ -1365,7 +1486,7 @@ function behaviorSection() {
       h("span", { class: "mk", text: "▸" }), prose(d.summary),
       refsLine(d.hunk_ids)))) : null;
 
-  return section("behavior", "Behaviour: before and after", null, figure, deltas);
+  return section("behavior", null, figure, deltas);
 }
 
 function debounce(fn, ms) {
@@ -1721,24 +1842,6 @@ function wrapText(text, maxPx, size, maxLines) {
   return lines.slice(0, maxLines || 3);
 }
 
-/* ----------------------------------------------------------------- seams */
-function seamsSection() {
-  const seams = M.seams || {};
-  if (!seams.detected) return null;
-  const clusters = seams.clusters || [];
-  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
-  return section("seams", "This reads as more than one change", seams.note,
-    clusters.map(c => h("div", { class: "seam" },
-      h("h4", {}, prose(c.label)),
-      h("p", {}, prose(c.summary)),
-      h("p", { class: "meta",
-        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
-      (c.independent_of || []).length
-        ? h("p", { class: "quiet", text: "Shares nothing with "
-            + listOf(c.independent_of.map(id => plain(nameOf.get(id) || id))) + "." })
-        : null)));
-}
-
 /* ---------------------------------------------------------------- footer */
 /* Provenance: how this report was made, what it was read from, and what it did
    not read. None of it is a fact about the change, so none of it is upstairs. */
@@ -1798,26 +1901,36 @@ function footerNode() {
 /* ------------------------------------------------------------------ boot */
 function boot() {
   const app = document.getElementById("app");
+  const chapters = buildChapters();
+  app.append(masthead(chapters));
   const main = h("main", { class: "wrap" });
-  main.append(areasSection());
-  const map = mapSection();
-  if (map) main.append(map);
-  const behavior = behaviorSection();
-  if (behavior) main.append(behavior);
-  const seams = seamsSection();
-  if (seams) main.append(seams);
-
-  app.append(masthead());
+  for (const c of chapters) if (c.node) main.append(c.node);
   app.append(main);
   app.append(footerNode());
 
-  /* Printing must not silently drop the parts that happen to be collapsed. */
+  /* Margin notes track the layout: any reflow - a resize, a fold opening,
+     the fonts arriving - re-places them. */
+  WIDE.addEventListener("change", placeAllMarginNotes);
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(placeAllMarginNotes).observe(document.body);
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(placeAllMarginNotes);
+  }
+  requestAnimationFrame(placeAllMarginNotes);
+
+  /* Printing must not silently drop the parts that happen to be collapsed,
+     and paper gets the inline notes, so the margin geometry comes off. */
   let reopened = [];
   addEventListener("beforeprint", () => {
     reopened = Array.from(document.querySelectorAll("details:not([open])"));
     for (const d of reopened) d.open = true;
+    for (const wrap of SNIPWRAPS) wrap.style.minHeight = "";
   });
-  addEventListener("afterprint", () => { for (const d of reopened) d.open = false; });
+  addEventListener("afterprint", () => {
+    for (const d of reopened) d.open = false;
+    placeAllMarginNotes();
+  });
 }
 
 boot();
