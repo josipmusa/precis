@@ -354,13 +354,109 @@ def test_the_treemap_is_gone(template_text):
         assert ghost not in template_text, f"{ghost} survived the redesign"
 
 
-def test_the_pass_lives_inside_the_area_that_owns_it(template_text):
-    """Steps and checks render inside the role group that owns their file, so a
-    reviewer works one area at a time instead of hopping between a reading list
-    and a file list. The flat numbered section does not come back."""
-    assert "function areasSection" in template_text
-    assert "function areaCard" in template_text
-    assert "Read these, in this order" not in template_text
+def test_the_page_is_chapters_in_a_fixed_order(template_text):
+    """Behaviour, structure, layer map, reading, decide - built from one list,
+    each rendered only when it has content, numbered without holes."""
+    defs = re.search(r"const CHAPTERS = \[(.*?)\n\];", template_text, re.S).group(1)
+    ids = re.findall(r'id: "(\w+)"', defs)
+    assert ids == ["behavior", "map", "layers", "reading", "decide"]
+    body = re.search(r"function buildChapters\(.*?\n\}", template_text, re.S).group(0)
+    assert "continue" in body, "an absent chapter no longer closes the numbering gap"
+    assert "function areasSection" not in template_text, "the by-area section came back"
+
+
+def test_a_chapter_heading_is_a_kicker_and_a_headline(template_text):
+    body = re.search(r"function chapterHead\(.*?\n\}", template_text, re.S).group(0)
+    assert 'class: "kicker"' in body
+    assert 'h("h2"' in body
+    assert "padStart(2" in body, "the kicker lost its two-digit chapter number"
+
+
+def test_chapter_boundaries_read_at_a_fast_scroll(template_text):
+    """Uppercase mono kicker, ~30px serif headline, ~90px of air above, and the
+    masthead headline still a size above the chapters'."""
+    kicker = re.search(r"\.kicker\s*\{[^}]*\}", template_text).group(0)
+    assert "uppercase" in kicker and "--mono" in kicker
+    chap = re.search(r"section\.chap\s*\{[^}]*\}", template_text).group(0)
+    assert "90px" in chap
+    assert re.search(r"\nh2\s*\{[^}]*30px", template_text), "chapter headline is no longer ~30px"
+    assert re.search(r"\nh3\s*\{[^}]*22px", template_text), "layer heading is no longer ~22px"
+    assert re.search(r"\nh1\s*\{[^}]*36px", template_text), "masthead h1 no longer tops the scale"
+
+
+def test_the_masthead_ends_with_a_contents_line(template_text):
+    mast = re.search(r"function masthead\(.*?\n\}\n", template_text, re.S).group(0)
+    assert "contentsLine" in mast
+    body = re.search(r"function contentsLine\(.*?\n\}", template_text, re.S).group(0)
+    assert '"#" + c.id' in body, "a contents entry no longer links to its chapter"
+    assert "c.n" in body, "a contents entry lost its chapter number"
+
+
+def test_the_layer_map_is_prose_first_in_model_order(template_text):
+    """Chapter 4 is a map: the model's own group order is request flow, a
+    narrative leads each layer, and the page never reorders."""
+    body = re.search(r"function layersSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "GROUPS.map" in body
+    assert ".sort" not in body, "the page reorders the layers again"
+    layer = re.search(r"function layerNode\(.*?\n\}", template_text, re.S).group(0)
+    assert "prose(g.narrative)" in layer
+
+
+def test_the_layer_map_is_a_map_not_a_task_list(template_text):
+    """No steps, no checks, no ticks in the layer chapter."""
+    start = template_text.index("function layersSection")
+    end = template_text.index("function readingSection")
+    chapter = template_text[start:end]
+    for ghost in ("tickBox", "stepItem", "checkItem", "walkBlock"):
+        assert ghost not in chapter, f"{ghost} crept into the layer map"
+
+
+def test_a_layer_folds_its_inventory_away(template_text):
+    """The file ledger and the skip groups live one quiet fold under the
+    narrative and the contracts."""
+    body = re.search(r"function inventoryFold\(.*?\n\}", template_text, re.S).group(0)
+    assert 'h("details"' in body
+    assert "filesTable" in body and "skipRow" in body
+
+
+def test_contracts_sit_inside_their_layer(template_text):
+    layer = re.search(r"function layerNode\(.*?\n\}", template_text, re.S).group(0)
+    assert "contractNode" in layer
+    cross = re.search(r"function crossLayer\(.*?\n\}", template_text, re.S).group(0)
+    assert "Across the change" in cross
+
+
+def test_seams_close_the_layer_chapter(template_text):
+    body = re.search(r"function layersSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "seamsBlock" in body
+    seams = re.search(r"function seamsBlock\(.*?\n\}", template_text, re.S).group(0)
+    assert 'id: "seams"' in seams, "the masthead's seams link has nowhere to land"
+
+
+def test_the_reading_is_one_linear_pass(template_text):
+    """Steps 1 to N in numeric order, one continuous flow, with the done
+    counter in the chapter header. The per-area walk folds are gone; the
+    by-layer view is the previous chapter's job."""
+    body = re.search(r"function readingSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "STEPS.map(stepItem)" in body
+    assert 'id: "count"' in body, "the done counter left the chapter header"
+    assert "walkBlock" not in template_text, "the per-area walk fold came back"
+
+
+def test_a_step_wears_its_layer_eyebrow(template_text):
+    """`domain-layer label · file` above each step title keeps the reader's
+    bearings without the area wrapper."""
+    body = re.search(r"function stepEyebrow\(.*?\n\}", template_text, re.S).group(0)
+    assert "groupOfPath" in body and "basename" in body
+    step = re.search(r"function stepItem\(.*?\n\}", template_text, re.S).group(0)
+    assert "stepEyebrow" in step
+
+
+def test_the_decide_chapter_numbers_on_from_the_steps(template_text):
+    body = re.search(r"function decideSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "STEPS.length + i + 1" in body
+    assert "checkItem" in body
+    assert "recis has no opinion" in body, "the chapter lost its lead line"
 
 
 def test_a_step_leads_with_its_annotated_lines_and_folds_the_rest(template_text):
@@ -384,11 +480,12 @@ def test_the_masthead_answers_the_header_questions_in_sentences(template_text):
     assert 'class: "flag"' not in template_text, "the labelled flags grid came back"
 
 
-def test_the_masthead_is_five_blocks_of_prose(template_text):
-    """One metadata line, the headline, the story, one sentence of triage, and
-    the answers. No chips, no big number, no bar."""
+def test_the_masthead_is_five_blocks_of_prose_and_a_contents_line(template_text):
+    """One metadata line, the headline, the story, one sentence of triage, the
+    answers, and the contents line. No chips, no big number, no bar."""
     body = re.search(r"function masthead\(.*?\n\}\n", template_text, re.S).group(0)
-    for block in ("meta,", "h1", "beats", "triageSentence()", "answers()"):
+    for block in ("meta,", "h1", "beats", "triageSentence()", "answers()",
+                  "contentsLine"):
         assert block in body, f"the masthead lost its {block}"
     for ghost in ("chip", "class: \"bar\"", "barkey", "ratio", "confidence"):
         assert ghost not in body, f"{ghost} is still in the masthead"
@@ -417,14 +514,6 @@ def test_the_blast_radius_total_is_derived_not_declared(template_text):
     body = re.search(r"function callersLine\(.*?\n\}", template_text, re.S).group(0)
     assert "untouched.length" in body
     assert "refLink" in body
-
-
-def test_the_walkthrough_waits_behind_one_fold(template_text):
-    """Level three of the page: the card says what an area is and what changes
-    shape in it; the code opens when the reader is ready to read."""
-    assert "function walkBlock" in template_text
-    body = re.search(r"function walkBlock\(.*?\n\}", template_text, re.S).group(0)
-    assert 'h("details", { class: "walk" }' in body, "the walkthrough no longer folds"
 
 
 def test_a_hunk_header_carries_its_triage_word(template_text):
@@ -616,6 +705,7 @@ PROSE_SITES = [
     ("story.headline", "prose(story.headline"),
     ("story.beats[].label", "prose(b.label)"),
     ("change_map.groups[].label", "prose(g.label)"),
+    ("change_map.groups[].narrative", "prose(g.narrative)"),
     ("change_map.graph.nodes[].note", "prose(node.note)"),
     ("behavior.<side>.title", "prose(d.title"),
     ("review_pass.steps[].title", "prose(step.title)"),

@@ -68,10 +68,12 @@ body {
   font: 15px/1.65 var(--text);
   font-variant-numeric: tabular-nums;
 }
+/* The scale is the hierarchy: masthead over chapter headline over layer
+   heading over item title over body, and nothing between competes. */
 h1, h2, h3, h4 { margin: 0; line-height: 1.25; letter-spacing: -.011em; }
-h1 { font: 500 clamp(26px, 4.2vw, 32px)/1.2 var(--text); }
-h2 { font: 500 24px/1.25 var(--text); }
-h3 { font: 600 19px/1.3 var(--text); }
+h1 { font: 500 clamp(28px, 4.6vw, 36px)/1.2 var(--text); }
+h2 { font: 500 clamp(25px, 4vw, 30px)/1.25 var(--text); }
+h3 { font: 500 22px/1.3 var(--text); }
 h4 { font: 600 15px/1.4 var(--text); }
 p { margin: 0; }
 a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: .06em; }
@@ -113,10 +115,25 @@ code { font: .88em/1.5 var(--mono); overflow-wrap: anywhere; }
   color: var(--ink-soft); border-left: 2px solid var(--line); padding-left: 14px;
   max-width: 84ch;
 }
+/* The reader's map of the rendered chapters: one plain line of anchors. */
+.contents { margin-top: 30px; font: 12.5px/1.9 var(--mono); color: var(--ink-faint); }
+.contents a { color: inherit; }
 
-/* -------------------------------------------------------------- sections */
-section.sec { padding: 54px 0 0; scroll-margin-top: 14px; }
-section.sec > h2 + .lead { margin-top: 8px; }
+/* -------------------------------------------------------------- chapters */
+/* A chapter boundary has to be unmistakable at a fast scroll: ninety pixels
+   of air, a numbered mono kicker over a short hairline, then a headline one
+   size below the masthead's. */
+section.chap { padding: 90px 0 0; scroll-margin-top: 14px; }
+.kicker {
+  font: 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.kicker::after {
+  content: ""; display: block; width: 34px; margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.chaphead h2 { margin-top: 14px; }
+.chap > .lead { margin-top: 10px; }
 .lead { color: var(--ink-soft); max-width: 72ch; }
 .counter { font: 12.5px/1.7 var(--mono); color: var(--ink-faint); margin-top: 10px; }
 
@@ -139,20 +156,22 @@ summary.link .sub {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--ink-faint);
 }
-details.walk[open] > summary.link .sub { display: none; }
 
-/* ----------------------------------------------------------- the areas */
-/* The backbone: the change grouped by what each part is for. A heading, a
-   sentence, and the reading that belongs to it. No panels. */
-.area { margin-top: 34px; padding-top: 30px; border-top: 1px solid var(--line); }
-.asum { margin-top: 8px; color: var(--ink-soft); max-width: 70ch; }
-.aorder { margin-top: 6px; color: var(--ink-faint); max-width: 70ch; font-size: 14px; }
-.ameta { font: 12px/1.7 var(--mono); color: var(--ink-faint); margin-top: 8px; }
+/* ---------------------------------------------------------- the layers */
+/* The map chapter's subsections: a heading, the narrative, the contracts that
+   changed here, the inventory one fold away. No panels. */
+.layer { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--line-soft); }
+.narrative { margin-top: 10px; }
+.inventory > .inner { margin: 14px 0 0 20px; }
 h4.block { margin: 30px 0 4px; }
 h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 
 /* --------------------------------------------------------------- steps */
-.step { margin-top: 24px; }
+.step { margin-top: 32px; }
+.eyebrow {
+  font: 11.5px/1.6 var(--mono); color: var(--ink-faint); margin-bottom: 3px;
+  word-break: break-all;
+}
 .step > .head { display: flex; gap: 11px; align-items: flex-start; }
 .tick { flex: none; width: 15px; height: 15px; margin: 6px 0 0; accent-color: var(--accent); }
 .step h4 { font-size: 17px; min-width: 0; }
@@ -350,10 +369,10 @@ footer .creed { margin-top: 24px; color: var(--ink-faint); max-width: 64ch; }
   details > *:not(summary) { display: revert; }
   a { color: inherit; text-decoration: none; }
   .stepbody { margin-left: 0; }
-  section.sec { padding-top: 26px; }
+  section.chap { padding-top: 30px; }
   .hunk, .seam, .contract, .skip, .side { break-inside: avoid; }
-  .area { break-inside: auto; }
-  .step > .head, .step .why { break-inside: avoid; break-after: avoid; }
+  .layer { break-inside: auto; }
+  .chaphead, .step > .head, .step .why { break-inside: avoid; break-after: avoid; }
   h2, h3, h4 { break-after: avoid; }
 }
 </style>
@@ -592,7 +611,7 @@ function refsLine(ids, label) {
    the reading, and the three answers a reviewer settles before opening a file.
    Confidence and evidence are provenance about the report rather than facts
    about the change, so they wait in the footer. */
-function masthead() {
+function masthead(chapters) {
   const src = M.source || {};
   const story = M.story || {};
 
@@ -618,9 +637,20 @@ function masthead() {
       story.caveat ? h("p", { class: "caveat" }, prose(story.caveat)) : null,
       triageSentence(),
       answers(),
-      intentBlock()
+      intentBlock(),
+      contentsLine(chapters)
     )
   );
+}
+
+/* The reader's map: one plain line naming the chapters that actually rendered
+   for this change, each an anchor. Absent chapters never appear, so the
+   numbering the reader sees here is the numbering on the page. */
+function contentsLine(chapters) {
+  const row = h("p", { class: "contents" });
+  chapters.forEach((c, i) => add(row, [i ? " · " : null,
+    h("a", { href: "#" + c.id, text: c.n + " " + c.short })]));
+  return row;
 }
 
 /* The number, the bar and the key were one sentence pretending to be a
@@ -745,19 +775,43 @@ function intentBlock() {
   return block;
 }
 
-/* =============================================================== sections */
-function section(id, title, lead, ...body) {
-  return h("section", { class: "sec", id },
-    h("h2", {}, typeof title === "string" ? prose(title) : title),
+/* =============================================================== chapters */
+/* The page is numbered chapters built from one list. A chapter with nothing
+   to say for this change is omitted, and the numbering closes over the gap,
+   so neither the contents line nor the kickers ever count a hole. */
+const CHAPTERS = [
+  { id: "behavior", short: "Behaviour", title: "Behaviour: before and after", build: behaviorSection },
+  { id: "map", short: "Structure", title: "What calls what", build: mapSection },
+  { id: "layers", short: "Layer by layer", title: "The change, layer by layer", build: layersSection },
+  { id: "reading", short: "The reading", title: "The reading", build: readingSection },
+  { id: "decide", short: "Decide", title: "Decide", build: decideSection }
+];
+
+function buildChapters() {
+  const chapters = [{ id: "top", short: "Overview", n: 1, node: null }];
+  for (const def of CHAPTERS) {
+    const node = def.build();
+    if (!node) continue;
+    const n = chapters.length + 1;
+    node.prepend(chapterHead(n, def));
+    chapters.push({ id: def.id, short: def.short, n, node });
+  }
+  return chapters;
+}
+
+function chapterHead(n, def) {
+  return h("header", { class: "chaphead" },
+    h("p", { class: "kicker", text: String(n).padStart(2, "0") + " · " + def.short }),
+    h("h2", {}, prose(def.title)));
+}
+
+function section(id, lead, ...body) {
+  return h("section", { class: "chap", id },
     lead ? h("p", { class: "lead" }, typeof lead === "string" ? prose(lead) : lead) : null,
     body);
 }
 
-/* ============================================================== the areas */
-/* Every file, every reading step, every question sits inside the area of the
-   codebase it belongs to. A reviewer works one area at a time instead of
-   hopping between a reading list and a file list. */
-
+/* ================================================================ the pass */
 /* The ticks live in localStorage under the head SHA, so a reload resumes and a
    new head starts clean. Nothing else about a ticked step changes: it is a
    record of what was read, not a piece of choreography. */
@@ -795,36 +849,29 @@ function refreshCount() {
   node.textContent = total ? `${TICKS.size} of ${total} done` : "";
 }
 
-function areasSection() {
-  const skips = PASS.skippable || [];
-  const total = STEPS.length + CHECKS.length;
+/* ==================================================== chapter: the layers */
+/* A prose-first map of the change: one subsection per layer, in the model's
+   own order, which is the flow of a request through the system. Narrative
+   first, the contracts that changed here under it, the inventory one quiet
+   fold away. This chapter is a map, not a task list; the pass lives in the
+   two chapters after it. */
+function layersSection() {
+  if (!GROUPS.length) return null;
 
-  /* Wire each step, check, contract and skip group to the area that owns its
-     file. Anything with no file to point at spans the change, and says so. */
-  const stepsOf = new Map(), checksOf = new Map(), skipsOf = new Map(), contractsOf = new Map();
-  const crossChecks = [], crossSkips = [], crossContracts = [];
+  /* Wire each contract and skip group to the layer that owns its file.
+     Anything no single layer owns closes the chapter instead. */
+  const contractsOf = new Map(), skipsOf = new Map();
+  const crossContracts = [], crossSkips = [];
   const claim = (map, gid, item) => {
     if (!map.has(gid)) map.set(gid, []);
     map.get(gid).push(item);
   };
-  for (const step of STEPS) {
-    const g = groupOfPath(step.path) ||
-              groupOfPath(((HUNKS[step.hunk_ids[0]] || {}).path));
-    if (g) claim(stepsOf, g.id, step);
-  }
   for (const c of CONTRACTS) {
     const g = groupOfPath(((HUNKS[(c.hunk_ids || [])[0]] || {}).path));
     if (g) claim(contractsOf, g.id, c);
     else crossContracts.push(c);
   }
-  CHECKS.forEach((check, i) => {
-    const n = STEPS.length + i + 1;
-    const g = groupOfPath(check.path) ||
-              groupOfPath(((HUNKS[(check.hunk_ids || [])[0]] || {}).path));
-    if (g) claim(checksOf, g.id, { check, n });
-    else crossChecks.push({ check, n });
-  });
-  for (const sk of skips) {
+  for (const sk of PASS.skippable || []) {
     let gid = (sk.group_ids || [])[0];
     if (!gid) {
       const owners = new Set((sk.files || [])
@@ -835,35 +882,16 @@ function areasSection() {
     else crossSkips.push(sk);
   }
 
-  /* Areas appear in the order the reading starts: the area holding step 1
-     leads, and areas with nothing to read keep the model's own order. */
-  const firstStep = g => {
-    const list = stepsOf.get(g.id);
-    return list ? list[0].n : Infinity;
-  };
-  const ordered = GROUPS.map((g, i) => [g, i])
-    .sort((a, b) => (firstStep(a[0]) - firstStep(b[0])) || (a[1] - b[1]))
-    .map(pair => pair[0]);
-
-  const cards = ordered.map(g =>
-    areaCard(g, stepsOf.get(g.id) || [], checksOf.get(g.id) || [],
-             skipsOf.get(g.id) || [], contractsOf.get(g.id) || []));
-  if (crossChecks.length || crossSkips.length || crossContracts.length) {
-    cards.push(crossCard(crossChecks, crossSkips, crossContracts));
-  }
-
-  const node = section("change", "The change, by area",
-    `${plural(total, "thing")} to read or decide, sorted into the parts of the `
-    + "codebase they belong to. Tick as you go; the page remembers.",
-    h("p", { class: "counter", id: "count" }), cards);
-  requestAnimationFrame(refreshCount);
-  return node;
+  return section("layers", null,
+    GROUPS.map(g => layerNode(g, contractsOf.get(g.id) || [],
+                              skipsOf.get(g.id) || [])),
+    crossContracts.length || crossSkips.length
+      ? crossLayer(crossContracts, crossSkips) : null,
+    seamsBlock());
 }
 
-function areaCard(g, steps, checks, skips, contracts) {
-  const lines = g.files.reduce((a, f) => a + (f.additions || 0) + (f.deletions || 0), 0);
+function layerNode(g, contracts, skips) {
   const body = h("div", {});
-  if (steps.length) body.append(walkBlock(steps));
   if (contracts.length) {
     body.append(h("h4", { class: "block",
       text: contracts.length === 1 ? "Changed contract" : "Changed contracts" }));
@@ -871,54 +899,107 @@ function areaCard(g, steps, checks, skips, contracts) {
       text: "a shape someone outside this diff depends on" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  if (checks.length) {
-    body.append(h("h4", { class: "block", text: "Decide" }));
-    body.append(h("p", { class: "sub", text: "yours to judge; precis has no opinion" }));
-    for (const c of checks) body.append(checkItem(c.check, c.n));
-  }
-  for (const sk of skips) body.append(skipRow(sk));
-  body.append(filesBlock(g, !steps.length && !skips.length));
-
-  return h("section", { class: "area", id: "area-" + g.id },
+  body.append(inventoryFold(g, skips));
+  return h("section", { class: "layer", id: "layer-" + g.id },
     h("h3", {}, prose(g.label)),
-    g.summary ? h("p", { class: "asum" }, prose(g.summary)) : null,
-    g.order_note ? h("p", { class: "aorder" }, prose(g.order_note)) : null,
-    h("p", { class: "ameta",
-      text: `${plural(g.files.length, "file")} · ${lines.toLocaleString()} changed lines` }),
+    h("p", { class: "narrative prose" }, prose(g.narrative)),
     body);
 }
 
-/* Questions, skips, and contracts that no single area owns. */
-function crossCard(checks, skips, contracts) {
+/* Contracts and skip groups that no single layer owns close the chapter. */
+function crossLayer(contracts, skips) {
   const body = h("div", {});
-  if ((contracts || []).length) {
+  if (contracts.length) {
     body.append(h("h4", { class: "block", text: "Changed contracts" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  if (checks.length) {
-    body.append(h("h4", { class: "block", text: "Decide" }));
-    body.append(h("p", { class: "sub", text: "yours to judge; precis has no opinion" }));
-    for (const c of checks) body.append(checkItem(c.check, c.n));
-  }
   for (const sk of skips) body.append(skipRow(sk));
-  return h("section", { class: "area", id: "area-cross" },
-    h("h3", { text: "The change as a whole" }),
+  return h("section", { class: "layer", id: "layer-cross" },
+    h("h3", { text: "Across the change" }),
     body);
 }
 
-/* The guided walkthrough for one area, one fold away. The area above it already
-   says what this part of the codebase is and what changes shape in it; the code
-   opens when the reader is ready to read it. */
-function walkBlock(steps) {
-  const first = steps[0].n;
-  const label = steps.length === 1
-    ? `Read step ${first}`
-    : `Read steps ${first} to ${steps[steps.length - 1].n}`;
-  return h("details", { class: "walk" },
-    h("summary", { class: "link" },
-      h("span", { text: label }),
-      h("span", { class: "sub", text: steps.map(st => plain(st.title)).join(" · ") })),
-    steps.map(stepItem));
+/* The complete account of a layer's files, one quiet fold away: the ledger,
+   then the skip groups that live in this layer with their reasons. */
+function inventoryFold(g, skips) {
+  const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
+  const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
+  return h("details", { class: "inventory" },
+    h("summary", { class: "link", text:
+      `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this layer`
+      + ` · +${adds} −${dels}` }),
+    h("div", { class: "inner" },
+      filesTable(g),
+      skips.map(skipRow)));
+}
+
+function filesTable(g) {
+  return h("table", { class: "files" }, h("tbody", {},
+    g.files.map(f => {
+      const [dir, base] = splitPath(f.path);
+      return h("tr", {},
+        h("td", {},
+          h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
+          f.moved_from ? h("span", { class: "moved", text: "← " + f.moved_from }) : null,
+          f.note ? h("div", { class: "note" }, prose(f.note)) : null),
+        h("td", { class: "word",
+          text: KIND_SHOWN.has(f.change_kind) ? KIND_LABEL[f.change_kind] : "" }),
+        h("td", { class: "num" },
+          f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
+          f.deletions ? h("span", { class: "minus", text: "−" + f.deletions }) : null,
+          (!f.additions && !f.deletions)
+            ? h("span", { class: "faint", text: STATUS_LABEL[f.status] }) : null)
+      );
+    })));
+}
+
+/* Independent concerns are part of the map, so they close the layer chapter:
+   where the seams run, never advice to split. */
+function seamsBlock() {
+  const seams = M.seams || {};
+  if (!seams.detected) return null;
+  const clusters = seams.clusters || [];
+  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
+  return h("section", { class: "layer", id: "seams" },
+    h("h3", { text: "This reads as more than one change" }),
+    seams.note ? h("p", { class: "narrative prose" }, prose(seams.note)) : null,
+    clusters.map(c => h("div", { class: "seam" },
+      h("h4", {}, prose(c.label)),
+      h("p", {}, prose(c.summary)),
+      h("p", { class: "meta",
+        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
+      (c.independent_of || []).length
+        ? h("p", { class: "quiet", text: "Shares nothing with "
+            + listOf(c.independent_of.map(id => plain(nameOf.get(id) || id))) + "." })
+        : null)));
+}
+
+/* =================================================== chapter: the reading */
+/* The guided pass, strictly linear: steps 1 to N in numeric order, one
+   continuous flow. The by-layer view is the previous chapter's job; neither
+   pretends to be the other. The tick counter lives here, where the pass
+   starts. */
+function readingSection() {
+  if (!STEPS.length) return null;
+  const minutes = PASS.estimated_minutes;
+  const node = section("reading",
+    `${plural(STEPS.length, "step")}, in the order the change makes sense`
+    + `${minutes ? `, about ${plural(minutes, "minute")}` : ""}. `
+    + "Tick as you go; the page remembers.",
+    h("p", { class: "counter", id: "count" }),
+    STEPS.map(stepItem));
+  requestAnimationFrame(refreshCount);
+  return node;
+}
+
+/* Without an area wrapper, each step names its own bearings: the layer it
+   belongs to and the file it reads, one quiet line above the title. */
+function stepEyebrow(step) {
+  const path = step.path || ((HUNKS[step.hunk_ids[0]] || {}).path);
+  const g = groupOfPath(path);
+  const text = [g ? plain(g.label) : null, path ? basename(path) : null]
+    .filter(Boolean).join(" · ");
+  return text ? h("p", { class: "eyebrow", text }) : null;
 }
 
 function stepItem(step) {
@@ -942,19 +1023,23 @@ function stepItem(step) {
       text: `The full diff: ${plural(total, "line")} in ${plural(step.hunk_ids.length, "hunk")}` }),
     step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id], []) : null)));
 
-  /* The snippet headers already name the file. Repeat the step path only when
-     the step spans more than the one file. */
-  const paths = new Set(step.hunk_ids.map(id => HUNKS[id] && HUNKS[id].path).filter(Boolean));
-  const showPath = step.path && !(paths.size === 1 && paths.has(step.path));
-
   return h("article", { class: "step", id: "step-" + step.n },
     h("div", { class: "head" },
       tickBox("s" + step.n, "Mark step " + step.n + " as read"),
       h("div", { style: "min-width:0" },
+        stepEyebrow(step),
         h("h4", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
-        h("p", { class: "why" }, prose(step.why)),
-        showPath ? h("p", { class: "path", text: step.path }) : null)),
+        h("p", { class: "why" }, prose(step.why)))),
     body);
+}
+
+/* ======================================================= chapter: decide */
+/* The questions only the reviewer can answer, numbered on from the steps so
+   the whole pass stays one sequence. */
+function decideSection() {
+  if (!CHECKS.length) return null;
+  return section("decide", "Yours to judge; precis has no opinion.",
+    CHECKS.map((check, i) => checkItem(check, STEPS.length + i + 1)));
 }
 
 /* A rule is quoted, never paraphrased and never re-rendered: `text` rather than
@@ -1044,35 +1129,6 @@ function skipRow(g) {
           text: "One representative hunk; the rest follow the same shape." }),
         hunkNode(sample, [])) : null,
       h("div", { class: "filelist" }, (g.files || []).map(p => h("div", { text: p })))));
-}
-
-/* The complete account of an area's files, one fold away. The steps above it
-   already showed the ones worth reading. */
-function filesBlock(g, open) {
-  const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
-  const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
-  const table = h("table", { class: "files" }, h("tbody", {},
-    g.files.map(f => {
-      const [dir, base] = splitPath(f.path);
-      return h("tr", {},
-        h("td", {},
-          h("div", { class: "fp" }, h("span", { class: "dir", text: dir }), h("span", { text: base })),
-          f.moved_from ? h("span", { class: "moved", text: "← " + f.moved_from }) : null,
-          f.note ? h("div", { class: "note" }, prose(f.note)) : null),
-        h("td", { class: "word",
-          text: KIND_SHOWN.has(f.change_kind) ? KIND_LABEL[f.change_kind] : "" }),
-        h("td", { class: "num" },
-          f.additions ? h("span", { class: "plus", text: "+" + f.additions }) : null, " ",
-          f.deletions ? h("span", { class: "minus", text: "−" + f.deletions }) : null,
-          (!f.additions && !f.deletions)
-            ? h("span", { class: "faint", text: STATUS_LABEL[f.status] }) : null)
-      );
-    })));
-  return h("details", { class: "areafiles", open: open || null },
-    h("summary", { class: "link", text:
-      `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this area`
-      + ` · +${adds} −${dels}` }),
-    table);
 }
 
 /* --------------------------------------------------------------- hunks */
@@ -1193,7 +1249,7 @@ function mapSection() {
   const body = graphBranches(graph)
     ? h("div", { class: "graph" }, drawCallGraph(graph).node)
     : callTrace(graph);
-  return section("map", "What calls what", cm.summary || null, body, offGraphNote(graph));
+  return section("map", cm.summary || null, body, offGraphNote(graph));
 }
 
 /* A linear trace cannot misrepresent a chain. It can misrepresent a fan, so a
@@ -1365,7 +1421,7 @@ function behaviorSection() {
       h("span", { class: "mk", text: "▸" }), prose(d.summary),
       refsLine(d.hunk_ids)))) : null;
 
-  return section("behavior", "Behaviour: before and after", null, figure, deltas);
+  return section("behavior", null, figure, deltas);
 }
 
 function debounce(fn, ms) {
@@ -1721,24 +1777,6 @@ function wrapText(text, maxPx, size, maxLines) {
   return lines.slice(0, maxLines || 3);
 }
 
-/* ----------------------------------------------------------------- seams */
-function seamsSection() {
-  const seams = M.seams || {};
-  if (!seams.detected) return null;
-  const clusters = seams.clusters || [];
-  const nameOf = new Map(clusters.map(c => [c.id, c.label]));
-  return section("seams", "This reads as more than one change", seams.note,
-    clusters.map(c => h("div", { class: "seam" },
-      h("h4", {}, prose(c.label)),
-      h("p", {}, prose(c.summary)),
-      h("p", { class: "meta",
-        text: `${plural(c.file_count, "file")} · ${c.changed_lines.toLocaleString()} changed lines` }),
-      (c.independent_of || []).length
-        ? h("p", { class: "quiet", text: "Shares nothing with "
-            + listOf(c.independent_of.map(id => plain(nameOf.get(id) || id))) + "." })
-        : null)));
-}
-
 /* ---------------------------------------------------------------- footer */
 /* Provenance: how this report was made, what it was read from, and what it did
    not read. None of it is a fact about the change, so none of it is upstairs. */
@@ -1798,16 +1836,10 @@ function footerNode() {
 /* ------------------------------------------------------------------ boot */
 function boot() {
   const app = document.getElementById("app");
+  const chapters = buildChapters();
+  app.append(masthead(chapters));
   const main = h("main", { class: "wrap" });
-  main.append(areasSection());
-  const map = mapSection();
-  if (map) main.append(map);
-  const behavior = behaviorSection();
-  if (behavior) main.append(behavior);
-  const seams = seamsSection();
-  if (seams) main.append(seams);
-
-  app.append(masthead());
+  for (const c of chapters) if (c.node) main.append(c.node);
   app.append(main);
   app.append(footerNode());
 
