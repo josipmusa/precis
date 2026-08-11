@@ -291,6 +291,36 @@ def test_the_counter_is_plain_text(template_text):
     assert "width" not in body, "the counter is drawing a bar again"
 
 
+def test_a_sticky_line_follows_the_pass(template_text):
+    """One thin pinned line - the done count and a jump to the first unticked
+    item - styled as the page: its background, one hairline, no bar, no
+    buttons. Paper never sees it."""
+    assert "function passBar" in template_text
+    body = re.search(r"function refreshPass\(.*?\n\}", template_text, re.S).group(0)
+    assert "nextUnticked" in body
+    assert '"all "' in body, "the finished state lost its wording"
+    count = re.search(r"function refreshCount\(.*?\n\}", template_text, re.S).group(0)
+    assert "refreshPass" in count, "ticking no longer refreshes the sticky line"
+    nxt = re.search(r"function nextUnticked\(.*?\n\}", template_text, re.S).group(0)
+    assert '"#step-"' in nxt and '"#check-"' in nxt, (
+        "the resume link no longer lands on the first unticked item")
+    bar = re.search(r"\.passbar\s*\{[^}]*\}", template_text).group(0)
+    assert "fixed" in bar and "border-bottom" in bar and "var(--bg)" in bar
+    print_block = template_text[template_text.index("@media print {"):]
+    assert ".passbar" in print_block[:print_block.index("\n}\n")], (
+        "the sticky line survives onto paper")
+
+
+def test_the_sticky_line_exists_only_over_the_pass(template_text):
+    """One IntersectionObserver on the two pass chapters shows and hides it;
+    nothing else on the page watches the viewport."""
+    assert template_text.count("new IntersectionObserver") == 1
+    boot = re.search(r"function boot\(.*?\n\}\n", template_text, re.S).group(0)
+    assert '"reading", "decide"' in boot
+    assert "isIntersecting" in boot
+    assert "hidden = " in boot, "visibility no longer follows the chapters"
+
+
 def test_paper_hides_the_controls_and_keeps_the_document(template_text):
     """The memo test is literal: printed, this is a document, and every fold is
     open because nothing can be unfolded on paper."""
@@ -643,10 +673,11 @@ def test_the_triage_sentence_replaced_the_number_and_the_bar(template_text):
 
 def test_the_page_is_readable_with_no_clicks(template_text):
     """Two mechanisms, maximum: a disclosure and a tick. Nothing else on the
-    page reacts to a pointer, and nothing is only stated behind a fold."""
+    page reacts to a pointer, nothing is only stated behind a fold, and the
+    one viewport observer drives the pass bar, never any content."""
     handlers = set(re.findall(r'addEventListener\("(\w+)"', template_text))
     assert handlers <= {"change", "resize", "beforeprint", "afterprint"}, handlers
-    for ghost in ("IntersectionObserver", "scrollIntoView", "mouseenter",
+    for ghost in ("scrollIntoView", "mouseenter",
                   "positionTip", "navigator.clipboard", "<nav"):
         assert ghost not in template_text, f"{ghost} survived the redesign"
 
