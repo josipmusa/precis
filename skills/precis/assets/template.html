@@ -282,6 +282,19 @@ table.files .note { color: var(--ink-soft); font-size: 13.5px; margin-top: 3px; 
 }
 .hnote .mk { color: var(--accent); flex: none; }
 .hnote .txt { max-width: 68ch; }
+/* The margin column an anchored note moves into on a wide screen. It only
+   exists there: narrow screens and paper keep the inline notes above. */
+.snipwrap { position: relative; }
+.mnotes, .mconn { display: none; }
+@media screen and (min-width: 1000px) {
+  .snipwrap > .hunk { margin-right: 322px; }
+  .snipwrap .hnote.inline { display: none; }
+  /* The annotated line's marker: a 2px accent tick, not a highlight bar. */
+  .snipwrap .hline.noted { box-shadow: inset 2px 0 0 var(--accent); }
+  .mnotes { display: block; position: absolute; top: 0; right: 0; width: 300px; height: 100%; }
+  .mnote { position: absolute; left: 0; width: 300px; font: 13.5px/1.55 var(--text); color: var(--ink); }
+  .mconn { display: block; position: absolute; inset: 0; pointer-events: none; }
+}
 .trunc {
   padding: 7px 12px; font: 11.5px/1.6 var(--mono); color: var(--ink-faint);
   border-top: 1px solid var(--line-soft); background: var(--panel-soft);
@@ -1014,14 +1027,13 @@ function stepItem(step) {
     if (snip) body.append(snip);
   }
   for (const a of anns.filter(a => a.new_line == null && a.old_line == null)) {
-    body.append(h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
-      h("div", { class: "txt" }, prose(a.text))));
+    body.append(noteNode(a));
   }
   const total = step.hunk_ids.reduce((n, id) => n + ((HUNKS[id] || {}).lines || []).length, 0);
   body.append(h("details", { class: "fulldiff" },
     h("summary", { class: "link",
       text: `The full diff: ${plural(total, "line")} in ${plural(step.hunk_ids.length, "hunk")}` }),
-    step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id], []) : null)));
+    step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id]) : null)));
 
   return h("article", { class: "step", id: "step-" + step.n },
     h("div", { class: "head" },
@@ -1127,34 +1139,21 @@ function skipRow(g) {
       sample ? h("div", {},
         h("p", { class: "samplelbl",
           text: "One representative hunk; the rest follow the same shape." }),
-        hunkNode(sample, [])) : null,
+        hunkNode(sample)) : null,
       h("div", { class: "filelist" }, (g.files || []).map(p => h("div", { text: p })))));
 }
 
 /* --------------------------------------------------------------- hunks */
-function hunkNode(hunk, annotations) {
+/* The full diff of one hunk, plain. Annotations belong to the snippets; a
+   full hunk behind its fold is only ever the code itself. */
+function hunkNode(hunk) {
   const body = h("div", { class: "hbody" });
   const lines = hunk.lines || [];
   /* A file that is entirely new has no old-side numbers; do not spend a column
      on an empty gutter, especially on a phone. */
   const hasOld = lines.some(l => l.old != null);
   const hasNew = lines.some(l => l.new != null);
-  const byLine = new Map();
-  for (const a of annotations || []) {
-    const key = a.new_line != null ? "n" + a.new_line : a.old_line != null ? "o" + a.old_line : null;
-    if (key === null) continue;
-    if (!byLine.has(key)) byLine.set(key, []);
-    byLine.get(key).push(a);
-  }
-  for (const a of (annotations || []).filter(a => a.new_line == null && a.old_line == null)) {
-    body.append(noteNode(a));
-  }
-  for (const line of lines) {
-    body.append(lineNode(line, hasOld, hasNew));
-    const notes = (line.new != null ? byLine.get("n" + line.new) || [] : [])
-      .concat(line.old != null ? byLine.get("o" + line.old) || [] : []);
-    for (const a of notes) body.append(noteNode(a));
-  }
+  for (const line of lines) body.append(lineNode(line, hasOld, hasNew));
   if (hunk.truncated) {
     body.append(h("div", { class: "trunc",
       text: `Truncated: showing the first ${plural(lines.length, "line")} of this hunk.` }));
@@ -1189,16 +1188,21 @@ function lineNode(line, hasOld, hasNew) {
 }
 
 /* An annotation is the highest-value text on the page: precis pointing at one
-   line and saying what it does. */
-function noteNode(a) {
-  return h("div", { class: "hnote" }, h("span", { class: "mk", text: "›" }),
+   line and saying what it does. `inline` marks the copy that lives between
+   code rows, which the wide layout swaps for its margin twin. */
+function noteNode(a, inline) {
+  return h("div", { class: "hnote" + (inline ? " inline" : "") },
+    h("span", { class: "mk", text: "›" }),
     h("div", { class: "txt" }, prose(a.text)));
 }
 
-/* The annotated lines of one hunk, each with a line of context either side and
-   its annotation under it. This is what a step shows by default: the lines
-   precis wrote about, not the wall of diff around them. Returns null when
-   nothing in the hunk is anchored, and the caller falls back to the fold. */
+/* The annotated lines of one hunk, each with a line of context either side.
+   This is what a step shows by default: the lines precis wrote about, not the
+   wall of diff around them. Every anchored note is laid down twice - inline in
+   the code flow, and as a margin twin the wide layout positions beside its
+   line - and CSS shows exactly one of the two, so print and phones need no
+   script. Returns null when nothing in the hunk is anchored, and the caller
+   falls back to the fold. */
 function snippetNode(hunk, annotations) {
   const lines = hunk.lines || [];
   const anchored = [];
@@ -1224,14 +1228,75 @@ function snippetNode(hunk, annotations) {
   const body = h("div", { class: "hbody" });
   const hasOld = lines.some(l => l.old != null);
   const hasNew = lines.some(l => l.new != null);
+  const pairs = [];
   let prev = -2;
   for (const i of Array.from(keep).sort((a, b) => a - b)) {
     if (i > prev + 1) body.append(h("div", { class: "gapline", text: "· · ·" }));
-    body.append(lineNode(lines[i], hasOld, hasNew));
-    for (const a of notesAt.get(i) || []) body.append(noteNode(a));
+    const row = lineNode(lines[i], hasOld, hasNew);
+    const notes = notesAt.get(i) || [];
+    if (notes.length) row.className += " noted";
+    body.append(row);
+    for (const a of notes) {
+      body.append(noteNode(a, true));
+      pairs.push({ line: row, note: h("div", { class: "mnote" }, prose(a.text)) });
+    }
     prev = i;
   }
-  return h("div", { class: "hunk snippet" }, hunkHead(hunk, false), body);
+  const wrap = h("div", { class: "snipwrap" },
+    h("div", { class: "hunk snippet" }, hunkHead(hunk, false), body),
+    h("div", { class: "mnotes" }, pairs.map(p => p.note)));
+  wrap._pairs = pairs;
+  SNIPWRAPS.push(wrap);
+  return wrap;
+}
+
+/* ----------------------------------------------------------- margin notes */
+/* The wide layout moves each anchored note into the margin beside its line:
+   top-aligned with the line, pushed down when the note above needs the room,
+   and tied back by a hairline connector so a pushed note still names its
+   line. Everything here is geometry; the words were laid down at build time,
+   so a browser without any of this still shows the inline notes. */
+const SNIPWRAPS = [];
+const WIDE = matchMedia("(min-width: 1000px)");
+
+function placeMarginNotes(wrap) {
+  const pairs = wrap._pairs || [];
+  if (!pairs.length) return;
+  if (!WIDE.matches) {
+    wrap.style.minHeight = "";
+    if (wrap._conn) wrap._conn.replaceChildren();
+    return;
+  }
+  const box = wrap.getBoundingClientRect();
+  if (!box.height) return;                     /* inside a closed fold */
+  if (!wrap._conn) {
+    wrap._conn = s("svg", { class: "mconn", "aria-hidden": "true" });
+    wrap.append(wrap._conn);
+  }
+  const code = wrap.firstChild.getBoundingClientRect();
+  const x1 = code.right - box.left + 2;
+  const x2 = box.width - 308;
+  let flow = 0;
+  const ties = [];
+  for (const p of pairs) {
+    const lr = p.line.getBoundingClientRect();
+    const lineTop = lr.top - box.top;
+    const top = Math.max(lineTop, flow);
+    p.note.style.top = top + "px";
+    flow = top + p.note.offsetHeight + 12;
+    ties.push({ y1: lineTop + lr.height / 2, y2: top + 9 });
+  }
+  wrap.style.minHeight = Math.ceil(flow - 12) + "px";
+  const w = Math.ceil(box.width), hh = Math.ceil(Math.max(box.height, flow));
+  wrap._conn.setAttribute("viewBox", `0 0 ${w} ${hh}`);
+  wrap._conn.setAttribute("width", w);
+  wrap._conn.setAttribute("height", hh);
+  wrap._conn.replaceChildren(...ties.map(t => s("line", {
+    x1, y1: t.y1, x2, y2: t.y2, stroke: "var(--line)", "stroke-width": 1 })));
+}
+
+function placeAllMarginNotes() {
+  for (const wrap of SNIPWRAPS) placeMarginNotes(wrap);
 }
 
 /* ------------------------------------------------------------ call graph */
@@ -1843,13 +1908,29 @@ function boot() {
   app.append(main);
   app.append(footerNode());
 
-  /* Printing must not silently drop the parts that happen to be collapsed. */
+  /* Margin notes track the layout: any reflow - a resize, a fold opening,
+     the fonts arriving - re-places them. */
+  WIDE.addEventListener("change", placeAllMarginNotes);
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(placeAllMarginNotes).observe(document.body);
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(placeAllMarginNotes);
+  }
+  requestAnimationFrame(placeAllMarginNotes);
+
+  /* Printing must not silently drop the parts that happen to be collapsed,
+     and paper gets the inline notes, so the margin geometry comes off. */
   let reopened = [];
   addEventListener("beforeprint", () => {
     reopened = Array.from(document.querySelectorAll("details:not([open])"));
     for (const d of reopened) d.open = true;
+    for (const wrap of SNIPWRAPS) wrap.style.minHeight = "";
   });
-  addEventListener("afterprint", () => { for (const d of reopened) d.open = false; });
+  addEventListener("afterprint", () => {
+    for (const d of reopened) d.open = false;
+    placeAllMarginNotes();
+  });
 }
 
 boot();

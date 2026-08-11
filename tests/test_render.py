@@ -637,6 +637,53 @@ def test_the_page_is_readable_with_no_clicks(template_text):
         assert ghost not in template_text, f"{ghost} survived the redesign"
 
 
+# ------------------------------------------------------------- margin notes
+
+def test_margin_notes_sit_beside_the_code_on_wide_screens(template_text):
+    """At >=1000px an anchored note leaves the code flow for a ~300px margin
+    column beside its line. Narrower screens and print keep the inline notes,
+    because margin notes do not survive phones or A4."""
+    assert "function placeMarginNotes" in template_text
+    body = re.search(r"function placeMarginNotes\(.*?\n\}", template_text, re.S).group(0)
+    assert "WIDE.matches" in body
+    assert re.search(r'matchMedia\("\(min-width: 1000px\)"\)', template_text)
+    assert "ResizeObserver" in template_text, (
+        "positions are no longer recomputed when the page reflows")
+    wide = re.search(r"@media screen and \(min-width: 1000px\)\s*\{.*?\n\}",
+                     template_text, re.S).group(0)
+    assert ".mnote" in wide and "300px" in wide
+    assert re.search(r"\.hnote\.inline\s*\{\s*display:\s*none", wide)
+    assert re.search(r"\.mnotes,\s*\.mconn\s*\{\s*display:\s*none", template_text), (
+        "the margin column must not exist outside a wide screen")
+
+
+def test_overlapping_margin_notes_push_the_lower_one_down(template_text):
+    body = re.search(r"function placeMarginNotes\(.*?\n\}", template_text, re.S).group(0)
+    assert "Math.max" in body and "offsetHeight" in body, (
+        "overlapping notes are no longer pushed apart")
+
+
+def test_a_margin_note_is_tied_back_by_a_hairline(template_text):
+    """A thin connector from the note to its line, and a quiet 2px accent tick
+    on the annotated line - never a highlight bar."""
+    body = re.search(r"function placeMarginNotes\(.*?\n\}", template_text, re.S).group(0)
+    assert "mconn" in body
+    assert "var(--line)" in body
+    assert re.search(r"\.hline\.noted[^}]*box-shadow", template_text)
+
+
+def test_an_annotated_snippet_registers_for_note_placement(template_text):
+    """Every anchored note is laid down twice - inline for narrow and print,
+    a margin twin for wide - and the wrap registers for positioning."""
+    body = re.search(r"function snippetNode\(.*?\n\}", template_text, re.S).group(0)
+    assert 'class: "snipwrap"' in body
+    assert "SNIPWRAPS.push" in body
+    assert "noteNode(a, true)" in body, "the inline twin left the code flow"
+    assert 'class: "mnote"' in body, "the margin twin is gone"
+    note = re.search(r"function noteNode\(.*?\n\}", template_text, re.S).group(0)
+    assert '" inline"' in note
+
+
 # --------------------------------------------------------------- the digest
 
 def test_the_digest_is_ten_ish_lines_that_answer_the_header(tmp_path):
