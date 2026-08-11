@@ -51,7 +51,7 @@ all three fixtures and both ends of the pipeline in the same commit.
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source":        { ... },
   "coverage":      { ... },
   "stats":         { ... },
@@ -68,7 +68,7 @@ all three fixtures and both ends of the pipeline in the same commit.
 
 | Field | Req | Notes |
 |---|---|---|
-| `schema_version` | required | `"1.1"`. Renderer refuses a major version it does not know. |
+| `schema_version` | required | `"1.2"`. Renderer refuses a major version it does not know. |
 | `source` | required | Provenance and identity of the change. |
 | `coverage` | required | What precis actually looked at. Honesty lives here. |
 | `stats` | required | Deterministic counts, copied from the pre-model. |
@@ -329,7 +329,7 @@ architectural role.
       "id": "g-domain",
       "role": "domain",
       "label": "Webhook handling",
-      "summary": "The dedupe guard and the handler that calls it.",
+      "narrative": "The dedupe guard and the handler that calls it. `claim_event()` takes the row first, so a retried delivery finds it claimed and stops before the ledger.",
       "files": [
         {
           "path": "src/webhooks/dedupe.py",
@@ -430,27 +430,33 @@ is not.
 and appear on no path: generated client 3, tests 2, lockfile 1"). There is no field for
 that count, so it cannot drift out of step with the graph.
 
-### `groups` - the ledger
+### `groups` - the layer map
 
 **Group fields.** `id` (required, unique, referenced by `review_pass.skippable`),
-`role` (required), `label` (required, ≤ 40, human phrase, not the role name), `summary`
-(optional, ≤ 100), `order_note` (optional, ≤ 100), `files` (required, non-empty).
+`role` (required), `label` (required, ≤ 40, human phrase, not the role name),
+`narrative` (required, ≤ 480), `files` (required, non-empty).
 
-Groups are the areas the report is organised around: each renders as a section
-carrying its own reading steps, checks, and files. Several groups may share a
-`role` - a frontend change splits into components, state, and styling, all
-`ui`. Order them by where the reading starts; the template leads with the
-group that holds step 1 and keeps this order for the rest.
+Groups are the layers of the report's map chapter: each renders as a
+subsection carrying its narrative, the contracts that changed in it, and its
+file ledger one fold away. Several groups may share a `role` - a frontend
+change splits into components, state, and styling, all `ui`.
+
+**`narrative` is the chapter's content.** Two to four sentences on what changed
+in this layer and why, written for a reviewer who has read the masthead but not
+the code. It is the only multi-sentence prose field in the model, and it earns
+that length by being the map: what a diff view shows as N files, the narrative
+says as one thought.
+
+**Array order is render order.** Order the groups by the flow of a request
+through the system - frontend first when the change touches one, then API,
+domain, persistence, migrations, and the supporting tail of tests and docs -
+adapted to the layers this repository actually has. The template renders them
+exactly as ordered and never reorders.
 
 **Three to seven groups.** Fewer than three and the grouping is not doing
 anything (one is still right for a genuinely single-concern change); more than
 seven and the list itself becomes the thing a reader has to study. Merge related
 concerns rather than exceeding seven.
-
-`order_note` says why this area sits where it does in the reading order, when
-the reason is not obvious: `"After the domain area: this is the surface that
-exposes what it decides."` One clause; leave it off when the order explains
-itself.
 
 **`role` enumeration** - the vertical axis of the map:
 
@@ -1151,7 +1157,7 @@ still produces.
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source": {
     "kind": "patch_file",
     "title": "Unnamed patch",
@@ -1190,6 +1196,7 @@ still produces.
         "id": "g1",
         "role": "domain",
         "label": "Order notifications",
+        "narrative": "The confirmation email renders with the locale stored on the customer record instead of a hardcoded `en-US`. One argument changes; the template and the mailer around it do not.",
         "files": [
           {
             "path": "src/orders/notify.py",

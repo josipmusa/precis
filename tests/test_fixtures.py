@@ -193,8 +193,10 @@ def test_headline_is_a_statement_not_a_verdict(fixture_model):
 
 # Nothing in the report may become a wall of text. The validator caps each field
 # individually; this is the ceiling across all of them, and the guarantee that
-# report length tracks the change rather than the size of the diff.
-PROSE_BUDGET_WORDS = 1800
+# report length tracks the change rather than the size of the diff. The layer
+# narratives are the one deliberate exception: 2-4 sentences per group is the
+# layer chapter's whole content, so the budget carries their allowance.
+PROSE_BUDGET_WORDS = 2300
 FIRST_SCREEN_WORDS = 70
 
 
@@ -202,7 +204,8 @@ def test_no_field_is_a_wall_of_text(fixture_model):
     from validate_model import _authored_prose
     name, model = fixture_model
     for where, text in _authored_prose(model):
-        assert len(text) <= 180, f"{name} {where}: {len(text)} chars, {text[:80]!r}"
+        cap = 480 if where.endswith(".narrative") else 180
+        assert len(text) <= cap, f"{name} {where}: {len(text)} chars, {text[:80]!r}"
 
 
 def test_the_report_stays_within_its_prose_budget(fixture_model):

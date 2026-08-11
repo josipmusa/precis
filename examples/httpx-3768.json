@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source": {
     "kind": "github_pr",
     "title": "Enable ruff UP (pyupgrade) rule and fix all 56 violations",
@@ -243,7 +243,7 @@
         "id": "g-config",
         "role": "build",
         "label": "The rule",
-        "summary": "The decision. Every other file in this diff follows from it.",
+        "narrative": "`UP` joins the selected rule sets in `pyproject.toml`, and `ignore` is untouched: one changed line, and it is the decision. Every other file in this diff follows from it.",
         "files": [
           {
             "path": "pyproject.toml",
@@ -263,7 +263,7 @@
         "id": "g-streams",
         "role": "domain",
         "label": "Loops that became delegations",
-        "summary": "The five library rewrites where the two forms are not interchangeable.",
+        "narrative": "Five rewrites where `yield from` and a `for` loop are not interchangeable: the stream every response passes through in `_client.py`, the WSGI iterable, and three delegations over caller-supplied or internal iterators. These are the lines where the rule reaches runtime behaviour rather than spelling.",
         "files": [
           {
             "path": "httpx/_client.py",
@@ -335,7 +335,7 @@
         "id": "g-types",
         "role": "domain",
         "label": "Type expressions",
-        "summary": "Aliases that are evaluated at import, not stored as annotation strings.",
+        "narrative": "Type aliases move from annotation strings to expressions evaluated at import, in the public alias module and three private aliases in `_main.py`. Spelling changes only; every alias names the same shape it did.",
         "files": [
           {
             "path": "httpx/_types.py",
@@ -370,7 +370,7 @@
         "id": "g-tests",
         "role": "tests",
         "label": "Test files",
-        "summary": "One rewritten loop, and 18 rewrites with no runtime difference.",
+        "narrative": "`test_wsgi.py` carries the sixth `yield from`, in the WSGI application the transport tests run against. The other eight files are spelling rewrites with no runtime difference: mode arguments dropped, `typing.Dict` to `dict`, encode calls losing their explicit utf-8.",
         "files": [
           {
             "path": "tests/test_wsgi.py",

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source": {
     "kind": "github_pr",
     "title": "Fix duplicate refunds when Stripe retries a webhook",
@@ -262,30 +262,10 @@
     },
     "groups": [
       {
-        "id": "g-dedupe",
-        "role": "domain",
-        "label": "Delivery deduplication",
-        "summary": "The new claim primitive.",
-        "files": [
-          {
-            "path": "src/meridian/webhooks/dedupe.py",
-            "status": "added",
-            "change_kind": "new_logic",
-            "significance": "core",
-            "additions": 44,
-            "deletions": 0,
-            "hunk_ids": [
-              "h1"
-            ],
-            "note": "`EventClaim.claim` is the entire mechanism: one insert, one boolean."
-          }
-        ]
-      },
-      {
         "id": "g-entrypoint",
         "role": "api",
         "label": "Stripe webhook entrypoint",
-        "summary": "Where the guard is wired in and called.",
+        "narrative": "Each side-effecting Stripe handler now calls `claims.claim(event_id)` before it does anything else, and returns early with a 200 when the claim is refused. The entrypoint keeps its shape; the guard is one added call at the top of two handlers.",
         "files": [
           {
             "path": "src/meridian/webhooks/handlers.py",
@@ -304,10 +284,30 @@
         ]
       },
       {
+        "id": "g-dedupe",
+        "role": "domain",
+        "label": "Delivery deduplication",
+        "narrative": "`EventClaim.claim` is new and is the whole mechanism: one insert into `processed_events`, returning true when the row was won and false on conflict. The insert doubles as the lock, so a retried delivery loses the race instead of reaching the ledger twice.",
+        "files": [
+          {
+            "path": "src/meridian/webhooks/dedupe.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 44,
+            "deletions": 0,
+            "hunk_ids": [
+              "h1"
+            ],
+            "note": "`EventClaim.claim` is the entire mechanism: one insert, one boolean."
+          }
+        ]
+      },
+      {
         "id": "g-tests",
         "role": "tests",
         "label": "Handler tests",
-        "summary": "Fakes the guard and pins the no-op-on-retry behaviour.",
+        "narrative": "A fake claim store drives the handler both ways: the first delivery proceeds, the retry returns 200 with no ledger write. The retry case is the behaviour this change exists to create, and this is the only place it is exercised end to end.",
         "files": [
           {
             "path": "tests/webhooks/test_refund_handler.py",

@@ -166,6 +166,34 @@ def test_seam_independent_of_must_reference_a_sibling(monster):
     assert problems_matching(monster, "unknown cluster 's9'")
 
 
+def test_a_group_without_a_narrative_is_refused(model):
+    """The layer chapter is prose-first; a layer with no prose is a hole."""
+    del model["change_map"]["groups"][0]["narrative"]
+    hits = problems_matching(model, "narrative is required")
+    assert hits and "change_map.groups[0]" in hits[0]
+
+
+def test_a_group_narrative_has_a_cap(model):
+    model["change_map"]["groups"][0]["narrative"] = "x" * 500
+    assert problems_matching(model, "the cap is 480")
+
+
+def test_a_group_narrative_is_precis_voice_and_scanned(model):
+    model["change_map"]["groups"][0]["narrative"] = (
+        "This layer should have stayed out of the diff.")
+    hits = problems_matching(model, "reads as a verdict")
+    assert hits and "narrative" in hits[0]
+
+
+def test_the_group_fields_the_layer_map_replaced_are_refused_by_name(model):
+    """`summary` and `order_note` served the removed by-area layout. A generator
+    still emitting them is following the old contract."""
+    model["change_map"]["groups"][0]["summary"] = "The dedupe guard."
+    model["change_map"]["groups"][1]["order_note"] = "After the domain area."
+    assert problems_matching(model, "summary was folded into narrative")
+    assert problems_matching(model, "order_note is gone")
+
+
 def test_duplicate_file_across_change_map_groups_is_caught(model):
     groups = model["change_map"]["groups"]
     groups[1]["files"].append(copy.deepcopy(groups[0]["files"][0]))

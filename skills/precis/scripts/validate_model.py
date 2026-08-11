@@ -70,8 +70,8 @@ VERDICT_RE = re.compile(r"\b(%s)\b" % "|".join(VERDICT_WORDS), re.I)
 
 # Keys whose string values are prose precis wrote itself. Bare string arrays are
 # paths and enum values almost everywhere, so they are named rather than assumed.
-PROSE_KEYS = {"headline", "text", "why", "summary", "note", "reason", "label",
-              "question", "caveat", "title"}
+PROSE_KEYS = {"headline", "text", "why", "summary", "narrative", "note",
+              "reason", "label", "question", "caveat", "title"}
 PROSE_ARRAYS = {"coverage.limitations"}
 
 # Prose precis is quoting rather than writing. A PR titled "Fix double refund
@@ -577,7 +577,13 @@ def validate(model, label="report") -> list[str]:
         group_ids.add(gid)
         rep.enum(group.get("role"), ROLES, where, "role")
         _text(rep, group, "label", where, 40)
-        _text(rep, group, "summary", where, 100, required=False)
+        _text(rep, group, "narrative", where, 480)
+        if "summary" in group:
+            rep.fail(where, "summary was folded into narrative; write the layer's "
+                            "2-4 sentences there")
+        if "order_note" in group:
+            rep.fail(where, "order_note is gone; array order is the render order, "
+                            "so order the groups by request flow instead")
         files = group.get("files")
         if not isinstance(files, list) or not files:
             rep.fail(where, "files must be a non-empty array")

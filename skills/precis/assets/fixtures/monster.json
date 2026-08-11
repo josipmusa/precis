@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source": {
     "kind": "github_pr",
     "title": "Extract a single outbound HTTP client",
@@ -402,145 +402,23 @@
     },
     "groups": [
       {
-        "id": "g-http",
-        "role": "domain",
-        "label": "The new client",
-        "summary": "Where all outbound HTTP behaviour now lives.",
+        "id": "g-api",
+        "role": "api",
+        "label": "Checkout",
+        "narrative": "A second checkout path arrives behind the `checkout_v2` flag, off by default. It shares no files with the client extraction; it rides along in the same diff.",
         "files": [
           {
-            "path": "src/meridian/http/client.py",
-            "status": "added",
-            "change_kind": "new_logic",
-            "significance": "core",
-            "additions": 91,
-            "deletions": 0,
-            "hunk_ids": [
-              "h28"
-            ],
-            "note": "The retry loop, the status set, and the exception set."
-          },
-          {
-            "path": "src/meridian/http/backoff.py",
-            "status": "renamed",
-            "change_kind": "new_logic",
-            "significance": "core",
-            "additions": 12,
-            "deletions": 0,
-            "hunk_ids": [
-              "h26",
-              "h27"
-            ],
-            "moved_from": "src/meridian/util/backoff.py",
-            "note": "Moved from meridian.util and gained `decorrelated_jitter`."
-          },
-          {
-            "path": "src/meridian/http/__init__.py",
-            "status": "added",
-            "change_kind": "new_logic",
-            "significance": "supporting",
-            "additions": 7,
-            "deletions": 0,
-            "hunk_ids": [
-              "h25"
-            ],
-            "note": "Module-level default client instance."
-          }
-        ]
-      },
-      {
-        "id": "g-config",
-        "role": "config",
-        "label": "Retry configuration",
-        "summary": "Per-service attempts, delays and timeouts.",
-        "files": [
-          {
-            "path": "config/http.yaml",
-            "status": "added",
-            "change_kind": "content",
-            "significance": "core",
-            "additions": 31,
-            "deletions": 0,
-            "hunk_ids": [
-              "h9"
-            ],
-            "note": "The four wrappers' constants, restated and changed."
-          },
-          {
-            "path": "config/flags.yaml",
+            "path": "src/meridian/api/checkout.py",
             "status": "modified",
-            "change_kind": "content",
+            "change_kind": "new_logic",
             "significance": "supporting",
-            "additions": 3,
+            "additions": 9,
             "deletions": 0,
             "hunk_ids": [
-              "h8"
+              "h23",
+              "h24"
             ],
-            "note": "Unrelated: the checkout flag."
-          },
-          {
-            "path": "config/windows-agent.ini",
-            "status": "modified",
-            "change_kind": "content",
-            "significance": "supporting",
-            "additions": 2,
-            "deletions": 1,
-            "hunk_ids": [
-              "h10"
-            ],
-            "note": "Unrelated: a different component's retry settings."
-          }
-        ]
-      },
-      {
-        "id": "g-wrappers",
-        "role": "domain",
-        "label": "Deleted wrappers",
-        "summary": "The four copies being replaced.",
-        "files": [
-          {
-            "path": "src/meridian/payments/_http.py",
-            "status": "deleted",
-            "change_kind": "deleted",
-            "significance": "supporting",
-            "additions": 0,
-            "deletions": 43,
-            "hunk_ids": [
-              "h33"
-            ],
-            "note": "The most-diverged copy: 3 attempts, 0.5s fixed delay."
-          },
-          {
-            "path": "src/meridian/shipping/_http.py",
-            "status": "deleted",
-            "change_kind": "deleted",
-            "significance": "mechanical",
-            "additions": 0,
-            "deletions": 43,
-            "hunk_ids": [
-              "h37"
-            ]
-          },
-          {
-            "path": "src/meridian/tax/_http.py",
-            "status": "deleted",
-            "change_kind": "deleted",
-            "significance": "mechanical",
-            "additions": 0,
-            "deletions": 43,
-            "hunk_ids": [
-              "h41"
-            ]
-          },
-          {
-            "path": "src/meridian/notifications/_http.py",
-            "status": "deleted",
-            "change_kind": "deleted",
-            "significance": "mechanical",
-            "additions": 0,
-            "deletions": 43,
-            "hunk_ids": [
-              "h29"
-            ]
+            "note": "A second checkout path behind a flag."
           }
         ]
       },
@@ -548,7 +426,7 @@
         "id": "g-callsites",
         "role": "domain",
         "label": "Call sites",
-        "summary": "Twelve files, one import and one call each.",
+        "narrative": "Twelve files swap their per-service wrapper import for `meridian.http`, one import and one call each. `gateway_client.py` is representative; the other eleven repeat the same two-line swap.",
         "files": [
           {
             "path": "src/meridian/payments/gateway_client.py",
@@ -686,23 +564,281 @@
         ]
       },
       {
-        "id": "g-api",
-        "role": "api",
-        "label": "Checkout",
-        "summary": "Unrelated to the extraction.",
+        "id": "g-http",
+        "role": "domain",
+        "label": "The new client",
+        "narrative": "`client.py` is where all outbound HTTP behaviour now lives: one retry loop, one retryable status set, one exception set, with per-service settings looked up from config. `backoff.py` moves in from `meridian.util` and gains `decorrelated_jitter`, and the package exports a module-level default client.",
         "files": [
           {
-            "path": "src/meridian/api/checkout.py",
+            "path": "src/meridian/http/client.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 91,
+            "deletions": 0,
+            "hunk_ids": [
+              "h28"
+            ],
+            "note": "The retry loop, the status set, and the exception set."
+          },
+          {
+            "path": "src/meridian/http/backoff.py",
+            "status": "renamed",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 12,
+            "deletions": 0,
+            "hunk_ids": [
+              "h26",
+              "h27"
+            ],
+            "moved_from": "src/meridian/util/backoff.py",
+            "note": "Moved from meridian.util and gained `decorrelated_jitter`."
+          },
+          {
+            "path": "src/meridian/http/__init__.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "supporting",
+            "additions": 7,
+            "deletions": 0,
+            "hunk_ids": [
+              "h25"
+            ],
+            "note": "Module-level default client instance."
+          }
+        ]
+      },
+      {
+        "id": "g-config",
+        "role": "config",
+        "label": "Retry configuration",
+        "narrative": "`http.yaml` restates the four wrappers' constants in one place, and the values move while they move house: attempts, delays and timeouts differ per service from what the deleted copies hardcoded. The flag and the Windows agent entries in the neighbouring files are separate concerns riding along.",
+        "files": [
+          {
+            "path": "config/http.yaml",
+            "status": "added",
+            "change_kind": "content",
+            "significance": "core",
+            "additions": 31,
+            "deletions": 0,
+            "hunk_ids": [
+              "h9"
+            ],
+            "note": "The four wrappers' constants, restated and changed."
+          },
+          {
+            "path": "config/flags.yaml",
+            "status": "modified",
+            "change_kind": "content",
+            "significance": "supporting",
+            "additions": 3,
+            "deletions": 0,
+            "hunk_ids": [
+              "h8"
+            ],
+            "note": "Unrelated: the checkout flag."
+          },
+          {
+            "path": "config/windows-agent.ini",
+            "status": "modified",
+            "change_kind": "content",
+            "significance": "supporting",
+            "additions": 2,
+            "deletions": 1,
+            "hunk_ids": [
+              "h10"
+            ],
+            "note": "Unrelated: a different component's retry settings."
+          }
+        ]
+      },
+      {
+        "id": "g-wrappers",
+        "role": "domain",
+        "label": "Deleted wrappers",
+        "narrative": "The four copies being replaced, deleted whole. `payments/_http.py` had diverged furthest from the others - 3 attempts with a fixed half-second delay - so its callers see the largest behaviour shift under the new shared rules.",
+        "files": [
+          {
+            "path": "src/meridian/payments/_http.py",
+            "status": "deleted",
+            "change_kind": "deleted",
+            "significance": "supporting",
+            "additions": 0,
+            "deletions": 43,
+            "hunk_ids": [
+              "h33"
+            ],
+            "note": "The most-diverged copy: 3 attempts, 0.5s fixed delay."
+          },
+          {
+            "path": "src/meridian/shipping/_http.py",
+            "status": "deleted",
+            "change_kind": "deleted",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 43,
+            "hunk_ids": [
+              "h37"
+            ]
+          },
+          {
+            "path": "src/meridian/tax/_http.py",
+            "status": "deleted",
+            "change_kind": "deleted",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 43,
+            "hunk_ids": [
+              "h41"
+            ]
+          },
+          {
+            "path": "src/meridian/notifications/_http.py",
+            "status": "deleted",
+            "change_kind": "deleted",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 43,
+            "hunk_ids": [
+              "h29"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-generated",
+        "role": "generated",
+        "label": "Regenerated clients",
+        "narrative": "Three orval TypeScript modules and one protobuf stub, regenerated by `scripts/regen_clients.sh`; none of them is hand-edited here. They appear on no call path of the extraction.",
+        "files": [
+          {
+            "path": "clients/ts/src/api/generated/orders.ts",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 8,
+            "deletions": 0,
+            "hunk_ids": [
+              "h5"
+            ]
+          },
+          {
+            "path": "clients/ts/src/api/generated/payments.ts",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 5,
+            "deletions": 0,
+            "hunk_ids": [
+              "h6"
+            ]
+          },
+          {
+            "path": "clients/ts/src/api/generated/shipping.ts",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 5,
+            "deletions": 0,
+            "hunk_ids": [
+              "h7"
+            ]
+          },
+          {
+            "path": "gen/pb/shipping_pb2.py",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 23,
+            "deletions": 21,
+            "hunk_ids": [
+              "h12"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-build",
+        "role": "build",
+        "label": "Lockfiles and CI",
+        "narrative": "Two lockfiles move with the dependency set, and `regen_clients.sh` becomes executable. CI bumps Node 18 to 20 in one line, unrelated to the extraction.",
+        "files": [
+          {
+            "path": "poetry.lock",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 121,
+            "deletions": 106,
+            "hunk_ids": [
+              "h13",
+              "h14",
+              "h15",
+              "h16",
+              "h17",
+              "h18",
+              "h19",
+              "h20",
+              "h21",
+              "h22"
+            ]
+          },
+          {
+            "path": "clients/ts/pnpm-lock.yaml",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 10,
+            "deletions": 10,
+            "hunk_ids": [
+              "h2",
+              "h3",
+              "h4"
+            ]
+          },
+          {
+            "path": ".github/workflows/ci.yml",
+            "status": "modified",
+            "change_kind": "content",
+            "significance": "supporting",
+            "additions": 1,
+            "deletions": 1,
+            "hunk_ids": [
+              "h1"
+            ],
+            "note": "Unrelated: CI Node 18 to 20."
+          },
+          {
+            "path": "scripts/regen_clients.sh",
+            "status": "mode_changed",
+            "change_kind": "content",
+            "significance": "mechanical",
+            "additions": 0,
+            "deletions": 0,
+            "hunk_ids": [],
+            "note": "Mode only: 100644 to 100755."
+          }
+        ]
+      },
+      {
+        "id": "g-vendored",
+        "role": "other",
+        "label": "Vendored test stub",
+        "narrative": "`third_party/httpstub` is vendored code, edited in place here rather than re-vendored: it grows the hook the new client's tests use. The upstream provenance of the edit is not recorded in the diff.",
+        "files": [
+          {
+            "path": "third_party/httpstub/__init__.py",
             "status": "modified",
             "change_kind": "new_logic",
             "significance": "supporting",
-            "additions": 9,
-            "deletions": 0,
+            "additions": 18,
+            "deletions": 1,
             "hunk_ids": [
-              "h23",
-              "h24"
+              "h54",
+              "h55"
             ],
-            "note": "A second checkout path behind a flag."
+            "note": "Vendored, but edited here rather than re-vendored."
           }
         ]
       },
@@ -710,6 +846,7 @@
         "id": "g-tests",
         "role": "tests",
         "label": "Tests",
+        "narrative": "`test_client.py` is the only place the new retry surface is enumerated: statuses, exception types, attempt counts and jitter bounds. `test_backoff.py` moves unchanged with its module, and four wrapper test files repeat the two-line import swap.",
         "files": [
           {
             "path": "tests/http/test_client.py",
@@ -785,143 +922,10 @@
         ]
       },
       {
-        "id": "g-vendored",
-        "role": "other",
-        "label": "Vendored test stub",
-        "files": [
-          {
-            "path": "third_party/httpstub/__init__.py",
-            "status": "modified",
-            "change_kind": "new_logic",
-            "significance": "supporting",
-            "additions": 18,
-            "deletions": 1,
-            "hunk_ids": [
-              "h54",
-              "h55"
-            ],
-            "note": "Vendored, but edited here rather than re-vendored."
-          }
-        ]
-      },
-      {
-        "id": "g-generated",
-        "role": "generated",
-        "label": "Regenerated clients",
-        "summary": "protobuf stubs and three orval modules.",
-        "files": [
-          {
-            "path": "clients/ts/src/api/generated/orders.ts",
-            "status": "modified",
-            "change_kind": "generated",
-            "significance": "mechanical",
-            "additions": 8,
-            "deletions": 0,
-            "hunk_ids": [
-              "h5"
-            ]
-          },
-          {
-            "path": "clients/ts/src/api/generated/payments.ts",
-            "status": "modified",
-            "change_kind": "generated",
-            "significance": "mechanical",
-            "additions": 5,
-            "deletions": 0,
-            "hunk_ids": [
-              "h6"
-            ]
-          },
-          {
-            "path": "clients/ts/src/api/generated/shipping.ts",
-            "status": "modified",
-            "change_kind": "generated",
-            "significance": "mechanical",
-            "additions": 5,
-            "deletions": 0,
-            "hunk_ids": [
-              "h7"
-            ]
-          },
-          {
-            "path": "gen/pb/shipping_pb2.py",
-            "status": "modified",
-            "change_kind": "generated",
-            "significance": "mechanical",
-            "additions": 23,
-            "deletions": 21,
-            "hunk_ids": [
-              "h12"
-            ]
-          }
-        ]
-      },
-      {
-        "id": "g-build",
-        "role": "build",
-        "label": "Lockfiles and CI",
-        "files": [
-          {
-            "path": "poetry.lock",
-            "status": "modified",
-            "change_kind": "generated",
-            "significance": "mechanical",
-            "additions": 121,
-            "deletions": 106,
-            "hunk_ids": [
-              "h13",
-              "h14",
-              "h15",
-              "h16",
-              "h17",
-              "h18",
-              "h19",
-              "h20",
-              "h21",
-              "h22"
-            ]
-          },
-          {
-            "path": "clients/ts/pnpm-lock.yaml",
-            "status": "modified",
-            "change_kind": "generated",
-            "significance": "mechanical",
-            "additions": 10,
-            "deletions": 10,
-            "hunk_ids": [
-              "h2",
-              "h3",
-              "h4"
-            ]
-          },
-          {
-            "path": ".github/workflows/ci.yml",
-            "status": "modified",
-            "change_kind": "content",
-            "significance": "supporting",
-            "additions": 1,
-            "deletions": 1,
-            "hunk_ids": [
-              "h1"
-            ],
-            "note": "Unrelated: CI Node 18 to 20."
-          },
-          {
-            "path": "scripts/regen_clients.sh",
-            "status": "mode_changed",
-            "change_kind": "content",
-            "significance": "mechanical",
-            "additions": 0,
-            "deletions": 0,
-            "hunk_ids": [],
-            "note": "Mode only: 100644 to 100755."
-          }
-        ]
-      },
-      {
         "id": "g-docs",
         "role": "docs",
         "label": "Documentation",
+        "narrative": "A new architecture page describes the client and its topology diagram. Prose and an image; nothing here executes.",
         "files": [
           {
             "path": "docs/architecture/http.md",

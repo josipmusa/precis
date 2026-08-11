@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source": {
     "kind": "github_pr",
     "title": "Fix HTTPDigestAuth uri field truncated by semicolons in URL path",
@@ -209,7 +209,7 @@
         "id": "g-auth",
         "role": "domain",
         "label": "Digest header construction",
-        "summary": "The whole change: two lines between the path and the query.",
+        "narrative": "Two lines between the path and the query: when the last path segment carries a `;` parameter, `path` now keeps it before the query string is appended. `path` is built once and read twice - the digest `uri` field and the `A2` hash input - so both see the same value.",
         "files": [
           {
             "path": "src/requests/auth.py",
@@ -229,7 +229,7 @@
         "id": "g-tests",
         "role": "tests",
         "label": "Regression test",
-        "summary": "One test, three URLs: params, params with a query, and neither.",
+        "narrative": "One test drives `build_digest_header` directly with a hand-built challenge, across three URLs: path parameters alone, parameters with a query, and neither. It pins the `uri` the header carries rather than the request that produced it.",
         "files": [
           {
             "path": "tests/test_lowlevel.py",

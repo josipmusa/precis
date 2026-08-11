@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source": {
     "kind": "github_pr",
     "title": "Add configurable revision_map_class option",
@@ -274,7 +274,7 @@
         "id": "g-core",
         "role": "domain",
         "label": "The option and its plumbing",
-        "summary": "A resolver, a keyword argument, and the code that reads config.",
+        "narrative": "`resolve_dotted_name` is new in `util.pyfiles`, and `ScriptDirectory` uses it to build whatever class `revision_map_class` names in config, in place of the hard-coded `RevisionMap(...)` - the one removed line in the change. Two `__init__` edits make the pieces reachable: the resolver is re-exported, and `RevisionMap` joins `__all__` so subclassing needs no private import.",
         "files": [
           {
             "path": "alembic/util/pyfiles.py",
@@ -334,7 +334,7 @@
         "id": "g-templates",
         "role": "config",
         "label": "Scaffold templates",
-        "summary": "The same commented example in every project template alembic can generate.",
+        "narrative": "Every project template alembic can generate gains the same commented example of the new setting, five lines each. The ini and toml variants differ only in quoting.",
         "files": [
           {
             "path": "alembic/templates/generic/alembic.ini.mako",
@@ -396,30 +396,10 @@
         ]
       },
       {
-        "id": "g-docs",
-        "role": "docs",
-        "label": "Changelog entry",
-        "summary": "The unreleased-notes file that becomes a line in the release notes.",
-        "files": [
-          {
-            "path": "docs/build/unreleased/revision_map_class.rst",
-            "status": "added",
-            "change_kind": "content",
-            "significance": "mechanical",
-            "additions": 13,
-            "deletions": 0,
-            "hunk_ids": [
-              "h14"
-            ],
-            "note": "Tagged `usecase, scripts`, with no ticket number filled in."
-          }
-        ]
-      },
-      {
         "id": "g-tests",
         "role": "tests",
         "label": "Config tests",
-        "summary": "Two new classes: one for the resolver, one for the option end to end.",
+        "narrative": "Two new classes in `test_config.py`, half the changed lines in the pull request: one exercises the resolver against both failure paths, the other drives the option end to end through both config formats.",
         "files": [
           {
             "path": "tests/test_config.py",
@@ -433,6 +413,26 @@
               "h16"
             ],
             "note": "Half the changed lines in the pull request. Both failure paths and both formats are covered."
+          }
+        ]
+      },
+      {
+        "id": "g-docs",
+        "role": "docs",
+        "label": "Changelog entry",
+        "narrative": "The unreleased-notes file that becomes a line in the release notes, tagged `usecase, scripts`, with no ticket number filled in. Nothing else in the docs tree moves.",
+        "files": [
+          {
+            "path": "docs/build/unreleased/revision_map_class.rst",
+            "status": "added",
+            "change_kind": "content",
+            "significance": "mechanical",
+            "additions": 13,
+            "deletions": 0,
+            "hunk_ids": [
+              "h14"
+            ],
+            "note": "Tagged `usecase, scripts`, with no ticket number filled in."
           }
         ]
       }

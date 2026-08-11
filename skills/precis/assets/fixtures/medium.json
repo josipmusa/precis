@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source": {
     "kind": "github_pr",
     "title": "Partial refunds over the API",
@@ -378,10 +378,43 @@
     },
     "groups": [
       {
+        "id": "g-api",
+        "role": "api",
+        "label": "Refunds endpoint",
+        "narrative": "`POST /orders/{id}/refunds` is new: it resolves the requested amount, calls the provider through the gateway, and records the result through the ledger. `RefundRequest` arrives with it, and `OrderResponse` swaps its `fully_refunded` boolean for a running total.",
+        "files": [
+          {
+            "path": "src/meridian/api/refunds.py",
+            "status": "added",
+            "change_kind": "new_logic",
+            "significance": "core",
+            "additions": 59,
+            "deletions": 0,
+            "hunk_ids": [
+              "h7"
+            ],
+            "note": "Resolves the amount, calls the provider, then records through the ledger."
+          },
+          {
+            "path": "src/meridian/api/schemas/refund.py",
+            "status": "modified",
+            "change_kind": "modified_logic",
+            "significance": "supporting",
+            "additions": 8,
+            "deletions": 1,
+            "hunk_ids": [
+              "h8",
+              "h9"
+            ],
+            "note": "`RefundRequest` is new; `OrderResponse` swaps a boolean for a total."
+          }
+        ]
+      },
+      {
         "id": "g-domain",
         "role": "domain",
         "label": "Refund rules and ledger",
-        "summary": "The policy and the transaction that applies it.",
+        "narrative": "`policy.py` states the two cumulative rules: a per-order allowance and a per-order count, each read from order state at decision time. The ledger write happens inside a `FOR UPDATE` transaction, so the amount check and the record are one unit. The gateway's `refund()` gains an optional amount, with `None` keeping the full-refund path; `money.py` also moves truncation to ROUND_HALF_UP, which reaches every caller of `to_cents`.",
         "files": [
           {
             "path": "src/meridian/refunds/policy.py",
@@ -437,43 +470,10 @@
         ]
       },
       {
-        "id": "g-api",
-        "role": "api",
-        "label": "Refunds endpoint",
-        "summary": "The new route and the request and response shapes.",
-        "files": [
-          {
-            "path": "src/meridian/api/refunds.py",
-            "status": "added",
-            "change_kind": "new_logic",
-            "significance": "core",
-            "additions": 59,
-            "deletions": 0,
-            "hunk_ids": [
-              "h7"
-            ],
-            "note": "Resolves the amount, calls the provider, then records through the ledger."
-          },
-          {
-            "path": "src/meridian/api/schemas/refund.py",
-            "status": "modified",
-            "change_kind": "modified_logic",
-            "significance": "supporting",
-            "additions": 8,
-            "deletions": 1,
-            "hunk_ids": [
-              "h8",
-              "h9"
-            ],
-            "note": "`RefundRequest` is new; `OrderResponse` swaps a boolean for a total."
-          }
-        ]
-      },
-      {
         "id": "g-persistence",
         "role": "persistence",
         "label": "Order state",
-        "summary": "The column the policy reads, and the query that fills it.",
+        "narrative": "The migration adds `refunded_cents`, backfills it from the ledger, and drops `fully_refunded` in the same file. The repository exposes the new column as `refunded_total`, which is what the policy reads.",
         "files": [
           {
             "path": "migrations/0044_partial_refunds.sql",
@@ -507,7 +507,7 @@
         "id": "g-config",
         "role": "config",
         "label": "Limits",
-        "summary": "One new limit, one unrelated one.",
+        "narrative": "`max_refunds_per_order` is new and is the policy's second rule. The same edit touches one neighbouring limit that no code in this diff reads.",
         "files": [
           {
             "path": "config/limits.yaml",
@@ -524,9 +524,31 @@
         ]
       },
       {
+        "id": "g-generated",
+        "role": "generated",
+        "label": "TypeScript client",
+        "narrative": "Regenerated from the OpenAPI spec by `make client`; every changed line follows from the new endpoint and the response shape change in the API layer. Nothing here was edited by hand.",
+        "files": [
+          {
+            "path": "clients/ts/src/api/refunds.ts",
+            "status": "modified",
+            "change_kind": "generated",
+            "significance": "mechanical",
+            "additions": 12,
+            "deletions": 1,
+            "hunk_ids": [
+              "h1",
+              "h2",
+              "h3"
+            ]
+          }
+        ]
+      },
+      {
         "id": "g-tests",
         "role": "tests",
         "label": "Policy and endpoint tests",
+        "narrative": "`test_policy.py` walks the boundary cases of both rules; `test_refunds_api.py` pins the endpoint contract, including the 409 on a refused refund and the scope check. Between them they exercise the policy directly and through the route.",
         "files": [
           {
             "path": "tests/refunds/test_policy.py",
@@ -555,30 +577,10 @@
         ]
       },
       {
-        "id": "g-generated",
-        "role": "generated",
-        "label": "TypeScript client",
-        "summary": "Regenerated from the OpenAPI spec.",
-        "files": [
-          {
-            "path": "clients/ts/src/api/refunds.ts",
-            "status": "modified",
-            "change_kind": "generated",
-            "significance": "mechanical",
-            "additions": 12,
-            "deletions": 1,
-            "hunk_ids": [
-              "h1",
-              "h2",
-              "h3"
-            ]
-          }
-        ]
-      },
-      {
         "id": "g-docs",
         "role": "docs",
         "label": "API reference",
+        "narrative": "The reference page gains the new endpoint, its request body, and the changed response field. It restates what the API layer already shows in code.",
         "files": [
           {
             "path": "docs/api/refunds.md",
