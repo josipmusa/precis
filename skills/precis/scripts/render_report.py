@@ -83,34 +83,11 @@ TESTS_TEXT = {
 }
 
 
-def ordered_groups(model):
-    """Groups in reading order: the one holding step 1 leads, the rest keep the
-    model's own order. The same rule the template applies."""
-    groups = (model.get("change_map") or {}).get("groups") or []
-    hunks = model.get("hunks") or {}
-    owner = {}
-    for group in groups:
-        for entry in group.get("files") or []:
-            owner[entry.get("path")] = group.get("id")
-    first = {}
-    for step in (model.get("review_pass") or {}).get("steps") or []:
-        path = step.get("path")
-        if not path:
-            hid = (step.get("hunk_ids") or [None])[0]
-            path = (hunks.get(hid) or {}).get("path")
-        gid = owner.get(path)
-        if gid is not None and gid not in first:
-            first[gid] = step.get("n")
-    indexed = list(enumerate(groups))
-    indexed.sort(key=lambda pair: (first.get(pair[1].get("id"), float("inf")), pair[0]))
-    return [group for _, group in indexed]
-
-
 def digest(model, report_name=None):
     """A ~10-line markdown digest of the model: the header answers, then the
-    areas in reading order. Every sentence is either copied from a validated
-    prose field or assembled from counted facts, so it inherits the model's
-    guarantees, the verdict scan included."""
+    layers in the model's own order, which is request flow. Every sentence is
+    either copied from a validated prose field or assembled from counted facts,
+    so it inherits the model's guarantees, the verdict scan included."""
     src = model.get("source") or {}
     story = model.get("story") or {}
     stats = model.get("stats") or {}
@@ -153,11 +130,10 @@ def digest(model, report_name=None):
         note = tests.get("note")
         lines.append("Tests: %s%s" % (tests_text, " %s" % note if note else ""))
 
-    groups = ordered_groups(model)
+    groups = (model.get("change_map") or {}).get("groups") or []
     if groups:
-        listed = "; ".join("%d) %s" % (i + 1, g.get("label"))
-                           for i, g in enumerate(groups))
-        lines.append("Read in %d area%s: %s."
+        listed = "; ".join(g.get("label") or "" for g in groups)
+        lines.append("The change in %d layer%s: %s."
                      % (len(groups), "" if len(groups) == 1 else "s", listed))
 
     if seams.get("detected"):

@@ -556,13 +556,15 @@ def test_the_digest_is_ten_ish_lines_that_answer_the_header(tmp_path):
     text = result.stdout
     lines = [line for line in text.strip().splitlines() if line]
     assert len(lines) <= 10, "a digest that needs scrolling is a report"
-    for needle in ("Behaviour:", "Contracts:", "Tests:", "Read in"):
+    for needle in ("Behaviour:", "Contracts:", "Tests:", "The change in"):
         assert needle in text, f"the digest lost its {needle} line"
 
 
-def test_the_digest_lists_areas_in_reading_order(fixtures):
-    """The area holding step 1 leads, exactly as it does on the page."""
+def test_the_digest_lists_layers_in_model_order(fixtures):
+    """Array order is request flow, exactly as the page renders it. The old
+    step-1-first reordering does not come back."""
     text = render_report.digest(fixtures["medium"])
+    assert text.index("Refunds endpoint") < text.index("Refund rules and ledger")
     assert text.index("Refund rules and ledger") < text.index("TypeScript client")
 
 
