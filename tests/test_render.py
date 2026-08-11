@@ -384,6 +384,20 @@ def test_chapter_boundaries_read_at_a_fast_scroll(template_text):
     assert re.search(r"\nh1\s*\{[^}]*36px", template_text), "masthead h1 no longer tops the scale"
 
 
+def test_the_page_is_two_tracks_not_one_column(template_text):
+    """The container is wide for what is scanned - code, diagrams, tables -
+    while .prose caps what is read at a text measure. Nothing is full-bleed."""
+    wrap = re.search(r"\.wrap\s*\{[^}]*\}", template_text).group(0)
+    assert re.search(r"max-width:\s*1(2[89]|3[0-6])0px", wrap), (
+        "the container is not in the 1280-1360px band")
+    prose = re.search(r"\.prose\s*\{[^}]*\}", template_text).group(0)
+    assert "70ch" in prose, "prose lost its measure"
+    table = re.search(r"table\.beforeafter\s*\{[^}]*\}", template_text).group(0)
+    assert "max-width" not in table, (
+        "the contract table is still capped below the container")
+    assert "100vw" not in template_text, "something went full-bleed"
+
+
 def test_the_masthead_ends_with_a_contents_line(template_text):
     mast = re.search(r"function masthead\(.*?\n\}\n", template_text, re.S).group(0)
     assert "contentsLine" in mast

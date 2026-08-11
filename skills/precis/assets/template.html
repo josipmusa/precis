@@ -82,8 +82,9 @@ a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness:
 code { font: .88em/1.5 var(--mono); overflow-wrap: anywhere; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.wrap { max-width: 920px; margin: 0 auto; padding: 0 30px; }
-/* Prose keeps a readable measure; code and tables may run wider. */
+/* Two tracks in one column: the container is wide for what is scanned - code,
+   diagrams, tables - and .prose caps what is read at a text measure. */
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 30px; }
 .prose { max-width: 70ch; }
 .quiet { color: var(--ink-soft); }
 .faint { color: var(--ink-faint); }
@@ -212,7 +213,7 @@ h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 .cname { font: 600 14px/1.5 var(--mono); overflow-wrap: anywhere; }
 .cnote { color: var(--ink-soft); max-width: 68ch; margin-top: 4px; }
 table.beforeafter {
-  border-collapse: collapse; width: 100%; max-width: 780px; margin-top: 10px;
+  border-collapse: collapse; width: 100%; margin-top: 10px;
   border: 1px solid var(--line);
 }
 table.beforeafter th {
