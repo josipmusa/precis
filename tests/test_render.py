@@ -274,15 +274,55 @@ def test_a_carriage_return_cannot_double_the_line_height(template_text):
     )
 
 
-def test_a_tick_is_a_checkbox_and_a_counter_and_nothing_else(template_text):
-    """The pass is a record of what was read, not a piece of choreography. No
-    fold-on-tick, no flash, no progress bar, no summary to copy."""
+def test_a_tick_is_a_checkbox_a_counter_and_the_fold(template_text):
+    """The pass is a record of what was read; the one piece of choreography a
+    tick is allowed is folding its own step away. No flash, no progress bar,
+    no summary to copy."""
     body = re.search(r"function tickBox\(.*?\n\}", template_text, re.S).group(0)
     assert 'type: "checkbox"' in body
     assert "refreshCount" in body, "ticking no longer updates the counter"
-    for ghost in ("classList.toggle(\"folded\"", "foldButton", "passSummary",
-                  "copySummary", "resetPass", "pbar", "flash"):
+    for ghost in ("foldButton", "passSummary", "copySummary", "resetPass",
+                  "pbar", "flash"):
         assert ghost not in template_text, f"{ghost} survived the redesign"
+
+
+def test_a_tick_folds_the_step_to_its_header(template_text):
+    """Ticking collapses a step or check to its header line - eyebrow, number,
+    title, the tick itself - and a reload restores the fold from the persisted
+    ticks. The fold defaults to the tick; it never moves it."""
+    body = re.search(r"function tickBox\(.*?\n\}", template_text, re.S).group(0)
+    assert 'classList.toggle("folded", box.checked)' in body, (
+        "the fold no longer follows the tick")
+    step = re.search(r"function stepItem\(.*?\n\}", template_text, re.S).group(0)
+    assert '" folded"' in step, "a reload no longer restores a folded step"
+    check = re.search(r"function checkItem\(.*?\n\}", template_text, re.S).group(0)
+    assert '" folded"' in check, "a reload no longer restores a folded check"
+
+
+def test_the_title_reopens_the_body_without_unticking(template_text):
+    """The fold and the tick are independent states: the title - a real
+    button, so the keyboard gets it free, but no chevron and no chrome -
+    toggles only the fold and never touches the tick."""
+    body = re.search(r"function foldTitle\(.*?\n\}", template_text, re.S).group(0)
+    assert 'classList.toggle("folded")' in body
+    assert 'h("button"' in body
+    assert "TICKS" not in body and "checked" not in body, (
+        "reopening a step moves its tick")
+    for fn in ("stepItem", "checkItem"):
+        item = re.search(r"function %s\(.*?\n\}" % fn, template_text, re.S).group(0)
+        assert "foldTitle" in item, f"{fn} lost its foldable title"
+
+
+def test_paper_shows_every_step_whole_whatever_the_ticks_say(template_text):
+    """The fold is screen furniture. Scoping its rules to screen media is what
+    keeps the printed memo complete with zero script."""
+    fold = re.search(r"@media screen\s*\{[^@]*?\n\}", template_text, re.S)
+    assert fold and ".step.folded" in fold.group(0), (
+        "the fold rules are not scoped to the screen")
+    assert ".stepbody" in fold.group(0) and "display: none" in fold.group(0)
+    print_block = template_text[template_text.index("@media print {"):]
+    assert ".folded" not in print_block[:print_block.index("\n}\n")], (
+        "print is second-guessing the fold instead of ignoring it")
 
 
 def test_the_counter_is_plain_text(template_text):
@@ -672,11 +712,12 @@ def test_the_triage_sentence_replaced_the_number_and_the_bar(template_text):
 
 
 def test_the_page_is_readable_with_no_clicks(template_text):
-    """Two mechanisms, maximum: a disclosure and a tick. Nothing else on the
-    page reacts to a pointer, nothing is only stated behind a fold, and the
-    one viewport observer drives the pass bar, never any content."""
+    """Three mechanisms, maximum: a disclosure, a tick, and the fold a step's
+    title drives. Nothing else on the page reacts to a pointer, nothing is
+    only stated behind a fold, and the one viewport observer drives the pass
+    bar, never any content."""
     handlers = set(re.findall(r'addEventListener\("(\w+)"', template_text))
-    assert handlers <= {"change", "resize", "beforeprint", "afterprint"}, handlers
+    assert handlers <= {"change", "click", "resize", "beforeprint", "afterprint"}, handlers
     for ghost in ("scrollIntoView", "mouseenter",
                   "positionTip", "navigator.clipboard", "<nav"):
         assert ghost not in template_text, f"{ghost} survived the redesign"
@@ -800,8 +841,9 @@ PROSE_SITES = [
     ("change_map.groups[].narrative", "prose(g.narrative)"),
     ("change_map.graph.nodes[].note", "prose(node.note)"),
     ("behavior.<side>.title", "prose(d.title"),
-    ("review_pass.steps[].title", "prose(step.title)"),
-    ("review_pass.checks[].title", "prose(check.title)"),
+    # Step and check titles meet prose() inside their shared foldTitle handle.
+    ("review_pass.steps[].title", "prose(title)"),
+    ("review_pass.checks[].title", "prose(title)"),
     ("review_pass.skippable[].label", "prose(g.label)"),
     ("seams.clusters[].label", "prose(c.label)"),
 ]

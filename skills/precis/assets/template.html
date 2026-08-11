@@ -191,6 +191,18 @@ h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 .tick { flex: none; width: 15px; height: 15px; margin: 6px 0 0; accent-color: var(--accent); }
 .step h4 { font-size: 17px; min-width: 0; }
 .step h4 .ord { font: 12.5px/1 var(--mono); color: var(--ink-faint); margin-right: 9px; }
+/* The title is the fold's handle: a real button for the keyboard's sake, worn
+   as plain text - no chevron, no chrome. */
+.step h4 button {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0;
+  text-align: left; cursor: pointer;
+}
+.step h4 button:hover { color: var(--accent); }
+/* Ticked away: a folded item keeps its header line - eyebrow, number, title,
+   tick - and nothing else. Screen only; paper always gets the whole step. */
+@media screen {
+  .step.folded .why, .step.folded .path, .step.folded .stepbody { display: none; }
+}
 /* The "why" and the line notes are the reason this page exists. They are set
    at reading size, never as captions. */
 .why { margin-top: 7px; color: var(--ink-soft); max-width: 66ch; }
@@ -865,9 +877,27 @@ function tickBox(key, label) {
   box.addEventListener("change", () => {
     if (box.checked) TICKS.add(key); else TICKS.delete(key);
     saveTicks(TICKS);
+    /* The fold defaults to the tick: a step marked read tucks itself away to
+       its header line, and unticking brings it back. */
+    const item = box.closest(".step");
+    if (item) item.classList.toggle("folded", box.checked);
     refreshCount();
   });
   return box;
+}
+
+/* The item's title, doubling as the fold's handle: a real button wrapped in
+   the heading it reads as, so the keyboard gets it free. It moves only the
+   fold - the tick stays where the reader put it - which is how a collapsed
+   step reopens without being marked unread. */
+function foldTitle(n, title) {
+  const btn = h("button", {},
+    h("span", { class: "ord", text: String(n) }), prose(title));
+  btn.addEventListener("click", () => {
+    const item = btn.closest(".step");
+    if (item) item.classList.toggle("folded");
+  });
+  return h("h4", {}, btn);
 }
 
 function refreshCount() {
@@ -1087,12 +1117,13 @@ function stepItem(step) {
       text: `The full diff: ${plural(total, "line")} in ${plural(step.hunk_ids.length, "hunk")}` }),
     step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id]) : null)));
 
-  return h("article", { class: "step", id: "step-" + step.n },
+  return h("article", { id: "step-" + step.n,
+    class: "step" + (TICKS.has("s" + step.n) ? " folded" : "") },
     h("div", { class: "head" },
       tickBox("s" + step.n, "Mark step " + step.n + " as read"),
       h("div", { style: "min-width:0" },
         stepEyebrow(step),
-        h("h4", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
+        foldTitle(step.n, step.title),
         h("p", { class: "why" }, prose(step.why)))),
     body);
 }
@@ -1123,11 +1154,12 @@ function ruleQuote(rule) {
 }
 
 function checkItem(check, n) {
-  return h("article", { class: "step", id: "check-" + n },
+  return h("article", { id: "check-" + n,
+    class: "step" + (TICKS.has("c" + n) ? " folded" : "") },
     h("div", { class: "head" },
       tickBox("c" + n, "Mark check " + n + " as decided"),
       h("div", { style: "min-width:0" },
-        h("h4", {}, h("span", { class: "ord", text: String(n) }), prose(check.title)),
+        foldTitle(n, check.title),
         h("p", { class: "why" }, prose(check.why)),
         check.path ? h("p", { class: "path", text: check.path }) : null)),
     h("div", { class: "stepbody" },
