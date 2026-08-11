@@ -53,34 +53,37 @@ what the description claims, set against what the diff does, quoting the author 
 whether anything someone outside the diff depends on changes shape, and whether tests
 arrive with the change. Three plain sentences under the story, each one a fact or a link
 to where it is shown, so you know what you are walking into before you read a hunk. When
-a change reads as two independent changes, that is a fourth.
+a change reads as two independent changes, that is a fourth. The masthead closes with a
+one-line contents of the numbered chapters that follow: behaviour, structure, the layer
+map, the reading, and the decisions.
 
-**The change, grouped by area.** Every file lands in the part of the codebase it belongs
-to: the domain decision, the API contract, the persistence behind it, the tests that pin
-it. A frontend change groups by components, state, and styling instead. Each area carries
-its own reading, its own questions, and its own file list, so you finish one area before
-you start the next. The code itself waits behind one fold per area, and opens when you
-are ready to read rather than greeting you as a wall.
+**The change, layer by layer.** Every file lands in the layer of the codebase it belongs
+to - the API surface, the domain decision, the persistence behind it - ordered the way a
+request flows through the system. Each layer opens with two to four sentences on what
+changed there and why, carries the contracts that changed shape in it, and keeps its
+file ledger one quiet fold away. A map, not a task list: the reading has its own
+chapter.
 
 **Every changed contract, as a before/after table.** A changed signature, schema, config
 default, or feature flag is a delta, so it renders as one: what it was, what it is now,
-in two rows you can check at a glance. And because precis runs with the checkout, it can
-say the thing a diff view structurally cannot: how many call sites the surface has
-elsewhere in the repository, how many this diff also updates, and exactly where the ones
-it does not touch live.
+in two rows you can check at a glance, directly under the layer it lives in. And because
+precis runs with the checkout, it can say the thing a diff view structurally cannot: how
+many call sites the surface has elsewhere in the repository, how many this diff also
+updates, and exactly where the ones it does not touch live.
 
 ![A changed contract as a before/after table](docs/img/contracts.png)
 
-**Inside each area, the lines that matter.** A reading step shows the lines precis
-annotated, with a line of context each side; the full diff is one fold away. The order
-still runs across the whole change, so definition still comes before use, and every hunk
-wears one of four labels: behaviour, contract, mechanical, or tests.
+**A reading you do in order.** The guided pass is one linear sequence, steps 1 to N,
+each naming its layer and file. A step shows the lines precis annotated with a line of
+context each side - on a wide screen the annotations sit in the margin beside the code,
+so the code keeps its shape - and the full diff is one fold away. Every hunk wears one
+of four labels: behaviour, contract, mechanical, or tests.
 
 ![A reading step showing its annotated lines](docs/img/review-pass.png)
 
 **Checks you tick off**, each one a question precis cannot answer, because answering it
-needs context that lives in your head and not in the repository. Each check sits in the
-area it belongs to.
+needs context that lives in your head and not in the repository. They close the report
+as their own chapter, numbered on from the reading steps.
 
 ![Three checks, each ending in a question](docs/img/checks.png)
 

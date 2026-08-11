@@ -13,7 +13,7 @@ phase never writes markup either.
     render_report.py report.json --digest out.md --no-html -> digest only
 
 The digest is ten-ish lines of markdown built from the same validated model:
-intent, shape, the flags, and the areas in reading order. It is the piece that
+intent, shape, the flags, and the layers in model order. It is the piece that
 lives where reviewers already are - a PR comment, a chat message - and points
 at the full report. For a trivial change it can be the whole deliverable.
 """

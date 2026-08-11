@@ -54,7 +54,8 @@ check" survives that. "The retry loop should run after the check" does not.
 6. Write `story` (with `shape` and `tests`), then `behavior`, then `contracts`,
    then `review_pass`, then `seams`.
 7. Fill `change_map.groups` from the classification, adjusting where you
-   disagree with the hint, and `stats.signal_ratio` from your final calls.
+   disagree with the hint; write each layer's `narrative`, order the groups by
+   request flow, and set `stats.signal_ratio` from your final calls.
 8. Write `coverage` last, from `budget`, `warnings`, and the documents you read.
 9. Validate. Fix. Validate again.
 
@@ -147,41 +148,47 @@ contract, and listing it here buries the two entries that matter.
 
 ---
 
-## `change_map.groups` - the areas
+## `change_map.groups` - the layers
 
-The groups are the backbone of the rendered report. Each one becomes an area
-section that carries its own reading steps, its own checks, its own skip groups,
-and its own file list, so a reviewer works one area at a time. A lazy grouping
-is a lazy report; this is the section where the segmentation earns its keep.
+The groups are the report's map chapter. Each one renders as a layer
+subsection: its narrative first, the contracts that changed in it under that,
+and its file ledger one quiet fold away. A lazy grouping is a lazy report;
+this is the section where the segmentation earns its keep.
 
 **Label by purpose, never by directory.** "Digest header construction", not
 "src/requests". "API contract", not "handlers". The `role` is metadata the page
 never shows; the label is the only thing that says what this part of the change
 is *for*, so it has to carry both the layer and the purpose.
 
-**One role, several areas, whenever the change has several concerns.** The
+**One role, several layers, whenever the change has several concerns.** The
 role enumeration is coarse on purpose, and nothing limits a role to one group.
-A backend change usually falls into areas like the domain decision, the API
+A backend change usually falls into layers like the domain decision, the API
 contract it surfaces through, the persistence that backs it, and the tests
 that pin it. A frontend-heavy change almost never reads well as one `ui`
-group: split it into the areas a frontend reviewer actually thinks in, such as
-components, state and data flow, styling, routing, and the API client
+group: split it into the layers a frontend reviewer actually thinks in, such
+as components, state and data flow, styling, routing, and the API client
 boundary, each its own `ui`-role group with its own label.
 
-**Three to seven areas.** One is right for a genuinely single-concern change;
-past seven the list of areas becomes its own reading assignment, so merge
+**Three to seven layers.** One is right for a genuinely single-concern change;
+past seven the list of layers becomes its own reading assignment, so merge
 related concerns instead. The decomposition is the report's spine and this cap
 is what keeps the spine visible.
 
-**Order groups by where the reading starts.** The renderer leads with the area
-that holds step 1 and keeps your order for areas with nothing to read, so put
-the core-bearing group first and the mechanical tail last. When the order
-carries a dependency - this area defines the interface the next one consumes -
-say so in `order_note`, one clause.
+**Order the array by request flow.** Array order is render order; the page
+never reorders and the digest lists the layers the same way. Lead with the
+layer a request meets first - the frontend when the change touches one, then
+API, domain, persistence, migrations - and close with the supporting tail of
+tests and docs, adapted to the layers this repository actually has. For a
+change with no request path through it, order from the deciding layer to its
+consequences.
 
-**Write `summary` for every area a reviewer will spend time in.** One line on
-what this part of the change is doing; it renders directly under the area's
-title.
+**Write `narrative` as the layer's story.** Two to four sentences on what
+changed in this layer and why, for a reviewer who has read the masthead but
+not the code. Name symbols the way the code names them, say what moved and
+what stayed, and leave per-file detail to the file notes. It is the only
+multi-sentence prose field in the model, and it earns that length by being
+the map: what a diff view shows as N files, the narrative says as one
+thought.
 
 ---
 
@@ -242,8 +249,9 @@ The checklist a reviewer completes. Two kinds of item, one numbering.
 ones: definition before use, migration before the code that depends on it,
 interface before implementation. Each step names its hunks, and those hunks must
 be present in full - a step pointing at an elided hunk is a step a reviewer
-cannot do. Steps render inside the area that owns their file, numbered across
-the whole pass, so the order survives the grouping.
+cannot do. Steps render as one linear chapter, 1 to N, each wearing a small
+line naming its layer and file; the layer map is its own chapter, so neither
+view pretends to be the other.
 
 **Anchored annotations are the code a reader sees.** A step shows only the
 lines its annotations anchor to, with a line of context each side; the full
