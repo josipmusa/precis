@@ -82,8 +82,9 @@ a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness:
 code { font: .88em/1.5 var(--mono); overflow-wrap: anywhere; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.wrap { max-width: 920px; margin: 0 auto; padding: 0 30px; }
-/* Prose keeps a readable measure; code and tables may run wider. */
+/* Two tracks in one column: the container is wide for what is scanned - code,
+   diagrams, tables - and .prose caps what is read at a text measure. */
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 30px; }
 .prose { max-width: 70ch; }
 .quiet { color: var(--ink-soft); }
 .faint { color: var(--ink-faint); }
@@ -137,6 +138,19 @@ section.chap { padding: 90px 0 0; scroll-margin-top: 14px; }
 .lead { color: var(--ink-soft); max-width: 72ch; }
 .counter { font: 12.5px/1.7 var(--mono); color: var(--ink-faint); margin-top: 10px; }
 
+/* ------------------------------------------------------------ the pass bar */
+/* Pinned, thin and quiet: the page's background, one hairline, no progress
+   bar, no buttons. The script shows it only while a pass chapter is on
+   screen; everywhere else the page stays bare. */
+.passbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 2;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.passbar .wrap {
+  font: 12.5px/1 var(--mono); color: var(--ink-faint);
+  padding-top: 9px; padding-bottom: 9px;
+}
+
 /* ------------------------------------------------------------ disclosure */
 /* The one load-bearing interaction. A summary row is a quiet text link, never
    a button: what is behind it is extra detail, never the only statement. */
@@ -167,7 +181,8 @@ h4.block { margin: 30px 0 4px; }
 h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 
 /* --------------------------------------------------------------- steps */
-.step { margin-top: 32px; }
+/* The scroll margin keeps a jump target clear of the pinned pass bar. */
+.step { margin-top: 32px; scroll-margin-top: 46px; }
 .eyebrow {
   font: 11.5px/1.6 var(--mono); color: var(--ink-faint); margin-bottom: 3px;
   word-break: break-all;
@@ -176,6 +191,18 @@ h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 .tick { flex: none; width: 15px; height: 15px; margin: 6px 0 0; accent-color: var(--accent); }
 .step h4 { font-size: 17px; min-width: 0; }
 .step h4 .ord { font: 12.5px/1 var(--mono); color: var(--ink-faint); margin-right: 9px; }
+/* The title is the fold's handle: a real button for the keyboard's sake, worn
+   as plain text - no chevron, no chrome. */
+.step h4 button {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0;
+  text-align: left; cursor: pointer;
+}
+.step h4 button:hover { color: var(--accent); }
+/* Ticked away: a folded item keeps its header line - eyebrow, number, title,
+   tick - and nothing else. Screen only; paper always gets the whole step. */
+@media screen {
+  .step.folded .why, .step.folded .path, .step.folded .stepbody { display: none; }
+}
 /* The "why" and the line notes are the reason this page exists. They are set
    at reading size, never as captions. */
 .why { margin-top: 7px; color: var(--ink-soft); max-width: 66ch; }
@@ -212,7 +239,7 @@ h4.block + .sub { color: var(--ink-faint); font-size: 13.5px; }
 .cname { font: 600 14px/1.5 var(--mono); overflow-wrap: anywhere; }
 .cnote { color: var(--ink-soft); max-width: 68ch; margin-top: 4px; }
 table.beforeafter {
-  border-collapse: collapse; width: 100%; max-width: 780px; margin-top: 10px;
+  border-collapse: collapse; width: 100%; margin-top: 10px;
   border: 1px solid var(--line);
 }
 table.beforeafter th {
@@ -377,7 +404,7 @@ footer .creed { margin-top: 24px; color: var(--ink-faint); max-width: 64ch; }
    every control is gone, every link is plain text. */
 @media print {
   body { background: #fff; color: #000; font-size: 10.5pt; }
-  .tick, .counter { display: none !important; }
+  .tick, .counter, .passbar { display: none !important; }
   summary.link { display: none; }
   details > *:not(summary) { display: revert; }
   a { color: inherit; text-decoration: none; }
@@ -850,16 +877,72 @@ function tickBox(key, label) {
   box.addEventListener("change", () => {
     if (box.checked) TICKS.add(key); else TICKS.delete(key);
     saveTicks(TICKS);
+    /* The fold defaults to the tick: a step marked read tucks itself away to
+       its header line, and unticking brings it back. */
+    const item = box.closest(".step");
+    if (item) item.classList.toggle("folded", box.checked);
     refreshCount();
   });
   return box;
 }
 
+/* The item's title, doubling as the fold's handle: a real button wrapped in
+   the heading it reads as, so the keyboard gets it free. It moves only the
+   fold - the tick stays where the reader put it - which is how a collapsed
+   step reopens without being marked unread. */
+function foldTitle(n, title) {
+  const btn = h("button", {},
+    h("span", { class: "ord", text: String(n) }), prose(title));
+  btn.addEventListener("click", () => {
+    const item = btn.closest(".step");
+    if (item) item.classList.toggle("folded");
+  });
+  return h("h4", {}, btn);
+}
+
 function refreshCount() {
-  const node = document.getElementById("count");
-  if (!node) return;
   const total = STEPS.length + CHECKS.length;
-  node.textContent = total ? `${TICKS.size} of ${total} done` : "";
+  const node = document.getElementById("count");
+  if (node) node.textContent = total ? `${TICKS.size} of ${total} done` : "";
+  refreshPass();
+}
+
+/* ------------------------------------------------------------ the pass bar */
+/* One thin line pinned over the pass chapters: how far the reading is, and a
+   link to the first unticked item so a return visit resumes in one click.
+   boot() shows it only while the reading or decide chapter is on screen. */
+function passBar() {
+  return h("div", { class: "passbar", id: "passbar", hidden: true },
+    h("p", { class: "wrap", id: "passline" }));
+}
+
+/* The first unticked item in pass order: the steps, then the checks. */
+function nextUnticked() {
+  for (const step of STEPS) {
+    if (!TICKS.has("s" + step.n)) {
+      return { href: "#step-" + step.n, label: "step " + step.n };
+    }
+  }
+  for (let i = 0; i < CHECKS.length; i++) {
+    const n = STEPS.length + i + 1;
+    if (!TICKS.has("c" + n)) return { href: "#check-" + n, label: "check " + n };
+  }
+  return null;
+}
+
+function refreshPass() {
+  const line = document.getElementById("passline");
+  if (!line) return;
+  const total = STEPS.length + CHECKS.length;
+  const head = (STEPS.length ? "The reading" : "Decide") + " · ";
+  const next = nextUnticked();
+  line.replaceChildren();
+  if (!next) {
+    line.append(head + "all " + total + " done");
+    return;
+  }
+  add(line, [head + TICKS.size + " of " + total + " done · next: ",
+    h("a", { href: next.href, text: next.label })]);
 }
 
 /* ==================================================== chapter: the layers */
@@ -1001,7 +1084,6 @@ function readingSection() {
     + "Tick as you go; the page remembers.",
     h("p", { class: "counter", id: "count" }),
     STEPS.map(stepItem));
-  requestAnimationFrame(refreshCount);
   return node;
 }
 
@@ -1035,12 +1117,13 @@ function stepItem(step) {
       text: `The full diff: ${plural(total, "line")} in ${plural(step.hunk_ids.length, "hunk")}` }),
     step.hunk_ids.map(id => HUNKS[id] ? hunkNode(HUNKS[id]) : null)));
 
-  return h("article", { class: "step", id: "step-" + step.n },
+  return h("article", { id: "step-" + step.n,
+    class: "step" + (TICKS.has("s" + step.n) ? " folded" : "") },
     h("div", { class: "head" },
       tickBox("s" + step.n, "Mark step " + step.n + " as read"),
       h("div", { style: "min-width:0" },
         stepEyebrow(step),
-        h("h4", {}, h("span", { class: "ord", text: String(step.n) }), prose(step.title)),
+        foldTitle(step.n, step.title),
         h("p", { class: "why" }, prose(step.why)))),
     body);
 }
@@ -1071,11 +1154,12 @@ function ruleQuote(rule) {
 }
 
 function checkItem(check, n) {
-  return h("article", { class: "step", id: "check-" + n },
+  return h("article", { id: "check-" + n,
+    class: "step" + (TICKS.has("c" + n) ? " folded" : "") },
     h("div", { class: "head" },
       tickBox("c" + n, "Mark check " + n + " as decided"),
       h("div", { style: "min-width:0" },
-        h("h4", {}, h("span", { class: "ord", text: String(n) }), prose(check.title)),
+        foldTitle(n, check.title),
         h("p", { class: "why" }, prose(check.why)),
         check.path ? h("p", { class: "path", text: check.path }) : null)),
     h("div", { class: "stepbody" },
@@ -1907,6 +1991,27 @@ function boot() {
   for (const c of chapters) if (c.node) main.append(c.node);
   app.append(main);
   app.append(footerNode());
+
+  /* The pass bar exists only while a pass chapter is on screen. One observer
+     on the two chapter boundaries; the bar itself never scrolls anything. */
+  if (STEPS.length + CHECKS.length) {
+    app.append(passBar());
+    refreshCount();
+    const watched = ["reading", "decide"]
+      .map(id => document.getElementById(id)).filter(Boolean);
+    if (watched.length && typeof IntersectionObserver === "function") {
+      const bar = document.getElementById("passbar");
+      const over = new Set();
+      const io = new IntersectionObserver(entries => {
+        for (const e of entries) {
+          if (e.isIntersecting) over.add(e.target.id);
+          else over.delete(e.target.id);
+        }
+        bar.hidden = !over.size;
+      });
+      for (const t of watched) io.observe(t);
+    }
+  }
 
   /* Margin notes track the layout: any reflow - a resize, a fold opening,
      the fonts arriving - re-places them. */
