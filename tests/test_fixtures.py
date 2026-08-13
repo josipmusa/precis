@@ -26,14 +26,13 @@ def test_fixture_validates(fixture_model):
 
 
 def test_schema_doc_minimal_example_validates():
-    """The example in references/schema.md must be a real, valid document."""
+    """The schema points at a shipped minimal model that remains valid."""
     text = (REFERENCES / "schema.md").read_text(encoding="utf-8")
-    # Found by title, not by part number, so adding a part does not break this.
     marker = "- A minimal valid report model"
     assert marker in text, "schema.md lost its minimal example section"
-    block = re.search(r"```json\n(.*?)\n```", text[text.index(marker):], re.S)
-    assert block, "no JSON block under the minimal-example heading"
-    problems = validate(json.loads(block.group(1)), "schema.md minimal example")
+    assert "assets/fixtures/small.json" in text[text.index(marker):]
+    model = json.loads((FIXTURES / "small.json").read_text(encoding="utf-8"))
+    problems = validate(model, "schema.md minimal example")
     assert problems == [], "\n".join(problems)
 
 

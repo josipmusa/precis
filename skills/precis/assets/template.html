@@ -138,6 +138,37 @@ section.chap { padding: 90px 0 0; scroll-margin-top: 14px; }
 .lead { color: var(--ink-soft); max-width: 72ch; }
 .counter { font: 12.5px/1.7 var(--mono); color: var(--ink-faint); margin-top: 10px; }
 
+/* -------------------------------------------------------- comprehension */
+.composition { margin-top: 30px; max-width: 880px; }
+.composition-row {
+  display: grid; grid-template-columns: minmax(110px, 170px) 1fr auto;
+  gap: 14px; align-items: center; padding: 12px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.composition-row b { font-weight: 600; }
+.composition-track { height: 7px; background: var(--panel-soft); }
+.composition-fill { display: block; height: 100%; background: var(--accent); }
+.composition-row.supporting .composition-fill { opacity: .58; }
+.composition-row.mechanical .composition-fill { opacity: .26; }
+.composition-count { font: 12.5px/1 var(--mono); color: var(--ink-faint); white-space: nowrap; }
+.scope-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 34px; margin-top: 30px; }
+.scope-col h3 { font-size: 17px; }
+.scope-col ul, .risks, .verification, .questions { margin: 13px 0 0; padding-left: 20px; }
+.scope-col li + li, .risks li + li, .verification li + li, .questions li + li { margin-top: 10px; }
+.empty { margin-top: 24px; color: var(--ink-soft); }
+.risk { list-style: none; margin-left: -20px; padding: 18px 0; border-top: 1px solid var(--line-soft); }
+.risk:first-child { border-top: 0; padding-top: 0; }
+.verdict { font: 700 11px/1 var(--mono); letter-spacing: .09em; color: var(--accent); }
+.risk h3 { display: inline; margin-left: 8px; font-size: 17px; }
+.risk p { margin-top: 8px; max-width: 74ch; }
+.command { font: 12.5px/1.6 var(--mono); overflow-wrap: anywhere; }
+.command-output { margin-top: 7px; white-space: pre-wrap; color: var(--ink-soft); }
+@media (max-width: 720px) {
+  .scope-grid { grid-template-columns: 1fr; gap: 26px; }
+  .composition-row { grid-template-columns: 110px 1fr; }
+  .composition-count { grid-column: 2; }
+}
+
 /* ------------------------------------------------------------ the pass bar */
 /* Pinned, thin and quiet: the page's background, one hairline, no progress
    bar, no buttons. The script shows it only while a pass chapter is on
@@ -677,7 +708,6 @@ function masthead(chapters) {
       story.caveat ? h("p", { class: "caveat" }, prose(story.caveat)) : null,
       triageSentence(),
       answers(),
-      intentBlock(),
       contentsLine(chapters)
     )
   );
@@ -704,19 +734,7 @@ function triageSentence() {
 
   const ratio = typeof stats.signal_ratio === "number" ? Math.round(stats.signal_ratio * 100) : null;
   if (ratio !== null) {
-    const skipped = (PASS.skippable || []).map(g => plain(g.label).toLowerCase());
-    parts.push(` ${ratio}% of the changed lines are the change itself`
-      + (skipped.length ? `; the rest can be skimmed: ${skipped.join(", ")}.` : "."));
-  }
-
-  const footprint = behaviourFootprint();
-  const minutes = PASS.estimated_minutes;
-  const tail = minutes ? `, about ${plural(minutes, "minute")} to read.` : ".";
-  if ((M.behavior || {}).changed && footprint.hunks) {
-    parts.push(` The behaviour change is ${plural(footprint.hunks, "hunk")} in `
-      + `${plural(footprint.files, "file")}${tail}`);
-  } else if (STEPS.length) {
-    parts.push(` ${plural(STEPS.length, "step")} to read${tail}`);
+    parts.push(` ${ratio}% of the changed lines are the essential change; the composition chapter explains the rest.`);
   }
 
   /* A partial reading is the one coverage fact that cannot wait for the
@@ -819,12 +837,98 @@ function intentBlock() {
 /* The page is numbered chapters built from one list. A chapter with nothing
    to say for this change is omitted, and the numbering closes over the gap,
    so neither the contents line nor the kickers ever count a hole. */
+function scopeSection() {
+  const explicit = M.scope || null;
+  const delta = (M.story || {}).intent_delta || {};
+  const delivered = explicit ? (explicit.delivered || []) : [];
+  const missing = explicit ? (explicit.not_delivered || []) : (delta.not_done || []);
+  const extra = explicit ? (explicit.extra || []) : (delta.also_does || []);
+  const contract = explicit && explicit.contract;
+  if (!explicit && !delta.stated && !missing.length && !extra.length) return null;
+  const value = item => typeof item === "string" ? item : (item.item || item.summary || "");
+  const note = item => typeof item === "object" && item ? (item.reason || item.note) : null;
+  const col = (title, items, empty) => h("div", { class: "scope-col" },
+    h("h3", { text: title }), items.length
+      ? h("ul", {}, items.map(item => h("li", {}, prose(value(item)),
+          note(item) ? [" ", h("span", { class: "quiet" }, prose(note(item)))] : null)))
+      : h("p", { class: "empty", text: empty }));
+  return section("scope", contract || delta.stated || "The stated contract against the diff.",
+    h("div", { class: "scope-grid" },
+      col("Delivered", delivered, explicit ? "Nothing identified." : "See the outcome above."),
+      col("Not delivered", missing, "Nothing identified."),
+      col("Extra", extra, "Nothing identified.")));
+}
+
+function compositionSection() {
+  const stats = M.stats || {};
+  const total = (stats.additions || 0) + (stats.deletions || 0);
+  if (!total) return null;
+  const explicit = M.composition || null;
+  const essential = explicit ? explicit.essential : Math.round(total * (stats.signal_ratio || 0));
+  const mechanical = explicit ? explicit.mechanical : 0;
+  const supporting = explicit ? explicit.supporting : Math.max(0, total - essential - mechanical);
+  const rows = [
+    ["essential", "Essential change", essential],
+    ["supporting", "Supporting change", supporting],
+    ["mechanical", "Mechanical ripple", mechanical]
+  ];
+  return section("composition",
+    (explicit && explicit.summary) || "The essential decision separated from the code needed to support or propagate it.",
+    h("div", { class: "composition" }, rows.map(([kind, label, count]) =>
+      h("div", { class: "composition-row " + kind }, h("b", { text: label }),
+        h("span", { class: "composition-track" }, h("span", { class: "composition-fill",
+          style: `width:${total ? Math.round(count / total * 100) : 0}%` })),
+        h("span", { class: "composition-count", text: `${count.toLocaleString()} lines · ${total ? Math.round(count / total * 100) : 0}%` })))));
+}
+
+function riskSection() {
+  const flags = M.risk_flags || [];
+  if (!flags.length) return section("risks", null,
+    h("p", { class: "empty", text: "No risk flags found." }));
+  return section("risks", "Concrete behavioral boundaries worth verifying, with proof state rather than a quality verdict.",
+    h("ul", { class: "risks" }, flags.map(flag => h("li", { class: "risk" },
+      h("span", { class: "verdict", text: flag.status || "UNPROVEN" }),
+      h("h3", {}, prose(flag.title || "Risk boundary")),
+      h("p", {}, prose(flag.explanation || flag.why || "")),
+      (flag.refs || flag.where || []).length
+        ? h("p", { class: "refs" }, (flag.refs || flag.where).map((ref, i) => [i ? "  " : "Code: ", refLink(ref)]))
+        : refsLine(flag.hunk_ids),
+      flag.evidence ? h("p", { class: "quiet" }, h("b", { text: "Evidence. " }),
+        prose(typeof flag.evidence === "string" ? flag.evidence : (flag.evidence.summary || ""))) : null))));
+}
+
+function verificationSection() {
+  const v = M.verification || null;
+  if (!v) return null;
+  const commands = v.commands || [];
+  const skipped = v.skipped || [];
+  return section("verification", "Checks actually run for this report. Output is evidence, not an assurance of correctness.",
+    commands.length ? h("ul", { class: "verification" }, commands.map(c => h("li", {},
+      h("p", { class: "command", text: `${c.status || "RUN"} · ${c.command}` }),
+      c.output ? h("pre", { class: "command command-output", text: c.output }) : null))) : null,
+    skipped.length ? h("p", { class: "empty" }, h("b", { text: "Skipped. " }), prose(skipped.join("; "))) : null);
+}
+
+function questionsSection() {
+  const assumptions = M.assumptions || [];
+  const questions = M.open_questions || [];
+  if (!assumptions.length && !questions.length) return null;
+  return section("questions", "What the available evidence cannot settle on its own.",
+    assumptions.length ? h("div", { class: "scope-col" }, h("h3", { text: "Assumptions" }),
+      h("ul", { class: "questions" }, assumptions.map(x => h("li", {}, prose(x))))) : null,
+    questions.length ? h("div", { class: "scope-col" }, h("h3", { text: "Open questions" }),
+      h("ul", { class: "questions" }, questions.map(x => h("li", {}, prose(x))))) : null);
+}
+
 const CHAPTERS = [
+  { id: "scope", short: "Scope", title: "Scope", build: scopeSection },
+  { id: "composition", short: "Composition", title: "How much of the diff is the change itself", build: compositionSection },
   { id: "behavior", short: "Behaviour", title: "Behaviour: before and after", build: behaviorSection },
   { id: "map", short: "Structure", title: "What calls what", build: mapSection },
-  { id: "layers", short: "Layer by layer", title: "The change, layer by layer", build: layersSection },
-  { id: "reading", short: "The reading", title: "The reading", build: readingSection },
-  { id: "decide", short: "Decide", title: "Decide", build: decideSection }
+  { id: "layers", short: "Change map", title: "The change, by concern", build: layersSection },
+  { id: "risks", short: "Risk flags", title: "Risk flags", build: riskSection },
+  { id: "verification", short: "Verification", title: "Verification", build: verificationSection },
+  { id: "questions", short: "Open questions", title: "Assumptions and open questions", build: questionsSection }
 ];
 
 function buildChapters() {
@@ -852,21 +956,17 @@ function section(id, lead, ...body) {
 }
 
 /* ================================================================ the pass */
-/* The ticks live in localStorage under the head SHA, so a reload resumes and a
-   new head starts clean. Nothing else about a ticked step changes: it is a
-   record of what was read, not a piece of choreography. */
+/* Retired 1.x pass helpers remain non-persistent for stored model compatibility.
+   They are not called by any rendered chapter. */
 const PASS_KEY = "precis-pass:" + (
   (M.source && M.source.head && M.source.head.sha) ||
   (M.source && M.source.identifier) || "unkeyed");
 
 function loadTicks() {
-  /* file:// denies storage in some browsers; the pass still works, it just
-     forgets. */
-  try { return new Set(JSON.parse(localStorage.getItem(PASS_KEY) || "[]")); }
-  catch (e) { return new Set(); }
+  return new Set();
 }
 function saveTicks(set) {
-  try { localStorage.setItem(PASS_KEY, JSON.stringify(Array.from(set))); } catch (e) { /* as above */ }
+  /* Retired compatibility UI does not persist state. */
 }
 
 const TICKS = loadTicks();
@@ -954,10 +1054,10 @@ function refreshPass() {
 function layersSection() {
   if (!GROUPS.length) return null;
 
-  /* Wire each contract and skip group to the layer that owns its file.
-     Anything no single layer owns closes the chapter instead. */
-  const contractsOf = new Map(), skipsOf = new Map();
-  const crossContracts = [], crossSkips = [];
+  /* Wire contracts to the concern that owns their changed definition.
+     Anything no single concern owns closes the chapter instead. */
+  const contractsOf = new Map();
+  const crossContracts = [];
   const claim = (map, gid, item) => {
     if (!map.has(gid)) map.set(gid, []);
     map.get(gid).push(item);
@@ -967,26 +1067,14 @@ function layersSection() {
     if (g) claim(contractsOf, g.id, c);
     else crossContracts.push(c);
   }
-  for (const sk of PASS.skippable || []) {
-    let gid = (sk.group_ids || [])[0];
-    if (!gid) {
-      const owners = new Set((sk.files || [])
-        .map(p => (groupOfPath(p) || {}).id).filter(Boolean));
-      if (owners.size === 1) gid = owners.values().next().value;
-    }
-    if (gid && GROUPS.some(g => g.id === gid)) claim(skipsOf, gid, sk);
-    else crossSkips.push(sk);
-  }
 
   return section("layers", null,
-    GROUPS.map(g => layerNode(g, contractsOf.get(g.id) || [],
-                              skipsOf.get(g.id) || [])),
-    crossContracts.length || crossSkips.length
-      ? crossLayer(crossContracts, crossSkips) : null,
+    GROUPS.map(g => layerNode(g, contractsOf.get(g.id) || [])),
+    crossContracts.length ? crossLayer(crossContracts) : null,
     seamsBlock());
 }
 
-function layerNode(g, contracts, skips) {
+function layerNode(g, contracts) {
   const body = h("div", {});
   if (contracts.length) {
     body.append(h("h4", { class: "block",
@@ -995,7 +1083,7 @@ function layerNode(g, contracts, skips) {
       text: "a shape someone outside this diff depends on" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  body.append(inventoryFold(g, skips));
+  body.append(inventoryFold(g));
   return h("section", { class: "layer", id: "layer-" + g.id },
     h("h3", {}, prose(g.label)),
     h("p", { class: "narrative prose" }, prose(g.narrative)),
@@ -1003,13 +1091,12 @@ function layerNode(g, contracts, skips) {
 }
 
 /* Contracts and skip groups that no single layer owns close the chapter. */
-function crossLayer(contracts, skips) {
+function crossLayer(contracts) {
   const body = h("div", {});
   if (contracts.length) {
     body.append(h("h4", { class: "block", text: "Changed contracts" }));
     for (const c of contracts) body.append(contractNode(c));
   }
-  for (const sk of skips) body.append(skipRow(sk));
   return h("section", { class: "layer", id: "layer-cross" },
     h("h3", { text: "Across the change" }),
     body);
@@ -1017,7 +1104,7 @@ function crossLayer(contracts, skips) {
 
 /* The complete account of a layer's files, one quiet fold away: the ledger,
    then the skip groups that live in this layer with their reasons. */
-function inventoryFold(g, skips) {
+function inventoryFold(g) {
   const adds = g.files.reduce((a, f) => a + (f.additions || 0), 0);
   const dels = g.files.reduce((a, f) => a + (f.deletions || 0), 0);
   return h("details", { class: "inventory" },
@@ -1025,8 +1112,7 @@ function inventoryFold(g, skips) {
       `${g.files.length === 1 ? "The one file" : "All " + g.files.length + " files"} in this layer`
       + ` · +${adds} −${dels}` }),
     h("div", { class: "inner" },
-      filesTable(g),
-      skips.map(skipRow)));
+      filesTable(g)));
 }
 
 function filesTable(g) {
@@ -1977,8 +2063,8 @@ function footerNode() {
         + `, with ${conf} confidence.`) : null,
       coverageNotice(),
       h("p", { class: "creed",
-        text: "precis is not a code review tool. It is a tool that helps humans review code. "
-          + "Nothing in this report is a verdict on the change; the reading is still yours to do." })
+        text: "precis explains the change; the source host remains the place to inspect and review code. "
+          + "Nothing in this report is an approval verdict." })
     ));
 }
 
@@ -1991,27 +2077,6 @@ function boot() {
   for (const c of chapters) if (c.node) main.append(c.node);
   app.append(main);
   app.append(footerNode());
-
-  /* The pass bar exists only while a pass chapter is on screen. One observer
-     on the two chapter boundaries; the bar itself never scrolls anything. */
-  if (STEPS.length + CHECKS.length) {
-    app.append(passBar());
-    refreshCount();
-    const watched = ["reading", "decide"]
-      .map(id => document.getElementById(id)).filter(Boolean);
-    if (watched.length && typeof IntersectionObserver === "function") {
-      const bar = document.getElementById("passbar");
-      const over = new Set();
-      const io = new IntersectionObserver(entries => {
-        for (const e of entries) {
-          if (e.isIntersecting) over.add(e.target.id);
-          else over.delete(e.target.id);
-        }
-        bar.hidden = !over.size;
-      });
-      for (const t of watched) io.observe(t);
-    }
-  }
 
   /* Margin notes track the layout: any reflow - a resize, a fold opening,
      the fonts arriving - re-places them. */

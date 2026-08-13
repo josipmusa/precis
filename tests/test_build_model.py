@@ -205,6 +205,16 @@ def test_the_analysis_file_is_not_modified(fixtures, pre_models):
     assert json.dumps(thin, sort_keys=True) == before
 
 
+def test_new_analysis_need_not_author_review_choreography(fixtures, pre_models):
+    thin = hollow(fixtures["small"])
+    del thin["review_pass"]
+    built, problems = build_model.assemble(thin, pre_models["small"])
+    assert problems == []
+    assert built["review_pass"]["steps"]
+    assert built["review_pass"]["checks"] == []
+    assert build_model.validate(built) == []
+
+
 # -------------------------------------------------------------------- CLI
 
 def run(*args, **kwargs):

@@ -25,6 +25,42 @@ def problems_matching(model, needle):
     return [p for p in validate(model) if needle in p]
 
 
+def test_no_risk_flags_is_a_valid_complete_result(model):
+    model["risk_flags"] = []
+    assert validate(model) == []
+
+
+def test_a_risk_flag_requires_changed_code_and_evidence(model):
+    model["risk_flags"] = [{
+        "status": "UNPROVEN",
+        "title": "A retry can replay the write",
+        "explanation": "A timeout after persistence can cause the caller to repeat the side effect.",
+        "evidence": {"summary": "No retry-boundary test was found.", "refs": []},
+    }]
+    assert problems_matching(model, "changed code")
+
+
+def test_proven_risk_requires_boundary_evidence_ref(model):
+    model["risk_flags"] = [{
+        "status": "PROVEN",
+        "title": "Unauthorized requests are rejected",
+        "explanation": "The new route depends on the shared authorization boundary.",
+        "hunk_ids": ["h1"],
+        "evidence": {"summary": "The rejection boundary is exercised.", "refs": []},
+    }]
+    assert problems_matching(model, "PROVEN requires")
+
+
+def test_composition_must_account_for_every_changed_line(model):
+    model["composition"] = {
+        "summary": "A small decision with supporting tests.",
+        "essential": 2,
+        "supporting": 3,
+        "mechanical": 0,
+    }
+    assert problems_matching(model, "changed lines")
+
+
 def test_a_valid_model_produces_no_problems(model):
     assert validate(model) == []
 

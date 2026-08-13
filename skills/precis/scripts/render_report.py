@@ -13,11 +13,12 @@ phase never writes markup either.
     render_report.py report.json --digest out.md --no-html -> digest only
 
 The digest is ten-ish lines of markdown built from the same validated model:
-intent, shape, the flags, and the layers in model order. It is the piece that
+outcome, scope, composition, genuine risk flags, and the concerns in model order. It is the piece that
 lives where reviewers already are - a PR comment, a chat message - and points
 at the full report. For a trivial change it can be the whole deliverable.
 """
 import argparse
+import copy
 import json
 import pathlib
 import sys
@@ -65,12 +66,48 @@ def document_title(model):
     return f"{title} {identifier}" if identifier else title
 
 
+def presentation_model(model):
+    """Return only what the comprehension report needs to explain the change.
+
+    The analysis model keeps parsed hunk bodies and the retired review-pass
+    carrier for deterministic rebuilding of stored 1.x reports. Shipping those
+    fields in HTML would quietly preserve the parallel diff viewer we removed.
+    Keep hunk coordinates and classifications for evidence links and
+    composition arithmetic, but never embed source lines or review state.
+    """
+    public = copy.deepcopy(model)
+    public.pop("review_pass", None)
+    if not public.get("composition"):
+        stats = public.get("stats") or {}
+        total = (stats.get("additions") or 0) + (stats.get("deletions") or 0)
+        essential = round(total * (stats.get("signal_ratio") or 0))
+        observed_mechanical = sum(
+            1
+            for hunk in (public.get("hunks") or {}).values()
+            if hunk.get("significance") == "mechanical"
+            for row in (hunk.get("lines") or [])
+            if row.get("t") in ("+", "-")
+        )
+        mechanical = min(max(0, total - essential), observed_mechanical)
+        public["composition"] = {
+            "summary": "The essential decision separated from its supporting work and mechanical ripple.",
+            "essential": essential,
+            "supporting": max(0, total - essential - mechanical),
+            "mechanical": mechanical,
+        }
+    for hunk in (public.get("hunks") or {}).values():
+        hunk.pop("lines", None)
+        hunk.pop("header", None)
+        hunk.pop("section", None)
+    return public
+
+
 def render(model, template_text):
     if MODEL_TOKEN not in template_text:
         raise ValueError(f"template has no {MODEL_TOKEN} placeholder")
     html = template_text.replace(TITLE_TOKEN, escape_html(document_title(model)))
     # Model last: the payload may legitimately contain the title token as text.
-    return html.replace(MODEL_TOKEN, embed_json(model))
+    return html.replace(MODEL_TOKEN, embed_json(presentation_model(model)))
 
 
 SHAPE_TEXT = {"feature": "feature", "bugfix": "bug fix", "refactor": "refactor",
@@ -94,6 +131,8 @@ def digest(model, report_name=None):
     behavior = model.get("behavior") or {}
     contracts = model.get("contracts") or []
     seams = model.get("seams") or {}
+    scope = model.get("scope") or {}
+    risks = model.get("risk_flags") or []
     tests = story.get("tests") or {}
 
     who = " ".join(x for x in (src.get("identifier"), src.get("title")) if x)
@@ -105,9 +144,15 @@ def digest(model, report_name=None):
     changed = (stats.get("additions") or 0) + (stats.get("deletions") or 0)
     ratio = stats.get("signal_ratio")
     if isinstance(ratio, (int, float)):
-        lines.append("%s changed lines in %s files; %d%% of them are the change itself."
+        lines.append("%s changed lines in %s files; %d%% are the essential change."
                      % (format(changed, ","), stats.get("files_changed", 0),
                         round(ratio * 100)))
+
+    if scope:
+        lines.append("Scope: %d delivered, %d not delivered, %d extra."
+                     % (len(scope.get("delivered") or []),
+                        len(scope.get("not_delivered") or []),
+                        len(scope.get("extra") or [])))
 
     if behavior.get("changed"):
         lines.append("Behaviour: %s" % (behavior.get("summary")
@@ -139,6 +184,13 @@ def digest(model, report_name=None):
     if seams.get("detected"):
         lines.append("Reads as %d independent changes."
                      % len(seams.get("clusters") or []))
+
+    if risks:
+        lines.append("Risk flags: " + "; ".join(
+            "%s %s" % (flag.get("status", "UNPROVEN"), flag.get("title", "boundary"))
+            for flag in risks))
+    else:
+        lines.append("Risk flags: none found.")
 
     if report_name:
         lines.append("Full report: %s" % report_name)

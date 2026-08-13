@@ -61,8 +61,8 @@ appear here, open an issue and the example comes out.
 
 ## A note on what these are not
 
-None of these reports says whether the pull request is any good. That is not
-modesty about the analysis, it is the whole design: a reviewer handed a
-conclusion stops reviewing. Each report ends in a checklist of questions the
-reviewer's own context is needed to answer, and precis does not know the answers
-to any of them.
+None of these reports says whether the pull request is any good. That is the
+whole design: Precis explains the intended outcome, scope, composition, and
+hard-to-see relationships, then leaves code inspection and judgement in the
+source host. A report may name a concrete risk boundary, but only with its proof
+state and evidence. It is also allowed to find no risk flags at all.

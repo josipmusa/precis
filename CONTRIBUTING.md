@@ -5,10 +5,9 @@ everything else.
 
 ## The one rule
 
-**precis never reviews code.** No verdicts, no bug reports, no quality opinions, no
-"you should". It reconstructs intent, maps structure, orders reading, and flags what
-deserves attention. The moment output says *whether code is good*, it has stopped being
-precis.
+**precis never replaces code review.** It reconstructs intent, maps structure, explains
+change composition, and reports only concrete risk boundaries with evidence status. It
+does not show code, order a review, track progress, or produce an approval verdict.
 
 If you are adding a feature, ask yourself: does this help a human understand the change,
 or does it tell them what to think about it? Only the first kind gets merged.
@@ -41,9 +40,10 @@ skills/precis/
     └── fixtures/             three worked examples: 3, 13, and 40 files
 ```
 
-The rule that keeps the layers apart: **the analysis writes judgement, and nothing else
-does; the scripts write facts, and nothing else does.** A diff line is never typed by
-hand, at any stage, by anyone. `build_model.py` copies it.
+The rule that keeps the layers apart: **the analysis explains, and scripts establish
+facts.** A diff line is never typed by hand. `build_model.py` reconciles analysis with
+parsed facts, while `render_report.py` strips source bodies and retired review-pass data
+before embedding the presentation model.
 
 ## Rendering a fixture
 

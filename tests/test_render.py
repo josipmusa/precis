@@ -39,7 +39,15 @@ def embedded_json(html):
 
 def test_the_model_survives_the_round_trip(fixture_model, template_text):
     name, model = fixture_model
-    assert json.loads(embedded_json(rendered(model, template_text))) == model
+    assert json.loads(embedded_json(rendered(model, template_text))) == render_report.presentation_model(model)
+
+
+def test_the_html_does_not_embed_code_or_review_state(fixture_model, template_text):
+    name, model = fixture_model
+    public = json.loads(embedded_json(rendered(model, template_text)))
+    assert "review_pass" not in public
+    assert all("lines" not in hunk and "header" not in hunk
+               for hunk in public["hunks"].values())
 
 
 def test_no_raw_angle_bracket_reaches_the_blob(fixture_model, template_text):
@@ -218,13 +226,9 @@ def test_cli_defaults_the_output_beside_the_model(tmp_path):
 
 def test_the_schema_minimal_example_renders(tmp_path, template_text):
     """The floor case: a degraded run still produces a whole page."""
-    from test_fixtures import REFERENCES
-    text = (REFERENCES / "schema.md").read_text(encoding="utf-8")
-    marker = "- A minimal valid report model"
-    block = re.search(r"```json\n(.*?)\n```", text[text.index(marker):], re.S)
-    model = json.loads(block.group(1))
+    model = json.loads((FIXTURES / "small.json").read_text(encoding="utf-8"))
     html = rendered(model, template_text)
-    assert json.loads(embedded_json(html)) == model
+    assert json.loads(embedded_json(html)) == render_report.presentation_model(model)
 
 
 # ------------------------------------------------------ the shape of a page
@@ -351,14 +355,12 @@ def test_a_sticky_line_follows_the_pass(template_text):
         "the sticky line survives onto paper")
 
 
-def test_the_sticky_line_exists_only_over_the_pass(template_text):
-    """One IntersectionObserver on the two pass chapters shows and hides it;
-    nothing else on the page watches the viewport."""
-    assert template_text.count("new IntersectionObserver") == 1
+def test_the_old_pass_is_not_booted(template_text):
+    """The report must not recreate review progress over the source host."""
     boot = re.search(r"function boot\(.*?\n\}\n", template_text, re.S).group(0)
-    assert '"reading", "decide"' in boot
-    assert "isIntersecting" in boot
-    assert "hidden = " in boot, "visibility no longer follows the chapters"
+    assert "passBar" not in boot
+    assert "refreshCount" not in boot
+    assert "IntersectionObserver" not in boot
 
 
 def test_paper_hides_the_controls_and_keeps_the_document(template_text):
@@ -424,15 +426,30 @@ def test_the_treemap_is_gone(template_text):
         assert ghost not in template_text, f"{ghost} survived the redesign"
 
 
-def test_the_page_is_chapters_in_a_fixed_order(template_text):
-    """Behaviour, structure, layer map, reading, decide - built from one list,
-    each rendered only when it has content, numbered without holes."""
+def test_the_page_is_comprehension_chapters_in_a_fixed_order(template_text):
+    """The report explains the change and never renders a parallel review pass."""
     defs = re.search(r"const CHAPTERS = \[(.*?)\n\];", template_text, re.S).group(1)
     ids = re.findall(r'id: "(\w+)"', defs)
-    assert ids == ["behavior", "map", "layers", "reading", "decide"]
+    assert ids == ["scope", "composition", "behavior", "map", "layers",
+                   "risks", "verification", "questions"]
+    assert "reading" not in ids and "decide" not in ids
     body = re.search(r"function buildChapters\(.*?\n\}", template_text, re.S).group(0)
     assert "continue" in body, "an absent chapter no longer closes the numbering gap"
     assert "function areasSection" not in template_text, "the by-area section came back"
+
+
+def test_no_risk_flags_is_explicit_and_not_manufactured(template_text):
+    body = re.search(r"function riskSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "No risk flags found." in body
+    assert "if (!flags.length)" in body
+
+
+def test_the_rendered_chapters_never_call_the_old_review_pass(template_text):
+    defs = re.search(r"const CHAPTERS = \[(.*?)\n\];", template_text, re.S).group(1)
+    assert "readingSection" not in defs
+    assert "decideSection" not in defs
+    layers = re.search(r"function layersSection\(.*?\n\}", template_text, re.S).group(0)
+    assert "skippable" not in layers
 
 
 def test_a_chapter_heading_is_a_kicker_and_a_headline(template_text):
@@ -496,11 +513,11 @@ def test_the_layer_map_is_a_map_not_a_task_list(template_text):
 
 
 def test_a_layer_folds_its_inventory_away(template_text):
-    """The file ledger and the skip groups live one quiet fold under the
-    narrative and the contracts."""
+    """The file ledger is secondary and review choreography stays out."""
     body = re.search(r"function inventoryFold\(.*?\n\}", template_text, re.S).group(0)
     assert 'h("details"' in body
-    assert "filesTable" in body and "skipRow" in body
+    assert "filesTable" in body
+    assert "skipRow" not in body and "skippable" not in body
 
 
 def test_contracts_sit_inside_their_layer(template_text):
@@ -701,13 +718,13 @@ def test_coverage_lives_in_the_footer_with_the_provenance(template_text):
     assert 'cov.tier !== "full"' in mast and "hunks_read" in mast
 
 
-def test_the_triage_sentence_replaced_the_number_and_the_bar(template_text):
-    """One sentence, already interpreted: how big, how much of it is the change,
-    where the behaviour change actually lives, and how long it takes to read."""
+def test_the_triage_sentence_leads_to_change_composition(template_text):
+    """The masthead prioritizes essential-change share over review choreography."""
     body = re.search(r"function triageSentence\(.*?\n\}", template_text, re.S).group(0)
     assert "signal_ratio" in body
-    assert "behaviourFootprint()" in body
-    assert "estimated_minutes" in body
+    assert "composition chapter" in body
+    assert "behaviourFootprint()" not in body
+    assert "estimated_minutes" not in body
     assert "linesBySignificance" not in template_text, "the bar's arithmetic survived it"
 
 

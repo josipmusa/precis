@@ -39,6 +39,8 @@ SOURCE_KINDS = {"github_pr", "gitlab_mr", "git_range", "patch_file"}
 COVERAGE_TIERS = {"full", "core", "summary"}
 SHAPES = {"feature", "bugfix", "refactor", "docs", "chore", "mixed"}
 TEST_STATES = {"yes", "partial", "none", "n/a"}
+RISK_STATES = {"PROVEN", "UNPROVEN"}
+VERIFY_STATES = {"PASS", "FAIL", "NOT_RUN"}
 CONTRACT_KINDS = {"api", "schema", "config", "wire", "flag", "cli"}
 EVIDENCE = {"pr_description", "linked_issue", "commit_messages", "branch_name", "code"}
 DELTA_KINDS = {"scope_creep", "drive_by", "incidental"}
@@ -366,8 +368,8 @@ def _collect_refs(model):
             for i, item in enumerate(node):
                 walk(item, "%s[%d]" % (path, i))
 
-    for section in ("story", "change_map", "contracts", "behavior", "review_pass",
-                    "seams"):
+    for section in ("story", "scope", "composition", "change_map", "contracts",
+                    "behavior", "risk_flags", "verification", "review_pass", "seams"):
         walk(model.get(section), section)
     return refs
 
@@ -841,6 +843,112 @@ def validate(model, label="report") -> list[str]:
             for other in cluster.get("independent_of") or []:
                 if other not in cluster_ids:
                     rep.fail(where, "independent_of references unknown cluster %r" % other)
+
+    # ---- comprehension sections introduced after the review-pass UI
+    scope = model.get("scope")
+    if scope is not None:
+        if not isinstance(scope, dict):
+            rep.fail("scope", "must be an object")
+        else:
+            _text(rep, scope, "contract", "scope", 240)
+            for key in ("delivered", "not_delivered", "extra"):
+                items = scope.get(key)
+                if not isinstance(items, list):
+                    rep.fail("scope", "%s must be an array" % key)
+                    continue
+                for i, item in enumerate(items):
+                    where = "scope.%s[%d]" % (key, i)
+                    if isinstance(item, str):
+                        if not item or len(item) > 140:
+                            rep.fail(where, "must contain 1 to 140 characters")
+                    elif isinstance(item, dict):
+                        _text(rep, item, "item", where, 140)
+                        _text(rep, item, "reason", where, 120, required=False)
+                    else:
+                        rep.fail(where, "must be a string or {item, reason}")
+
+    composition = model.get("composition")
+    if composition is not None:
+        if not isinstance(composition, dict):
+            rep.fail("composition", "must be an object")
+        else:
+            _text(rep, composition, "summary", "composition", 180)
+            counts = []
+            for key in ("essential", "supporting", "mechanical"):
+                _int(rep, composition, key, "composition")
+                value = composition.get(key)
+                if isinstance(value, int) and not isinstance(value, bool):
+                    counts.append(value)
+                    if value < 0:
+                        rep.fail("composition", "%s may not be negative" % key)
+            changed = (stats.get("additions") or 0) + (stats.get("deletions") or 0)
+            if len(counts) == 3 and sum(counts) != changed:
+                rep.fail("composition", "essential + supporting + mechanical is %d; stats count %d changed lines"
+                         % (sum(counts), changed))
+
+    flags = model.get("risk_flags")
+    if flags is not None:
+        if not isinstance(flags, list):
+            rep.fail("risk_flags", "must be an array; an empty array means no risk flags found")
+        else:
+            for i, flag in enumerate(flags):
+                where = "risk_flags[%d]" % i
+                if not isinstance(flag, dict):
+                    rep.fail(where, "must be an object")
+                    continue
+                rep.enum(flag.get("status"), RISK_STATES, where, "status")
+                _text(rep, flag, "title", where, 80)
+                _text(rep, flag, "explanation", where, 240)
+                hunk_ids = flag.get("hunk_ids") or []
+                refs = flag.get("refs") or []
+                if not hunk_ids and not refs:
+                    rep.fail(where, "must point to changed code with hunk_ids or refs")
+                if not isinstance(refs, list):
+                    rep.fail(where, "refs must be an array")
+                else:
+                    for ri, ref in enumerate(refs):
+                        if not isinstance(ref, str) or not REF_RE.match(ref):
+                            rep.fail("%s.refs[%d]" % (where, ri), "must be a path:line reference")
+                evidence = flag.get("evidence")
+                if not isinstance(evidence, dict):
+                    rep.fail(where, "evidence is required and must be an object")
+                else:
+                    _text(rep, evidence, "summary", where + ".evidence", 220)
+                    evidence_refs = evidence.get("refs") or []
+                    if flag.get("status") == "PROVEN" and not evidence_refs:
+                        rep.fail(where + ".evidence", "PROVEN requires a boundary-focused evidence ref")
+                    for ri, ref in enumerate(evidence_refs):
+                        if not isinstance(ref, str) or not REF_RE.match(ref):
+                            rep.fail("%s.evidence.refs[%d]" % (where, ri), "must be a path:line reference")
+
+    verification = model.get("verification")
+    if verification is not None:
+        if not isinstance(verification, dict):
+            rep.fail("verification", "must be an object")
+        else:
+            commands = verification.get("commands")
+            skipped = verification.get("skipped")
+            if not isinstance(commands, list):
+                rep.fail("verification", "commands must be an array")
+                commands = []
+            if not isinstance(skipped, list):
+                rep.fail("verification", "skipped must be an array")
+            for i, command in enumerate(commands):
+                where = "verification.commands[%d]" % i
+                _text(rep, command, "command", where, 240)
+                rep.enum(command.get("status"), VERIFY_STATES, where, "status")
+                _text(rep, command, "output", where, 2000, required=False)
+
+    for key in ("assumptions", "open_questions"):
+        items = model.get(key)
+        if items is None:
+            continue
+        if not isinstance(items, list):
+            rep.fail(key, "must be an array")
+            continue
+        for i, item in enumerate(items):
+            if not isinstance(item, str) or not item or len(item) > 180:
+                rep.fail("%s[%d]" % (key, i), "must contain 1 to 180 characters")
 
     # ---- dangling hunk references, reported with their location
     for where, hid in _collect_refs(model):

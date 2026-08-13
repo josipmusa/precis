@@ -17,11 +17,8 @@ for, using credentials you already had.
 beacons. Everything is inlined, which is checked by a test, so a rendered report opens
 identically with the network off and cannot phone home from inside someone's browser.
 
-**Local storage only.** One key in `localStorage`: which checklist items you have ticked,
-keyed by the head SHA so a reload resumes and a new head starts clean. The read and the
-write are wrapped in a `try`, because browsers deny storage to `file://` pages and the
-report still has to open. Clearing site data clears it. Light or dark follows the system
-preference and is not stored at all. Nothing is stored anywhere else.
+**No browser storage.** The report does not save review state, preferences, or source
+content. Light or dark follows the system preference and is not stored.
 
 ## Untrusted input
 

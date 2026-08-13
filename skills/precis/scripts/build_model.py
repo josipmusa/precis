@@ -106,8 +106,58 @@ def assemble(analysis, pre, generated_at=None):
 
     model["hunks"] = built
     problems += _reconcile(model, pre)
+    _add_compatibility_carrier(model)
     _stamp(model, generated_at)
     return model, problems
+
+
+def _add_compatibility_carrier(model):
+    """Supply the retired 1.x review-pass carrier when new analysis omits it.
+
+    The validator still accepts stored 1.x models during the schema transition,
+    but new analysis should not spend tokens inventing review choreography that
+    is stripped before rendering. This mechanical carrier satisfies old model
+    invariants and is never embedded in the HTML presentation model.
+    """
+    if "review_pass" in model:
+        return
+
+    hunks = model.get("hunks") or {}
+    groups = (model.get("change_map") or {}).get("groups") or []
+    steps = []
+    skipped = []
+    n = 1
+    for group in groups:
+        for entry in group.get("files") or []:
+            ids = [hid for hid in entry.get("hunk_ids") or []
+                   if hid in hunks and not hunks[hid].get("truncated")]
+            if ids:
+                steps.append({
+                    "n": n,
+                    "title": entry["path"][-60:],
+                    "path": entry["path"],
+                    "why": "Compatibility carrier for the 1.x model validator.",
+                    "hunk_ids": ids,
+                    "annotations": [],
+                })
+                n += 1
+            else:
+                skipped.append({
+                    "label": entry["path"][-40:],
+                    "reason": "No complete hunk body is available in the analysis budget.",
+                    "confidence": "high",
+                    "file_count": 1,
+                    "additions": entry.get("additions", 0),
+                    "deletions": entry.get("deletions", 0),
+                    "files": [entry["path"]],
+                    "group_ids": [group["id"]],
+                })
+    model["review_pass"] = {
+        "estimated_minutes": 0,
+        "steps": steps,
+        "checks": [],
+        "skippable": skipped,
+    }
 
 
 def _reconcile(model, pre):
